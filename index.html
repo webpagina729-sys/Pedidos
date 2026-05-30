@@ -568,10 +568,7 @@
       <div class="sidebar-item" data-tab="detodo">
         <span class="icon">🛍️</span> De todo
       </div>
-      <div class="sidebar-section">Sistema</div>
-      <div class="sidebar-item" data-tab="clientes">
-        <span class="icon">👤</span> Por cliente
-      </div>
+
     </div>
 
     <!-- Content -->
@@ -865,7 +862,7 @@
         : currentTab === 'perfumes' ? (p.nicho || 'perfumes') === 'perfumes'
         : currentTab === 'calzados' ? (p.nicho || '') === 'calzados'
         : currentTab === 'detodo' ? (p.nicho || '') === 'detodo'
-        : currentTab === 'clientes' ? true : true;
+        : true;
 
       const matchSearch = !q ||
         apellido.includes(q) || nombre.includes(q) ||
@@ -888,12 +885,6 @@
         <div class="big">📭</div>
         <p>No hay pedidos que coincidan con los filtros.</p>
       </div></td></tr>`;
-      return;
-    }
-
-    // Si estamos en tab "clientes", agrupar por apellido
-    if (currentTab === 'clientes') {
-      renderByCliente(tbody);
       return;
     }
 
