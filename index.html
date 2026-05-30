@@ -670,10 +670,10 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- FIREBASE SCRIPTS -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<!-- FIREBASE SCRIPTS (cdn.jsdelivr.net) -->
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.0/firebase-app-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.0/firebase-firestore-compat.min.js"></script>
 
 <script>
 // ═══════════════════════════════════════
@@ -688,11 +688,7 @@ const firebaseConfig = {
     appId: "1:157263733033:web:a2b8c3d4e5f6g7h8i9j0k1l"
 };
 
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-
-firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+// Init diferido hasta que todos los scripts externos estén cargados
 
 // ═══════════════════════════════════════
 // ESTADO GLOBAL
@@ -759,8 +755,6 @@ function showPanel() {
     document.getElementById('user-badge').classList.add('show');
     document.getElementById('btn-logout').classList.add('show');
 }
-
-checkSession();
 
 // ═══════════════════════════════════════
 // CARGAR TODOS LOS PEDIDOS (todos los revendedores)
@@ -1440,6 +1434,14 @@ function showToast(msg, type) {
     clearTimeout(window._toastTimer);
     window._toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
 }
+
+window.addEventListener('load', function() {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+    checkSession();
+});
 </script>
 
 </body>
