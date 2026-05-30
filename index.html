@@ -43,107 +43,89 @@
             z-index: 100;
             box-shadow: var(--shadow);
         }
-        .header-logo {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--primary);
-            text-decoration: none;
-        }
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .user-badge {
-            font-size: 13px;
-            color: var(--text-light);
-        }
-        .btn-logout {
+        .header-logo { font-size: 18px; font-weight: 700; color: var(--primary); text-decoration: none; }
+        .btn-salir {
             background: transparent;
             border: 1px solid var(--border);
             padding: 6px 14px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 13px;
+            font-family: inherit;
             color: var(--text-light);
             transition: all .2s;
         }
-        .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+        .btn-salir:hover { border-color: var(--danger); color: var(--danger); }
 
-        /* ── LOGIN WALL ── */
+        /* ── LOGIN ── */
         #login-wall {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 80vh;
+            min-height: calc(100vh - 57px);
             padding: 24px;
         }
         .login-card {
             background: var(--surface);
             border-radius: 16px;
             padding: 48px 40px;
-            max-width: 380px;
+            max-width: 360px;
             width: 100%;
             box-shadow: var(--shadow-md);
             text-align: center;
         }
+        .login-icon { font-size: 42px; margin-bottom: 16px; }
         .login-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-        .login-card p { color: var(--text-light); font-size: 14px; margin-bottom: 28px; }
-        .login-form { display: flex; flex-direction: column; gap: 14px; text-align: left; }
-        .login-form label { font-size: 13px; font-weight: 600; color: var(--text-light); }
-        .login-form input {
+        .login-card p  { color: var(--text-light); font-size: 14px; margin-bottom: 28px; }
+        .pass-wrap { position: relative; margin-bottom: 6px; }
+        .pass-input {
             width: 100%;
-            padding: 11px 14px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 12px 44px 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 18px;
             font-family: inherit;
-            margin-top: 4px;
+            letter-spacing: 4px;
+            text-align: center;
             transition: border .2s;
         }
-        .login-form input:focus { outline: none; border-color: var(--primary); }
-        .btn-login {
+        .pass-input:focus { outline: none; border-color: var(--primary); }
+        .pass-input.error { border-color: var(--danger); animation: shake .3s; }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25%      { transform: translateX(-6px); }
+            75%      { transform: translateX(6px); }
+        }
+        .login-error {
+            color: var(--danger);
+            font-size: 13px;
+            font-weight: 600;
+            min-height: 20px;
+            margin-bottom: 14px;
+        }
+        .btn-ingresar {
+            width: 100%;
             background: var(--primary);
             color: #fff;
             border: none;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 13px;
+            border-radius: 10px;
             font-size: 15px;
-            font-weight: 600;
+            font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
-            margin-top: 4px;
             transition: background .2s;
         }
-        .btn-login:hover { background: var(--primary-dark); }
-        .login-error { color: var(--danger); font-size: 13px; display: none; margin-top: -6px; }
+        .btn-ingresar:hover { background: var(--primary-dark); }
 
-        /* ── MAIN CONTENT ── */
+        /* ── MAIN ── */
         #main-content { display: none; }
+        .page-wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+        .page-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .page-subtitle { color: var(--text-light); font-size: 14px; margin-bottom: 28px; }
 
-        .page-wrap {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 28px 20px;
-        }
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-        .page-subtitle {
-            color: var(--text-light);
-            font-size: 14px;
-            margin-bottom: 28px;
-        }
-
-        /* ── CATEGORY TABS ── */
-        .cat-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
+        /* ── TABS ── */
+        .cat-tabs { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
         .cat-tab {
             padding: 10px 22px;
             border-radius: 50px;
@@ -152,6 +134,7 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
+            font-family: inherit;
             color: var(--text-light);
             transition: all .2s;
             display: flex;
@@ -165,21 +148,12 @@
             font-size: 12px;
             font-weight: 700;
         }
-        .cat-tab.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: #fff;
-        }
+        .cat-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
         .cat-tab.active .badge { background: rgba(255,255,255,.25); color: #fff; }
         .cat-tab:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
 
-        /* ── STATS BAR ── */
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-            margin-bottom: 24px;
-        }
+        /* ── STATS ── */
+        .stats-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
         .stat-card {
             background: var(--surface);
             border-radius: var(--radius);
@@ -189,21 +163,17 @@
         }
         .stat-label { font-size: 12px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
         .stat-value { font-size: 26px; font-weight: 700; }
-        .stat-value.green { color: var(--success); }
+        .stat-value.green  { color: var(--success); }
         .stat-value.orange { color: var(--warning); }
 
-        /* ── ORDERS LIST ── */
+        /* ── EMPTY ── */
         .orders-empty {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-light);
-            background: var(--surface);
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
+            text-align: center; padding: 60px 20px; color: var(--text-light);
+            background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
         }
         .orders-empty .icon { font-size: 40px; margin-bottom: 12px; }
-        .orders-empty p { font-size: 15px; }
 
+        /* ── CARD ── */
         .order-card {
             background: var(--surface);
             border-radius: var(--radius);
@@ -214,181 +184,100 @@
             transition: box-shadow .2s;
         }
         .order-card:hover { box-shadow: var(--shadow-md); }
-
         .order-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            cursor: pointer;
-            gap: 12px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px; cursor: pointer; gap: 12px; flex-wrap: wrap;
         }
         .order-header-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-        .order-id { font-size: 12px; font-weight: 700; color: var(--text-light); font-family: monospace; }
+        .order-id   { font-size: 12px; font-weight: 700; color: var(--text-light); font-family: monospace; }
         .order-name { font-size: 15px; font-weight: 600; }
         .order-date { font-size: 12px; color: var(--text-light); }
         .order-total { font-size: 17px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+        .order-toggle { font-size: 18px; color: var(--text-light); transition: transform .2s; }
+        .order-card.expanded .order-toggle { transform: rotate(180deg); }
 
         .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            border-radius: 50px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .03em;
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 12px; border-radius: 50px;
+            font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
         }
         .status-badge.pendiente { background: #fef3c7; color: #92400e; }
         .status-badge.enviado   { background: #d1fae5; color: #065f46; }
-        .status-badge.pagado    { background: #dbeafe; color: #1e40af; }
 
         .cat-badge {
-            padding: 3px 10px;
-            border-radius: 50px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .04em;
+            padding: 3px 10px; border-radius: 50px;
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
         }
         .cat-badge.perfumes_arabes { background: #ede9fe; color: #5b21b6; }
         .cat-badge.de_todo         { background: #fce7f3; color: #9d174d; }
         .cat-badge.calzados        { background: #e0f2fe; color: #0c4a6e; }
+        .cat-badge.sin_categoria   { background: #f3f4f6; color: #6b7280; }
 
-        .order-toggle-icon { font-size: 18px; color: var(--text-light); transition: transform .2s; }
-        .order-card.expanded .order-toggle-icon { transform: rotate(180deg); }
-
-        /* ── ORDER BODY ── */
-        .order-body {
-            display: none;
-            padding: 0 20px 20px;
-            border-top: 1px solid var(--bg);
-        }
+        /* ── BODY ── */
+        .order-body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--bg); }
         .order-card.expanded .order-body { display: block; }
-
-        .order-section-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            color: var(--text-light);
-            margin: 18px 0 10px;
+        .section-title {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .06em; color: var(--text-light); margin: 18px 0 10px;
         }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-        }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 10px; }
         .info-item label { font-size: 11px; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 2px; }
-        .info-item span { font-size: 14px; color: var(--text); }
+        .info-item span  { font-size: 14px; }
 
-        .products-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            margin-top: 4px;
-        }
+        .products-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .products-table th {
-            text-align: left;
-            padding: 8px 10px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .05em;
-            color: var(--text-light);
-            background: var(--bg);
-            border-radius: 6px 6px 0 0;
+            text-align: left; padding: 8px 10px;
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+            color: var(--text-light); background: var(--bg);
         }
-        .products-table td {
-            padding: 9px 10px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
-        }
+        .products-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
         .products-table tr:last-child td { border-bottom: none; }
-        .product-name { font-weight: 600; }
-        .product-qty { background: var(--bg); border-radius: 50px; padding: 2px 10px; font-weight: 700; font-size: 12px; display: inline-block; }
+        .qty-badge { background: var(--bg); border-radius: 50px; padding: 2px 10px; font-weight: 700; font-size: 12px; display: inline-block; }
 
         .order-totals {
-            display: flex;
-            justify-content: flex-end;
-            gap: 24px;
-            margin-top: 14px;
-            padding-top: 14px;
-            border-top: 1px solid var(--border);
-            flex-wrap: wrap;
+            display: flex; justify-content: flex-end; gap: 24px;
+            margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); flex-wrap: wrap;
         }
         .total-item { text-align: right; }
         .total-item label { font-size: 11px; font-weight: 600; color: var(--text-light); display: block; }
-        .total-item span { font-size: 15px; font-weight: 700; }
-        .total-item.highlight span { color: var(--primary); font-size: 18px; }
+        .total-item span  { font-size: 15px; font-weight: 700; }
+        .total-item.big span { color: var(--primary); font-size: 18px; }
 
-        /* ── ACTION BUTTONS ── */
-        .order-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 18px;
-            flex-wrap: wrap;
-        }
+        /* ── ACTIONS ── */
+        .order-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
         .btn-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 9px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--surface);
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            font-family: inherit;
-            color: var(--text);
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 9px 16px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface); cursor: pointer;
+            font-size: 13px; font-weight: 600; font-family: inherit; color: var(--text);
             transition: all .2s;
         }
         .btn-action:hover { border-color: var(--primary); color: var(--primary); background: #f0f4ff; }
-        .btn-action.whatsapp { border-color: #25d366; color: #25d366; }
-        .btn-action.whatsapp:hover { background: #f0fff4; }
-        .btn-action.enviado-btn { border-color: var(--success); color: var(--success); }
-        .btn-action.enviado-btn:hover { background: #f0fdf4; }
-        .btn-action.enviado-btn.done { background: var(--success); color: #fff; border-color: var(--success); }
-        .btn-action.enviado-btn.done:hover { background: #059669; }
+        .btn-action.wa    { border-color: #25d366; color: #25d366; }
+        .btn-action.wa:hover { background: #f0fff4; }
+        .btn-action.env   { border-color: var(--success); color: var(--success); }
+        .btn-action.env:hover { background: #f0fdf4; }
+        .btn-action.env.done { background: var(--success); color: #fff; border-color: var(--success); }
+        .btn-action.env.done:hover { background: #059669; }
 
         /* ── LOADER ── */
-        .loader {
-            text-align: center;
-            padding: 60px;
-            color: var(--text-light);
-        }
-        .loader .spinner {
-            width: 36px;
-            height: 36px;
-            border: 3px solid var(--border);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin .7s linear infinite;
-            margin: 0 auto 14px;
+        .loader { text-align: center; padding: 60px; color: var(--text-light); }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid var(--border); border-top-color: var(--primary);
+            border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 14px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ── TOAST ── */
         .toast {
-            position: fixed;
-            bottom: 28px;
-            right: 28px;
-            background: #1a1a2e;
-            color: #fff;
-            padding: 12px 20px;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
+            position: fixed; bottom: 28px; right: 28px;
+            background: #1a1a2e; color: #fff;
+            padding: 12px 20px; border-radius: 10px;
+            font-size: 14px; font-weight: 600;
             box-shadow: 0 6px 20px rgba(0,0,0,.25);
-            z-index: 9999;
-            opacity: 0;
-            transform: translateY(12px);
-            transition: all .3s;
-            pointer-events: none;
+            z-index: 9999; opacity: 0; transform: translateY(12px);
+            transition: all .3s; pointer-events: none;
         }
         .toast.show { opacity: 1; transform: translateY(0); }
 
@@ -396,500 +285,492 @@
             .stats-bar { grid-template-columns: 1fr 1fr; }
             .order-header { flex-direction: column; align-items: flex-start; }
             .page-title { font-size: 20px; }
+            .login-card { padding: 36px 24px; }
         }
     </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
-    <a href="mayorista.html" class="header-logo">🏪 Revende Ways</a>
-    <div class="header-right">
-        <span class="user-badge" id="user-badge"></span>
-        <button class="btn-logout" id="btn-logout" onclick="logoutAdmin()">Cerrar sesión</button>
-    </div>
+    <span class="header-logo">🏪 Revende Ways — Pedidos</span>
+    <button class="btn-salir" id="btn-salir" onclick="cerrarSesion()" style="display:none">Cerrar sesión</button>
 </div>
 
-<!-- LOGIN WALL -->
+<!-- LOGIN -->
 <div id="login-wall">
     <div class="login-card">
-        <div style="font-size:38px;margin-bottom:14px;">🔐</div>
+        <div class="login-icon">🔐</div>
         <h2>Panel de Pedidos</h2>
-        <p>Acceso exclusivo para administradores</p>
-        <div class="login-form">
-            <label>Email
-                <input type="email" id="adm-email" placeholder="admin@revendeways.com">
-            </label>
-            <label>Contraseña
-                <input type="password" id="adm-pass" placeholder="••••••••">
-            </label>
-            <div class="login-error" id="login-error"></div>
-            <button class="btn-login" onclick="loginAdmin()">Ingresar al Panel</button>
+        <p>Ingresá la contraseña de administrador</p>
+        <div class="pass-wrap">
+            <input class="pass-input" type="password" id="pass-input"
+                   placeholder="••••••••" autocomplete="off"
+                   onkeydown="if(event.key==='Enter') verificarPass()">
         </div>
+        <div class="login-error" id="login-error"></div>
+        <button class="btn-ingresar" onclick="verificarPass()">Ingresar al Panel</button>
     </div>
 </div>
 
-<!-- MAIN CONTENT -->
+<!-- PANEL -->
 <div id="main-content">
     <div class="page-wrap">
         <h1 class="page-title">📦 Panel de Pedidos</h1>
-        <p class="page-subtitle">Todos los pedidos de las 3 líneas de negocio · ordenados por fecha más reciente</p>
+        <p class="page-subtitle">Pedidos de las 3 líneas de negocio · más recientes primero</p>
 
-        <!-- CATEGORY TABS -->
         <div class="cat-tabs">
-            <button class="cat-tab active" data-cat="todos" onclick="setCategory('todos', this)">
+            <button class="cat-tab active" onclick="setCategoria('todos', this)">
                 🛒 Todos <span class="badge" id="badge-todos">0</span>
             </button>
-            <button class="cat-tab" data-cat="perfumes_arabes" onclick="setCategory('perfumes_arabes', this)">
+            <button class="cat-tab" onclick="setCategoria('perfumes_arabes', this)">
                 🌸 Perfumes Árabes <span class="badge" id="badge-perfumes_arabes">0</span>
             </button>
-            <button class="cat-tab" data-cat="de_todo" onclick="setCategory('de_todo', this)">
+            <button class="cat-tab" onclick="setCategoria('de_todo', this)">
                 🛍️ De Todo <span class="badge" id="badge-de_todo">0</span>
             </button>
-            <button class="cat-tab" data-cat="calzados" onclick="setCategory('calzados', this)">
+            <button class="cat-tab" onclick="setCategoria('calzados', this)">
                 👟 Calzados <span class="badge" id="badge-calzados">0</span>
             </button>
         </div>
 
-        <!-- STATS -->
-        <div class="stats-bar" id="stats-bar">
+        <div class="stats-bar">
             <div class="stat-card">
-                <div class="stat-label">Pedidos visibles</div>
+                <div class="stat-label">Pedidos</div>
                 <div class="stat-value" id="stat-total">—</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Pendientes</div>
-                <div class="stat-value orange" id="stat-pendientes">—</div>
+                <div class="stat-value orange" id="stat-pend">—</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Enviados</div>
-                <div class="stat-value green" id="stat-enviados">—</div>
+                <div class="stat-value green" id="stat-env">—</div>
             </div>
         </div>
 
-        <!-- ORDERS -->
-        <div id="orders-container">
-            <div class="loader">
-                <div class="spinner"></div>
-                <p>Cargando pedidos...</p>
-            </div>
+        <div id="orders-wrap">
+            <div class="loader"><div class="spinner"></div><p>Cargando pedidos...</p></div>
         </div>
     </div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- FIREBASE -->
+<!-- FIREBASE (solo Firestore, sin Auth) -->
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
 <script>
-// ═══════════════════════════════════════
-// FIREBASE CONFIG — mismo proyecto
-// ═══════════════════════════════════════
-const firebaseConfig = {
-    apiKey: "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
-    authDomain: "revendeways-auth.firebaseapp.com",
-    projectId: "revendeways-auth",
-    storageBucket: "revendeways-auth.appspot.com",
-    messagingSenderId: "157263733033",
-    appId: "1:157263733033:web:a2b8c3d4e5f6g7h8i9j0k1l"
-};
+// ══════════════════════════════════════════
+//  CONTRASEÑA DE ACCESO
+// ══════════════════════════════════════════
+const ADMIN_PASS = '38916201';
 
+// ══════════════════════════════════════════
+//  FIREBASE — mismo proyecto que mayorista
+// ══════════════════════════════════════════
+const firebaseConfig = {
+    apiKey:            'AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc',
+    authDomain:        'revendeways-auth.firebaseapp.com',
+    projectId:         'revendeways-auth',
+    storageBucket:     'revendeways-auth.appspot.com',
+    messagingSenderId: '157263733033',
+    appId:             '1:157263733033:web:a2b8c3d4e5f6g7h8i9j0k1l'
+};
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const auth = firebase.auth();
 
-// ═══════════════════════════════════════
-// ESTADO
-// ═══════════════════════════════════════
-let allPedidos = [];
-let currentCategory = 'todos';
-const WA_NUMBER = '5491157951826';
+// ══════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════
+let allPedidos     = [];
+let categoriaActual = 'todos';
+const WA = '5491157951826';
 
-// ═══════════════════════════════════════
-// AUTH
-// ═══════════════════════════════════════
-auth.onAuthStateChanged(user => {
-    if (user) {
-        document.getElementById('login-wall').style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
-        document.getElementById('user-badge').textContent = user.email;
-        loadPedidos();
+// ══════════════════════════════════════════
+//  LOGIN CON CONTRASEÑA FIJA
+// ══════════════════════════════════════════
+// Revisar si ya entró en esta sesión
+if (sessionStorage.getItem('rw_admin') === '1') mostrarPanel();
+
+function verificarPass() {
+    const val = document.getElementById('pass-input').value.trim();
+    const inp = document.getElementById('pass-input');
+    const err = document.getElementById('login-error');
+
+    if (val === ADMIN_PASS) {
+        sessionStorage.setItem('rw_admin', '1');
+        err.textContent = '';
+        mostrarPanel();
     } else {
-        document.getElementById('login-wall').style.display = 'flex';
-        document.getElementById('main-content').style.display = 'none';
-    }
-});
-
-async function loginAdmin() {
-    const email = document.getElementById('adm-email').value.trim();
-    const pass  = document.getElementById('adm-pass').value;
-    const err   = document.getElementById('login-error');
-    err.style.display = 'none';
-    if (!email || !pass) { showErr('Completá email y contraseña'); return; }
-    try {
-        await auth.signInWithEmailAndPassword(email, pass);
-    } catch(e) {
-        showErr('Credenciales incorrectas');
-    }
-    function showErr(msg) {
-        err.textContent = msg;
-        err.style.display = 'block';
+        inp.classList.add('error');
+        setTimeout(() => inp.classList.remove('error'), 400);
+        err.textContent = '❌ Contraseña incorrecta';
+        inp.value = '';
+        inp.focus();
     }
 }
 
-function logoutAdmin() { auth.signOut(); }
+function mostrarPanel() {
+    document.getElementById('login-wall').style.display   = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('btn-salir').style.display    = 'inline-block';
+    cargarPedidos();
+}
 
-// Permitir Enter en inputs
-document.getElementById('adm-pass').addEventListener('keydown', e => {
-    if (e.key === 'Enter') loginAdmin();
-});
+function cerrarSesion() {
+    sessionStorage.removeItem('rw_admin');
+    document.getElementById('login-wall').style.display   = 'flex';
+    document.getElementById('main-content').style.display = 'none';
+    document.getElementById('btn-salir').style.display    = 'none';
+    document.getElementById('pass-input').value = '';
+}
 
-// ═══════════════════════════════════════
-// LOAD PEDIDOS desde colección global
-// ═══════════════════════════════════════
-async function loadPedidos() {
-    document.getElementById('orders-container').innerHTML = `
-        <div class="loader"><div class="spinner"></div><p>Cargando pedidos...</p></div>`;
+// ══════════════════════════════════════════
+//  CARGAR PEDIDOS — lee TODAS las subcolecciones
+//  usuarios/{uid}/pedidos  (estructura actual de mayorista.html)
+// ══════════════════════════════════════════
+async function cargarPedidos() {
+    document.getElementById('orders-wrap').innerHTML =
+        '<div class="loader"><div class="spinner"></div><p>Cargando pedidos...</p></div>';
     try {
-        const snap = await db.collection('pedidos')
-            .orderBy('fechaCreacion', 'desc')
-            .get();
+        // Intentar primero colección global 'pedidos' (si fue migrada)
+        // Y también leer desde usuarios/{uid}/pedidos (estructura original)
+        let pedidos = [];
 
-        allPedidos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        updateBadges();
+        // ── Colección global (si existe) ──
+        try {
+            const snapGlobal = await db.collectionGroup('pedidos')
+                .orderBy('fechaCreacion', 'desc')
+                .get();
+            snapGlobal.forEach(doc => {
+                pedidos.push({ id: doc.id, ...doc.data() });
+            });
+        } catch(e) {
+            // collectionGroup puede requerir índice; fallback abajo
+            console.warn('collectionGroup falló, usando fallback:', e.message);
+
+            const snapUsuarios = await db.collection('usuarios').get();
+            for (const uDoc of snapUsuarios.docs) {
+                const snapPed = await db
+                    .collection('usuarios').doc(uDoc.id)
+                    .collection('pedidos')
+                    .orderBy('fechaCreacion', 'desc')
+                    .get();
+                snapPed.forEach(doc => {
+                    pedidos.push({ id: doc.id, uid: uDoc.id, ...doc.data() });
+                });
+            }
+        }
+
+        // Deduplicar por id y ordenar por fecha desc
+        const seen = new Set();
+        allPedidos = pedidos
+            .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
+            .sort((a, b) => {
+                const fa = a.fechaCreacion?.toDate?.() || new Date(a.fechaCreacion || 0);
+                const fb = b.fechaCreacion?.toDate?.() || new Date(b.fechaCreacion || 0);
+                return fb - fa;
+            });
+
+        actualizarBadges();
         renderPedidos();
+
     } catch(e) {
         console.error(e);
-        document.getElementById('orders-container').innerHTML = `
-            <div class="orders-empty">
-                <div class="icon">⚠️</div>
-                <p>Error al cargar pedidos: ${e.message}</p>
-            </div>`;
+        document.getElementById('orders-wrap').innerHTML =
+            `<div class="orders-empty"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
     }
 }
 
-// ═══════════════════════════════════════
-// BADGES
-// ═══════════════════════════════════════
-function updateBadges() {
-    const counts = { todos: allPedidos.length, perfumes_arabes: 0, de_todo: 0, calzados: 0 };
+// ══════════════════════════════════════════
+//  BADGES
+// ══════════════════════════════════════════
+function actualizarBadges() {
+    const c = { todos: allPedidos.length, perfumes_arabes: 0, de_todo: 0, calzados: 0 };
     allPedidos.forEach(p => {
-        const cat = p.categoria || 'sin_categoria';
-        if (counts[cat] !== undefined) counts[cat]++;
+        const cat = p.categoria || '';
+        if (c[cat] !== undefined) c[cat]++;
     });
-    Object.keys(counts).forEach(k => {
+    Object.keys(c).forEach(k => {
         const el = document.getElementById('badge-' + k);
-        if (el) el.textContent = counts[k];
+        if (el) el.textContent = c[k];
     });
 }
 
-// ═══════════════════════════════════════
-// FILTER
-// ═══════════════════════════════════════
-function setCategory(cat, btn) {
-    currentCategory = cat;
+// ══════════════════════════════════════════
+//  FILTRO
+// ══════════════════════════════════════════
+function setCategoria(cat, btn) {
+    categoriaActual = cat;
     document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     renderPedidos();
 }
 
-function getFiltered() {
-    if (currentCategory === 'todos') return allPedidos;
-    return allPedidos.filter(p => (p.categoria || '') === currentCategory);
+function getFiltrados() {
+    if (categoriaActual === 'todos') return allPedidos;
+    return allPedidos.filter(p => (p.categoria || '') === categoriaActual);
 }
 
-// ═══════════════════════════════════════
-// RENDER
-// ═══════════════════════════════════════
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
 function renderPedidos() {
-    const pedidos = getFiltered();
-    const container = document.getElementById('orders-container');
+    const lista = getFiltrados();
+    const wrap  = document.getElementById('orders-wrap');
 
-    // stats
-    const pend = pedidos.filter(p => (p.estado || 'pendiente') !== 'enviado').length;
-    const env  = pedidos.filter(p => p.estado === 'enviado').length;
-    document.getElementById('stat-total').textContent = pedidos.length;
-    document.getElementById('stat-pendientes').textContent = pend;
-    document.getElementById('stat-enviados').textContent = env;
+    const pend = lista.filter(p => p.estado !== 'enviado').length;
+    const env  = lista.filter(p => p.estado === 'enviado').length;
+    document.getElementById('stat-total').textContent = lista.length;
+    document.getElementById('stat-pend').textContent  = pend;
+    document.getElementById('stat-env').textContent   = env;
 
-    if (pedidos.length === 0) {
-        container.innerHTML = `
-            <div class="orders-empty">
-                <div class="icon">📭</div>
-                <p>No hay pedidos en esta categoría todavía.</p>
-            </div>`;
+    if (!lista.length) {
+        wrap.innerHTML = `<div class="orders-empty"><div class="icon">📭</div>
+            <p>No hay pedidos en esta categoría todavía.</p></div>`;
         return;
     }
-
-    container.innerHTML = pedidos.map(p => renderCard(p)).join('');
+    wrap.innerHTML = lista.map(renderCard).join('');
 }
 
-function fmtDate(ts) {
+function $m(n) { return '$' + Number(n || 0).toLocaleString('es-AR'); }
+
+function $fecha(ts) {
     if (!ts) return '—';
     const d = ts.toDate ? ts.toDate() : new Date(ts);
     return d.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
-function fmtMoney(n) {
-    return '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 });
-}
-
 function catLabel(cat) {
-    const map = { perfumes_arabes: 'Perfumes Árabes', de_todo: 'De Todo', calzados: 'Calzados' };
-    return map[cat] || cat || 'Sin categoría';
+    return { perfumes_arabes:'Perfumes Árabes', de_todo:'De Todo', calzados:'Calzados' }[cat] || (cat || 'Sin categoría');
 }
 
 function renderCard(p) {
-    const nombre = p.nombre || (p.cliente ? `${p.cliente.nombre || ''} ${p.cliente.apellido || ''}`.trim() : '') || p.email || '—';
-    const email  = p.email || p.cliente?.email || '—';
-    const tel    = p.telefono || p.cliente?.telefono || '—';
-    const dir    = p.direccion || (p.cliente ? `${p.cliente.direccion || ''}, ${p.cliente.ciudad || ''}, ${p.cliente.provincia || ''}`.replace(/^, |, $/g,'') : '') || '—';
-    const cod    = p.codigoRevendedor || p.codigoVendedor || '—';
-    const estado = p.estado || 'pendiente';
-    const cat    = p.categoria || '';
-    const productos = p.productos || p.items || [];
-    const total  = p.total || p.totalInversion || 0;
-    const subtotal = p.subtotal || total;
-    const envio  = p.envio || 0;
-    const payId  = p.paymentId || '—';
-    const payStatus = p.paymentStatus || '—';
+    // Compatibilidad con ambas estructuras de datos
+    const cl      = p.cliente || {};
+    const nombre  = p.nombre  || (`${cl.nombre||''} ${cl.apellido||''}`).trim() || p.email || '—';
+    const email   = p.email   || cl.email   || '—';
+    const tel     = p.telefono|| cl.telefono|| '—';
+    const dir     = p.direccion || [`${cl.direccion||''}`, `${cl.ciudad||''} ${cl.cp||''}`, `${cl.provincia||''}`].filter(Boolean).join(', ') || '—';
+    const cod     = p.codigoRevendedor || p.codigoVendedor || cl.codigoRevendedor || '—';
+    const estado  = p.estado  || 'pendiente';
+    const cat     = p.categoria || 'sin_categoria';
+    const prods   = p.productos || p.items || [];
+    const total   = p.total   || p.totalInversion || p.totalFinal || 0;
+    const subtot  = p.subtotal|| total;
+    const envio   = p.envio   || 0;
+    const payId   = p.paymentId || '—';
+    const env     = estado === 'enviado';
+    const idCorto = p.id.slice(-8).toUpperCase();
 
-    const productosRows = productos.map(pr => {
-        const nombre = pr.nombre || pr.title || '—';
-        const cant   = pr.cantidad || pr.quantity || 1;
-        const precio = pr.precio || pr.unit_price || 0;
-        const subtot = pr.subtotal || (precio * cant);
+    const filas = prods.map(pr => {
+        const pNom  = pr.nombre || pr.title || '—';
+        const pCant = pr.cantidad || pr.quantity || 1;
+        const pPre  = pr.precio  || pr.unit_price || 0;
+        const pSub  = pr.subtotal || (pPre * pCant);
         return `<tr>
-            <td class="product-name">${nombre}</td>
-            <td><span class="product-qty">×${cant}</span></td>
-            <td style="text-align:right">${fmtMoney(precio)}</td>
-            <td style="text-align:right;font-weight:600">${fmtMoney(subtot)}</td>
+            <td style="font-weight:600">${pNom}</td>
+            <td><span class="qty-badge">×${pCant}</span></td>
+            <td style="text-align:right">${$m(pPre)}</td>
+            <td style="text-align:right;font-weight:700">${$m(pSub)}</td>
         </tr>`;
     }).join('');
-
-    const enviado = estado === 'enviado';
 
     return `
     <div class="order-card" id="card-${p.id}">
         <div class="order-header" onclick="toggleCard('${p.id}')">
             <div class="order-header-left">
                 <div>
-                    <div class="order-id">#${p.id.slice(-8).toUpperCase()}</div>
+                    <div class="order-id">#${idCorto}</div>
                     <div class="order-name">${nombre}</div>
-                    <div class="order-date">📅 ${fmtDate(p.fechaCreacion)}</div>
+                    <div class="order-date">📅 ${$fecha(p.fechaCreacion)}</div>
                 </div>
                 <span class="cat-badge ${cat}">${catLabel(cat)}</span>
-                <span class="status-badge ${estado}">${estado === 'enviado' ? '✅ Enviado' : '⏳ Pendiente'}</span>
+                <span class="status-badge ${estado}">${env ? '✅ Enviado' : '⏳ Pendiente'}</span>
             </div>
             <div style="display:flex;align-items:center;gap:14px">
-                <div class="order-total">${fmtMoney(total)}</div>
-                <span class="order-toggle-icon">▾</span>
+                <div class="order-total">${$m(total)}</div>
+                <span class="order-toggle">▾</span>
             </div>
         </div>
 
         <div class="order-body">
-            <div class="order-section-title">👤 Datos del cliente</div>
+            <div class="section-title">👤 Datos del cliente</div>
             <div class="info-grid">
                 <div class="info-item"><label>Nombre</label><span>${nombre}</span></div>
                 <div class="info-item"><label>Email</label><span>${email}</span></div>
                 <div class="info-item"><label>Teléfono</label><span>${tel}</span></div>
                 <div class="info-item"><label>Dirección</label><span>${dir}</span></div>
-                <div class="info-item"><label>Código Revendedor</label><span>${cod}</span></div>
-                <div class="info-item"><label>Payment ID</label><span style="font-family:monospace;font-size:12px">${payId}</span></div>
-                <div class="info-item"><label>Estado Pago</label><span>${payStatus}</span></div>
+                <div class="info-item"><label>Cód. Revendedor</label><span>${cod}</span></div>
+                <div class="info-item"><label>Payment ID</label><span style="font-size:12px;font-family:monospace">${payId}</span></div>
             </div>
 
-            <div class="order-section-title">🛒 Productos</div>
+            <div class="section-title">🛒 Productos</div>
             <table class="products-table">
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Cant.</th>
-                        <th style="text-align:right">Precio Unit.</th>
-                        <th style="text-align:right">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>${productosRows}</tbody>
+                <thead><tr>
+                    <th>Producto</th><th>Cant.</th>
+                    <th style="text-align:right">Precio</th>
+                    <th style="text-align:right">Subtotal</th>
+                </tr></thead>
+                <tbody>${filas}</tbody>
             </table>
 
             <div class="order-totals">
-                <div class="total-item"><label>Subtotal</label><span>${fmtMoney(subtotal)}</span></div>
-                <div class="total-item"><label>Envío</label><span>${fmtMoney(envio)}</span></div>
-                <div class="total-item highlight"><label>TOTAL</label><span>${fmtMoney(total)}</span></div>
+                <div class="total-item"><label>Subtotal</label><span>${$m(subtot)}</span></div>
+                <div class="total-item"><label>Envío</label><span>${$m(envio)}</span></div>
+                <div class="total-item big"><label>TOTAL</label><span>${$m(total)}</span></div>
             </div>
 
             <div class="order-actions">
                 <button class="btn-action" onclick="copiarPedido('${p.id}')">📋 Copiar Pedido</button>
-                <button class="btn-action whatsapp" onclick="enviarWhatsApp('${p.id}')">💬 Enviar por WhatsApp</button>
-                <button class="btn-action enviado-btn ${enviado ? 'done' : ''}" id="btn-env-${p.id}" onclick="marcarEnviado('${p.id}')">
-                    ${enviado ? '✅ Marcado como Enviado' : '📦 Marcar como Enviado'}
+                <button class="btn-action wa" onclick="enviarWA('${p.id}')">💬 WhatsApp</button>
+                <button class="btn-action env ${env ? 'done' : ''}" id="benv-${p.id}" onclick="marcarEnviado('${p.id}')">
+                    ${env ? '✅ Enviado' : '📦 Marcar Enviado'}
                 </button>
             </div>
         </div>
     </div>`;
 }
 
-// ═══════════════════════════════════════
-// TOGGLE CARD
-// ═══════════════════════════════════════
+// ══════════════════════════════════════════
+//  TOGGLE
+// ══════════════════════════════════════════
 function toggleCard(id) {
-    const card = document.getElementById('card-' + id);
-    card.classList.toggle('expanded');
+    document.getElementById('card-' + id).classList.toggle('expanded');
 }
 
-// ═══════════════════════════════════════
-// BUILD PEDIDO TEXT
-// ═══════════════════════════════════════
-function buildPedidoText(pedidoId) {
-    const p = allPedidos.find(x => x.id === pedidoId);
+// ══════════════════════════════════════════
+//  TEXTO DEL PEDIDO
+// ══════════════════════════════════════════
+function textoPedido(id) {
+    const p    = allPedidos.find(x => x.id === id);
     if (!p) return '';
+    const cl   = p.cliente || {};
+    const nom  = p.nombre || (`${cl.nombre||''} ${cl.apellido||''}`).trim() || p.email || '—';
+    const tel  = p.telefono || cl.telefono || '—';
+    const dir  = p.direccion || [`${cl.direccion||''}`, `${cl.ciudad||''} ${cl.cp||''}`, `${cl.provincia||''}`].filter(Boolean).join(', ') || '—';
+    const cod  = p.codigoRevendedor || p.codigoVendedor || '—';
+    const prods = p.productos || p.items || [];
+    const total = p.total || p.totalInversion || 0;
 
-    const nombre   = p.nombre || (p.cliente ? `${p.cliente.nombre || ''} ${p.cliente.apellido || ''}`.trim() : '') || p.email || '—';
-    const email    = p.email || p.cliente?.email || '—';
-    const tel      = p.telefono || p.cliente?.telefono || '—';
-    const dir      = p.direccion || (p.cliente ? `${p.cliente.direccion || ''}, ${p.cliente.ciudad || ''} ${p.cliente.cp || ''}, ${p.cliente.provincia || ''}` : '') || '—';
-    const cod      = p.codigoRevendedor || p.codigoVendedor || '—';
-    const cat      = catLabel(p.categoria || '');
-    const fecha    = fmtDate(p.fechaCreacion);
-    const productos = p.productos || p.items || [];
-    const total    = p.total || p.totalInversion || 0;
-    const envio    = p.envio || 0;
-
-    const productosLines = productos.map(pr => {
-        const nombre = pr.nombre || pr.title || '—';
-        const cant   = pr.cantidad || pr.quantity || 1;
-        const precio = pr.precio || pr.unit_price || 0;
-        const sub    = pr.subtotal || (precio * cant);
-        return `  • ${nombre}\n    Cantidad: ${cant} | Precio: ${fmtMoney(precio)} | Subtotal: ${fmtMoney(sub)}`;
+    const lineas = prods.map(pr => {
+        const pNom  = pr.nombre || pr.title || '—';
+        const pCant = pr.cantidad || pr.quantity || 1;
+        const pPre  = pr.precio || pr.unit_price || 0;
+        return `  • ${pNom}\n    Cantidad: ${pCant}  |  Precio: ${$m(pPre)}  |  Subtotal: ${$m(pPre * pCant)}`;
     }).join('\n');
 
     return `══════════════════════════
-📦 PEDIDO #${pedidoId.slice(-8).toUpperCase()}
+📦 PEDIDO #${id.slice(-8).toUpperCase()}
 ══════════════════════════
-🗓 Fecha: ${fecha}
-🏷 Categoría: ${cat}
+📅 Fecha: ${$fecha(p.fechaCreacion)}
+🏷 Categoría: ${catLabel(p.categoria || '')}
 📌 Estado: ${(p.estado || 'pendiente').toUpperCase()}
 
 👤 CLIENTE
-Nombre: ${nombre}
-Email: ${email}
+Nombre: ${nom}
 Teléfono: ${tel}
 Dirección: ${dir}
 Código Revendedor: ${cod}
 
 🛒 PRODUCTOS
-${productosLines}
+${lineas}
 
-💰 TOTALES
-Subtotal: ${fmtMoney(p.subtotal || total)}
-Envío: ${fmtMoney(envio)}
-TOTAL: ${fmtMoney(total)}
+💰 TOTAL: ${$m(total)}
 ══════════════════════════`;
 }
 
-// ═══════════════════════════════════════
-// COPY
-// ═══════════════════════════════════════
+// ══════════════════════════════════════════
+//  COPIAR
+// ══════════════════════════════════════════
 function copiarPedido(id) {
-    const text = buildPedidoText(id);
-    navigator.clipboard.writeText(text)
-        .then(() => showToast('✅ Pedido copiado al portapapeles'))
+    const txt = textoPedido(id);
+    navigator.clipboard.writeText(txt)
+        .then(() => toast('✅ Pedido copiado'))
         .catch(() => {
-            // fallback
             const ta = document.createElement('textarea');
-            ta.value = text;
+            ta.value = txt;
             document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
+            ta.select(); document.execCommand('copy');
             document.body.removeChild(ta);
-            showToast('✅ Pedido copiado al portapapeles');
+            toast('✅ Pedido copiado');
         });
 }
 
-// ═══════════════════════════════════════
-// WHATSAPP
-// ═══════════════════════════════════════
-function enviarWhatsApp(id) {
-    const text = buildPedidoText(id);
-    const url  = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+// ══════════════════════════════════════════
+//  WHATSAPP
+// ══════════════════════════════════════════
+function enviarWA(id) {
+    window.open(`https://wa.me/${WA}?text=${encodeURIComponent(textoPedido(id))}`, '_blank');
 }
 
-// ═══════════════════════════════════════
-// MARCAR ENVIADO
-// ═══════════════════════════════════════
+// ══════════════════════════════════════════
+//  MARCAR ENVIADO
+// ══════════════════════════════════════════
 async function marcarEnviado(id) {
-    const btn = document.getElementById('btn-env-' + id);
     const p   = allPedidos.find(x => x.id === id);
-    if (!p) return;
+    const btn = document.getElementById('benv-' + id);
+    if (!p || !btn) return;
 
-    if (p.estado === 'enviado') {
-        // desmarcar
-        btn.disabled = true;
-        try {
-            await db.collection('pedidos').doc(id).update({ estado: 'pendiente' });
-            p.estado = 'pendiente';
-            btn.className = 'btn-action enviado-btn';
-            btn.textContent = '📦 Marcar como Enviado';
-            // update badge on card
-            const card = document.getElementById('card-' + id);
-            card.querySelector('.status-badge').className = 'status-badge pendiente';
-            card.querySelector('.status-badge').textContent = '⏳ Pendiente';
-            updateBadges();
-            renderStats();
-            showToast('↩️ Pedido vuelto a pendiente');
-        } catch(e) { showToast('❌ Error: ' + e.message); }
-        btn.disabled = false;
-        return;
-    }
-
+    const nuevoEstado = p.estado === 'enviado' ? 'pendiente' : 'enviado';
     btn.disabled = true;
     btn.textContent = 'Guardando...';
+
     try {
-        await db.collection('pedidos').doc(id).update({
-            estado: 'enviado',
-            fechaEnvio: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        p.estado = 'enviado';
-        btn.className = 'btn-action enviado-btn done';
-        btn.textContent = '✅ Marcado como Enviado';
-        // update badge on card
+        // Intentar actualizar en colección global primero
+        const updateData = { estado: nuevoEstado };
+        if (nuevoEstado === 'enviado') updateData.fechaEnvio = firebase.firestore.FieldValue.serverTimestamp();
+
+        // Buscar y actualizar en usuarios/{uid}/pedidos
+        const uid = p.uid;
+        if (uid) {
+            await db.collection('usuarios').doc(uid).collection('pedidos').doc(id).update(updateData);
+        }
+        // También actualizar en colección global si existe
+        try { await db.collection('pedidos').doc(id).update(updateData); } catch(e) {}
+
+        p.estado = nuevoEstado;
         const card = document.getElementById('card-' + id);
-        card.querySelector('.status-badge').className = 'status-badge enviado';
-        card.querySelector('.status-badge').textContent = '✅ Enviado';
-        updateBadges();
+        const sb   = card.querySelector('.status-badge');
+
+        if (nuevoEstado === 'enviado') {
+            btn.className = 'btn-action env done';
+            btn.textContent = '✅ Enviado';
+            sb.className = 'status-badge enviado';
+            sb.textContent = '✅ Enviado';
+            toast('✅ Pedido marcado como enviado');
+        } else {
+            btn.className = 'btn-action env';
+            btn.textContent = '📦 Marcar Enviado';
+            sb.className = 'status-badge pendiente';
+            sb.textContent = '⏳ Pendiente';
+            toast('↩️ Pedido vuelto a pendiente');
+        }
+        actualizarBadges();
         renderStats();
-        showToast('✅ Pedido marcado como enviado');
     } catch(e) {
-        showToast('❌ Error: ' + e.message);
-        btn.textContent = '📦 Marcar como Enviado';
+        toast('❌ Error: ' + e.message);
+        btn.textContent = p.estado === 'enviado' ? '✅ Enviado' : '📦 Marcar Enviado';
     }
     btn.disabled = false;
 }
 
 function renderStats() {
-    const pedidos = getFiltered();
-    const pend = pedidos.filter(p => (p.estado || 'pendiente') !== 'enviado').length;
-    const env  = pedidos.filter(p => p.estado === 'enviado').length;
-    document.getElementById('stat-total').textContent = pedidos.length;
-    document.getElementById('stat-pendientes').textContent = pend;
-    document.getElementById('stat-enviados').textContent = env;
+    const lista = getFiltrados();
+    document.getElementById('stat-total').textContent = lista.length;
+    document.getElementById('stat-pend').textContent  = lista.filter(p => p.estado !== 'enviado').length;
+    document.getElementById('stat-env').textContent   = lista.filter(p => p.estado === 'enviado').length;
 }
 
-// ═══════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════
-let toastTimer;
-function showToast(msg) {
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let _tt;
+function toast(msg) {
     const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), 3000);
 }
 </script>
 </body>
