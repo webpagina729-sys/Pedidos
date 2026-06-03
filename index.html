@@ -645,9 +645,14 @@ function showMain() {
 
 // ═══════════════════════════════════════════════════════════
 // CARGA PEDIDOS
+// — Fuente 1: Worker  → colección raíz  pedidos/{pedidoId}
+//             campos: pedidoId, estadoPago, cliente, productos, total,
+//                     codigoVendedor, uid, fecha
+// — Fuente 2: Firestore SDK → usuarios/{uid}/pedidos/{id}
+//             campos: estado, items, cliente/envio, fechaCreacion,
+//                     codigoVendedor, totalFinal, etc.
 // ═══════════════════════════════════════════════════════════
 async function load() {
-    // Reset listas a loader
     ['perfumes','detodo','calzados'].forEach(k => {
         document.getElementById('list-'+k).innerHTML =
             '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
@@ -655,77 +660,109 @@ async function load() {
 
     try {
         pedidos = [];
+        // Mapa para deduplicar: clave = pedidoId normalizado
+        const seen = new Set();
 
-        // — Firestore: usuarios/{uid}/pedidos —
-        const usersSnap = await db.collection('usuarios').get();
-        const jobs = [];
-        usersSnap.forEach(uDoc => {
-            const ud = uDoc.data();
-            jobs.push(
-                db.collection('usuarios').doc(uDoc.id)
-                  .collection('pedidos').orderBy('fechaCreacion','desc').get()
-                  .then(snap => {
-                      snap.forEach(pDoc => {
-                          pedidos.push({
-                              _src:   'fb',
-                              id:     pDoc.id,
-                              _uid:   uDoc.id,
-                              _vName: ud.nombre || ud.email || uDoc.id,
-                              _vCode: ud.codigoVendedor || '',
-                              ...pDoc.data()
-                          });
-                      });
-                  }).catch(()=>{})
-            );
-        });
-        await Promise.all(jobs);
-
-        // — Worker colección raíz —
+        // ── FUENTE 1: Worker /api/pedidos (colección raíz Firestore) ──
+        // Esta es la fuente PRINCIPAL porque el Worker es quien crea
+        // el pedido cuando el usuario aprieta "Comprar".
         try {
             const wRes = await fetch(WORKER + '/api/pedidos');
             if (wRes.ok) {
                 const wData = await wRes.json();
                 (wData.pedidos || []).forEach(p => {
-                    if (pedidos.some(x => x.id === p.pedidoId)) return;
+                    const id = p.pedidoId || p.id;
+                    if (!id || seen.has(id)) return;
+                    seen.add(id);
+
+                    // estadoPago: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
+                    // lo normalizamos a estado: 'pendiente' | 'pagado' | 'cancelado'
+                    const ep = (p.estadoPago || '').toUpperCase();
+                    const estado = ep === 'APROBADO' ? 'pagado'
+                                 : ep === 'RECHAZADO' ? 'cancelado'
+                                 : 'pendiente';
+
+                    // Nombre visible del vendedor
+                    const vName = p.codigoVendedor
+                        ? ('Vendedor ' + p.codigoVendedor)
+                        : (p.cliente?.nombre || 'Cliente web');
+
                     pedidos.push({
-                        _src:    'worker',
-                        id:      p.pedidoId || p.id || ('W-'+Date.now()),
-                        _uid:    p.uid || 'worker',
-                        _vName:  p.codigoVendedor ? 'Vendedor' : 'Web',
-                        _vCode:  p.codigoVendedor || '',
+                        _src:   'worker',
+                        id,
+                        _uid:   p.uid || id,          // para eliminar
+                        _vName: vName,
+                        _vCode: p.codigoVendedor || '',
                         codigoVendedor: p.codigoVendedor || '',
+                        estado,
                         items: (p.productos || []).map(pr => ({
-                            nombre:   pr.nombre || pr.title,
-                            cantidad: pr.cantidad || pr.quantity || 1,
-                            precio:   pr.precio  || pr.unit_price || 0
+                            nombre:   pr.nombre || pr.title  || '—',
+                            cantidad: Number(pr.cantidad || pr.quantity || 1),
+                            precio:   Number(pr.precio   || pr.unit_price || 0)
                         })),
-                        totalInversion: p.total || 0,
-                        totalGanancia:  0,
-                        totalFinal:     p.total || 0,
-                        estado: p.estadoPago === 'APROBADO' ? 'pagado' : 'pendiente',
-                        fechaCreacion: { seconds: Math.floor((p.fecha || Date.now()) / 1000) },
-                        envio: p.cliente ? {
-                            nombre:    p.cliente.nombre    || '',
-                            apellido:  '',
-                            email:     p.cliente.email     || '',
-                            telefono:  p.cliente.telefono  || '',
-                            direccion: p.cliente.direccion || '',
-                            ciudad: '', provincia: '', cp: ''
-                        } : null
+                        totalFinal:     Number(p.total || 0),
+                        totalInversion: Number(p.total || 0),
+                        // fechaCreacion compatible con el resto del código
+                        fechaCreacion: { seconds: Math.floor(Number(p.fecha || Date.now()) / 1000) },
+                        // datos de envío: el Worker guarda en "cliente"
+                        cliente: p.cliente || null,
+                        envio:   p.cliente || null,
+                        nicho:   p.nicho   || null,
                     });
                 });
             }
-        } catch(_) {}
+        } catch(we) {
+            console.warn('Worker /api/pedidos no disponible:', we.message);
+        }
+
+        // ── FUENTE 2: Firestore SDK → usuarios/{uid}/pedidos ──
+        // Pedidos guardados directamente desde el index (sin pasar por Worker).
+        // Solo agregamos los que NO vinieron ya del Worker.
+        try {
+            const usersSnap = await db.collection('usuarios').get();
+            const jobs = [];
+            usersSnap.forEach(uDoc => {
+                const ud = uDoc.data();
+                jobs.push(
+                    db.collection('usuarios').doc(uDoc.id)
+                      .collection('pedidos').orderBy('fechaCreacion','desc').get()
+                      .then(snap => {
+                          snap.forEach(pDoc => {
+                              const id = pDoc.id;
+                              if (seen.has(id)) return; // ya vino del Worker
+                              seen.add(id);
+
+                              const data = pDoc.data();
+                              // estado puede ser 'pendiente'/'pagado'/'cancelado' (minúscula)
+                              // o en algunos casos undefined → asumir pendiente
+                              const estado = (data.estado || 'pendiente').toLowerCase();
+
+                              pedidos.push({
+                                  _src:   'fb',
+                                  id,
+                                  _uid:   uDoc.id,
+                                  _vName: ud.nombre || ud.email || uDoc.id,
+                                  _vCode: ud.codigoVendedor || '',
+                                  ...data,
+                                  estado,
+                              });
+                          });
+                      }).catch(()=>{})
+                );
+            });
+            await Promise.all(jobs);
+        } catch(fe) {
+            console.warn('Firestore SDK error:', fe.message);
+        }
 
         pedidos.sort((a,b)=>(b.fechaCreacion?.seconds||0)-(a.fechaCreacion?.seconds||0));
 
-        const tot = pedidos.length;
+        const tot  = pedidos.length;
+        const pend = pedidos.filter(p=>p.estado==='pendiente').length;
+        const apro = pedidos.filter(p=>p.estado==='pagado').length;
+
         document.getElementById('count-lbl').textContent =
             tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
-
-        // Actualizar contadores de status
-        const pend = pedidos.filter(p=>(p.estado||'pendiente')==='pendiente').length;
-        const apro = pedidos.filter(p=>(p.estado||'pendiente')==='pagado').length;
         document.getElementById('scnt-pendiente').textContent = pend;
         document.getElementById('scnt-pagado').textContent    = apro;
 
