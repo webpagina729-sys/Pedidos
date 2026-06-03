@@ -1996,7 +1996,7 @@
             .revend-section-inner img { max-width: 100%; height: auto; margin-bottom: 8px !important; }
             .revend-title { font-size: 13px; }
             .revend-subtitle { font-size: 13px; margin-bottom: 16px; }
-            .revend-btn { font-size: 12px; padding: 10px 16px; letter-spacing: 0px; line-height: 1.2; white-space: nowrap; text-align: center; }\n            .nicho-footer { flex-direction: column; gap: 12px; }\n            .nicho-badge { min-width: auto; width: 100%; }\n            .nicho-button { width: 100%; }\n            .carrusel-container { height: 100px; }\n            .revend-section-inner { gap: 16px; }
+            .revend-btn { font-size: 12px; padding: 10px 16px; letter-spacing: 0px; line-height: 1.2; white-space: nowrap; text-align: center; }\n            .nicho-footer { flex-direction: column; gap: 12px; }\n            .nicho-badge { min-width: auto; width: 100%; }\n            .nicho-button { width: 100%; }\n            .carrusel-container { height: 250px; }\n            .revend-section-inner { gap: 16px; }
             .final-footer { padding: 30px 8px; }
             .final-footer-inner { margin: 0 8px; }
             .final-footer-title { line-height: 1.3; font-size: 11px; word-break: break-word; text-align: left !important; max-width: 340px; }
@@ -2437,7 +2437,7 @@
         .carrusel-container {
             position: relative;
             width: 100%;
-            height: 120px;
+            height: 350px;
             margin-bottom: 24px;
             border-radius: 8px;
             overflow: hidden;
@@ -2784,7 +2784,7 @@
             <div class="header-actions">
                 <button class="login-btn" onclick="abrirLogin()">Iniciar sesión</button>
                 <button class="cart-btn" onclick="toggleCart()">
-                    🛒
+                    ☑️
                     <span class="cart-count" id="cart-count">0</span>
                 </button>
             </div>
@@ -2808,12 +2808,12 @@
     <section class="banner">
         <div class="banner-inner">
             <h1 class="banner-title">Revende Ways</h1>
-            <p class="banner-subtitle">Revende con nosotros. Te damos tu tienda lista para comenzar con +250 productos.</p>
-            <div class="banner-badge">📦 Pedido mínimo $150.000 - Precio solo para revendedores</div>
+            <p class="banner-subtitle">Revende con nosotros. Te damos tu tienda lista para comenzar con +500 productos.</p>
+            <div class="banner-badge">📦 Pedido mínimo en la categoría- Precio solo para revendedores</div>
         </div>
     </section>
 
-    <!-- NUEVA SECCIÓN: ELEGÍ TU NICHO IDEAL -->
+    <!-- NUEVA SECCIÓN: ELEGÍ TU TIENDA IDEAL -->
     <section class="nichos-section" id="nichos-section">
         <div class="nichos-section-inner">
             <h2 class="nichos-title">Elegí tu tienda ideal</h2>
@@ -2836,7 +2836,7 @@
                 <!-- BADGE + BOTÓN -->
                 <div class="nicho-footer">
                     <div class="nicho-badge">💰 Monto mínimo: $150.000</div>
-                    <button class="nicho-button" onclick="abrirModalCodigo()">Comenzar próximo pedido en este nicho</button>
+                    <button class="nicho-button" onclick="abrirModalCodigo()">Comenzar próximo pedido en este lugar</button>
                 </div>
             </div>
 
@@ -2850,7 +2850,7 @@
                 <!-- BADGE + BOTÓN -->
                 <div class="nicho-footer">
                     <div class="nicho-badge">💰 Monto mínimo: $200.000</div>
-                    <button class="nicho-button" onclick="abrirModalProximamente('De Todo')">Comenzar próximo pedido en este nicho</button>
+                    <button class="nicho-button" onclick="abrirModalProximamente('De Todo')">Comenzar próximo pedido en este lugar</button>
                 </div>
             </div>
 
@@ -2872,7 +2872,7 @@
                 <!-- BADGE + BOTÓN -->
                 <div class="nicho-footer">
                     <div class="nicho-badge">💰 Monto mínimo: 12 productos</div>
-                    <button class="nicho-button" onclick="abrirModalCodigoCalzados()">Comenzar próximo pedido en este nicho</button>
+                    <button class="nicho-button" onclick="abrirModalCodigoCalzados()">Comenzar próximo pedido en este lugar</button>
                 </div>
             </div>
         </div>
@@ -2973,41 +2973,44 @@
         </div>
     </div>
 
-    <!-- MODAL DETALLES -->
+    <!-- MODAL DETALLES PERFUMES -->
     <div class="modal-details" id="modal-details" onclick="closeDetailsIfClickBackground(event)">
         <div class="modal-details-content">
-            <button class="modal-details-close" onclick="closeDetails()">✕</button>
-            <div class="modal-details-header">
-                <div class="modal-details-image" id="modal-details-image-container" onclick="openZoomFromDetails()">
-                    <img id="modal-details-image" src="" alt="Producto">
+            <div style="width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center;">
+                <div style="width: 100%; margin-bottom: 20px;">
+                    <img id="modal-details-image" src="" alt="Producto" style="width: 100%; border-radius: 8px; object-fit: cover;">
                 </div>
-                <div class="modal-details-title">
-                    <div class="modal-details-name" id="modal-details-name"></div>
-                    <div class="modal-details-price">
-                        <div class="price-current" id="modal-details-price"></div>
-                        <div class="price-original" id="modal-details-price-original"></div>
+                <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                    <div class="modal-details-name" id="modal-details-name" style="font-size: 24px; font-weight: 600; margin-bottom: 15px; color: var(--text); width: 100%;"></div>
+                    <div class="modal-details-price" style="margin-bottom: 20px; width: 100%;">
+                        <div class="price-current" id="modal-details-price" style="font-size: 28px; font-weight: 700; color: var(--primary); margin-bottom: 5px;"></div>
+                        <div class="price-original" id="modal-details-price-original" style="font-size: 14px; color: var(--text-light); text-decoration: line-through;"></div>
+                    </div>
+                    <div class="modal-details-section" style="margin-bottom: 15px; width: 100%; text-align: left;">
+                        <div class="modal-details-section-title" style="font-weight: 600; margin-bottom: 10px; color: var(--text);">Características</div>
+                        <ul class="characteristics-list" id="modal-details-characteristics" style="margin: 0; padding-left: 20px; color: var(--text-light);"></ul>
+                    </div>
+                    <div class="modal-details-section" style="margin-bottom: 15px; width: 100%; text-align: left;">
+                        <div class="modal-details-section-title" style="font-weight: 600; margin-bottom: 10px; color: var(--text);">Información</div>
+                        <div class="modal-details-section-content" id="modal-details-info" style="color: var(--text); line-height: 1.5;"></div>
+                    </div>
+                    <div class="modal-details-section" style="margin-bottom: 25px; width: 100%; text-align: left;">
+                        <div class="modal-details-section-title" style="font-weight: 600; margin-bottom: 10px; color: var(--text);">Momento Ideal</div>
+                        <div class="modal-details-section-content" id="modal-details-moment" style="color: var(--text-light); font-size: 12px; font-style: italic;"></div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 300px;">
+                        <button class="add-to-cart-modal" onclick="addToCartFromModal()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Agregar Producto</button>
+                        <button class="btn-secondary" onclick="closeDetails()" style="width: 100%; padding: 12px; background: var(--border); color: var(--text); border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Cerrar</button>
                     </div>
                 </div>
             </div>
-            <div class="modal-details-section">
-                <div class="modal-details-section-title">Características</div>
-                <ul class="characteristics-list" id="modal-details-characteristics"></ul>
-            </div>
-            <div class="modal-details-section">
-                <div class="modal-details-section-title">Información</div>
-                <div class="modal-details-section-content" id="modal-details-info"></div>
-            </div>
-            <div class="modal-details-section">
-                <div class="modal-details-section-title">Momento Ideal</div>
-                <div class="modal-details-section-content" id="modal-details-moment"></div>
-            </div>
-            <div class="modal-details-quantity">
-                <span>Cantidad:</span>
-                <button class="qty-btn" onclick="decreaseQty()">−</button>
-                <span class="qty-display" id="qty-display">1</span>
-                <button class="qty-btn" onclick="increaseQty()">+</button>
-            </div>
-            <button class="add-to-cart-modal" onclick="addToCartFromModal()">Agregar al Carrito</button>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLES ZAPATILLAS -->
+    <div class="modal-details modal-details-shoes" id="modal-details-shoes" onclick="closeDetailsShoesIfClickBackground(event)">
+        <div class="modal-details-content">
+            <div id="details-content-shoes"></div>
         </div>
     </div>
 
@@ -3112,6 +3115,7 @@
                 <form onsubmit="loginUser(event)">
                     <input type="email" id="login-email" placeholder="Correo electrónico" required>
                     <input type="password" id="login-password" placeholder="Contraseña" required>
+                    <div id="recaptcha-login" style="margin: 15px 0; display: flex; justify-content: center;"></div>
                     <button type="submit" class="auth-btn">Ingresar</button>
                 </form>
                 <div class="auth-switch">
@@ -3126,6 +3130,7 @@
                     <input type="text" id="register-nombre" placeholder="Nombre completo" required>
                     <input type="email" id="register-email" placeholder="Correo electrónico" required>
                     <input type="password" id="register-password" placeholder="Contraseña (mín. 6 caracteres)" required minlength="6">
+                    <div id="recaptcha-register" style="margin: 15px 0; display: flex; justify-content: center;"></div>
                     <button type="submit" class="auth-btn">Crear Cuenta</button>
                 </form>
                 <div class="auth-switch">
@@ -3360,10 +3365,6 @@
 
     <script>
         // Verificar que los elementos críticos existan en el DOM
-        document.addEventListener('DOMContentLoaded', () => {
-            // DOM cargado
-        });
-        
         // ═══════════════════════════════════════════════════════════════════════════
         // 🔧 CONFIGURACIÓN - FIREBASE AUTHENTICATION
         // ═══════════════════════════════════════════════════════════════════════════
@@ -3785,6 +3786,13 @@
             { id: 112, nombre: "NEW BALANCE 9060 WHITE", imagen: "newbalance.png", precio: 37000, precioOriginal: 37000, talle: ["38", "39", "40", "41", "42", "43"], caracteristicas: ["zapatilla brasilera adulto", "modelo New Balance 9060", "colorway blanco", "estilo urbano/moderno"], info: "New Balance 9060 en blanco, zapatilla moderna y cómoda para uso diario.", momento: "Urbana / tarde / noche / uso diario" }
         ];
 
+        // Agregar categoría 'adultos' a todos los productos de zapatillas
+        window.shoes.forEach(shoe => {
+            if (!shoe.categoria) {
+                shoe.categoria = 'adultos';
+            }
+        });
+
         // ✅ Variables GLOBALES para que no se pierdan
         window.cart = [];
         window.currentFilter = 'todos';
@@ -3795,13 +3803,14 @@
         
         // Variables para ZAPATILLAS
         window.currentShoesCategory = 'adultos';
-        window.currentShoesFilter = 'todos';
+        window.currentShoesFilter = 'todo';
         window.currentShoesSort = 'default';
         window.currentShoesSearch = '';
         window.shoesItemsDisplayed = 6;
-        window.currentCatalog = 'perfumes';  // 'perfumes' o 'calzados'
+        window.currentCatalog = null;  // null = mostrar NICHOS, 'perfumes' o 'calzados' = mostrar catálogo
         window.carruselAutoplay = null;  // Para autoplay del carrusel
         window.carruselIndex = 0;
+        window.isChangingCatalog = false;  // Flag para evitar cambios concurrentes
         
         // ✅ Referencia corta para compatibilidad
         let cart = window.cart;
@@ -3822,12 +3831,17 @@
         function searchProducts(searchTerm) {
             currentSearch = searchTerm;
             itemsDisplayed = 6;
-            renderProducts();
+            
+            // Debounce: esperar 300ms antes de renderizar
+            clearTimeout(window.searchProductsTimeout);
+            window.searchProductsTimeout = setTimeout(() => {
+                renderProducts();
+            }, 300);
         }
 
         function changeSort(sortValue) {
-            currentSort = sortValue;
-            itemsDisplayed = 6;
+            window.currentSort = sortValue;
+            window.itemsDisplayed = 6;
             renderProducts();
         }
 
@@ -3843,20 +3857,10 @@
         }
 
         function renderPerfumesProducts() {
-            console.log('🎨 [RENDER] ========== INICIANDO renderProducts() ==========');
-            console.log('📦 [RENDER] products.length:', products?.length || 'UNDEFINED');
-            console.log('🎯 [RENDER] currentFilter:', window.currentFilter);
-            console.log('🔍 [RENDER] currentSearch:', window.currentSearch);
-            
             const grid = document.getElementById('products-grid');
-            console.log('🎯 [RENDER] Grid DOM encontrado?', !!grid);
-            if (!grid) {
-                console.error('❌ [RENDER] NO ENCONTRÉ EL GRID DOM!');
-                return;
-            }
+            if (!grid) return;
             
             let filtered = window.currentFilter === 'todos' ? products : products.filter(p => p.categoria === window.currentFilter);
-            console.log('📊 [RENDER] Productos después de filtro:', filtered?.length || 0);
             
             // Aplicar búsqueda
             if (window.currentSearch.trim() !== '') {
@@ -3909,17 +3913,16 @@
         }
 
         function renderShoesProducts() {
-            console.log('👟 [RENDER SHOES] Iniciando renderShoesProducts()');
-            console.log('👟 [RENDER SHOES] Categoría:', window.currentShoesCategory);
-            
             const grid = document.getElementById('products-grid');
-            if (!grid) {
-                console.error('❌ [RENDER SHOES] NO ENCONTRÉ EL GRID DOM!');
-                return;
-            }
+            if (!grid) return;
             
             // Filtrar por categoría (Adultos/Niños)
             let filtered = window.shoes || [];
+            
+            // Si hay un filtro activo (que no sea 'todo'), aplicarlo
+            if (window.currentShoesFilter && window.currentShoesFilter !== 'todo') {
+                filtered = filtered.filter(p => p.categoria === window.currentShoesFilter);
+            }
             
             // Aplicar búsqueda
             if (window.currentShoesSearch.trim() !== '') {
@@ -4014,7 +4017,7 @@
 
         function openDetails(id) {
             currentProduct = products.find(p => p.id === id);
-            document.getElementById('modal-details-image').src = currentProduct.imagen;
+            document.getElementById('modal-details-image').src = BASE_IMAGE_URL + currentProduct.imagen;
             document.getElementById('modal-details-name').textContent = currentProduct.nombre;
             document.getElementById('modal-details-price').textContent = `$${currentProduct.precio.toLocaleString()}`;
             document.getElementById('modal-details-price-original').textContent = `$${currentProduct.precioOriginal.toLocaleString()}`;
@@ -4041,13 +4044,15 @@
 
         function increaseQty() {
             currentQty++;
-            document.getElementById('qty-display').textContent = currentQty;
+            const qtyDisplay = document.getElementById('qty-display');
+            if (qtyDisplay) qtyDisplay.textContent = currentQty;
         }
 
         function decreaseQty() {
             if (currentQty > 1) {
                 currentQty--;
-                document.getElementById('qty-display').textContent = currentQty;
+                const qtyDisplay = document.getElementById('qty-display');
+                if (qtyDisplay) qtyDisplay.textContent = currentQty;
             }
         }
 
@@ -4210,7 +4215,11 @@
                     totalFinal: totales.totalFinal,
                     estado: 'pendiente',
                     fechaCreacion: new Date(),
-                    fechaPago: null
+                    fechaPago: null,
+                    mp_payment_id: null,  // 🔴 Se completará cuando reciba confirmación de MP
+                    mp_preference_id: null,  // 🔴 ID de la preferencia de MP (para rastreabilidad)
+                    mp_sincronizado: false,  // 🔴 Indica si se sincronizó con MP
+                    intentos_sincronizacion: 0  // 🔴 Contador de intentos de sincronización
                 };
 
                 // Guardar con ID auto-generado
@@ -4219,6 +4228,7 @@
                     .collection('pedidos')
                     .add(pedidoData);
 
+                console.log('💾 [FIRESTORE] Pedido guardado exitosamente:', docRef.id);
                 return docRef.id;
             } catch (error) {
                 console.error('Error guardando pedido:', error);
@@ -4260,6 +4270,142 @@
             }
         }
 
+        // 🔴 FUNCIÓN CRÍTICA: Sincronizar pedido con Mercado Pago
+        // Si el webhook falló, esta función detecta pagos confirmados en MP y los sincroniza
+        async function sincronizarPedidoConMercadoPago(pedidoId) {
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                console.error('Usuario no autenticado');
+                return { success: false, error: 'No autenticado' };
+            }
+
+            try {
+                console.log('🔄 [SINCRONIZACIÓN] Sincronizando pedido:', pedidoId);
+
+                // 1. Obtener datos del pedido local
+                const pedidoDoc = await firebase.firestore()
+                    .collection('usuarios').doc(user.uid)
+                    .collection('pedidos').doc(pedidoId)
+                    .get();
+
+                if (!pedidoDoc.exists) {
+                    console.error('Pedido no encontrado:', pedidoId);
+                    return { success: false, error: 'Pedido no encontrado' };
+                }
+
+                const pedidoData = pedidoDoc.data();
+
+                // 2. Si el estado ya es 'pagado', no hay nada que hacer
+                if (pedidoData.estado === 'pagado') {
+                    console.log('✅ [SINCRONIZACIÓN] Pedido ya está pagado');
+                    return { success: true, message: 'Pedido ya pagado' };
+                }
+
+                // 3. Si tiene referencia de transacción MP, verificar estado en MP
+                if (pedidoData.mp_payment_id) {
+                    console.log('🔍 [SINCRONIZACIÓN] Verificando estado de pago en Mercado Pago...');
+                    
+                    // Llamar al Worker para obtener estado de pago
+                    const mpStatus = await fetch(
+                        'https://workerpagos.tuweb.workers.dev/api/mp/check-payment?payment_id=' + pedidoData.mp_payment_id
+                    ).then(r => r.json());
+
+                    if (mpStatus.status === 'approved') {
+                        console.log('✅ [SINCRONIZACIÓN] Pago confirmado en Mercado Pago');
+                        
+                        // Actualizar estado a pagado
+                        await firebase.firestore()
+                            .collection('usuarios').doc(user.uid)
+                            .collection('pedidos').doc(pedidoId)
+                            .update({
+                                estado: 'pagado',
+                                fechaPago: new Date(),
+                                mp_sincronizado: true
+                            });
+
+                        return { success: true, message: 'Pago sincronizado correctamente' };
+                    } else if (mpStatus.status === 'pending') {
+                        return { success: false, error: 'Pago pendiente en Mercado Pago' };
+                    } else {
+                        return { success: false, error: 'Pago no aprobado: ' + mpStatus.status };
+                    }
+                } else {
+                    console.warn('⚠️ [SINCRONIZACIÓN] Pedido sin referencia de transacción MP');
+                    return { success: false, error: 'Sin referencia de transacción' };
+                }
+
+            } catch (error) {
+                console.error('❌ [SINCRONIZACIÓN] Error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // 🔴 FUNCIÓN DE RECUPERACIÓN: Permitir al usuario intentar recuperar un pedido
+        async function recuperarPedidoFallido(pedidoId) {
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                alert('❌ Debes estar autenticado');
+                return;
+            }
+
+            try {
+                console.log('🔄 [RECUPERACIÓN] Intentando recuperar pedido:', pedidoId);
+                
+                const result = await sincronizarPedidoConMercadoPago(pedidoId);
+
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                } else {
+                    alert('⚠️ ' + result.error + '\n\nContacta a soporte si el problema persiste');
+                }
+            } catch (error) {
+                console.error('Error en recuperación:', error);
+                alert('❌ Error al recuperar pedido: ' + error.message);
+            }
+        }
+
+        // Agregar zapatilla al carrito (con validación de talle)
+        function addToCart(productId) {
+            const currentUser = firebase.auth().currentUser;
+            if (!currentUser) {
+                closeDetails();
+                showSessionRequiredModal();
+                return;
+            }
+
+            const product = window.shoes.find(p => p.id === productId);
+            if (!product) return;
+
+            // Verificar si se seleccionó talle
+            if (!window.selectedTalle) {
+                alert('Por favor selecciona un talle');
+                return;
+            }
+
+            const existingItem = window.cart.find(item => 
+                item.id === productId && item.talle === window.selectedTalle
+            );
+
+            if (existingItem) {
+                existingItem.cantidad += 1;
+            } else {
+                window.cart.push({ 
+                    ...product, 
+                    cantidad: 1, 
+                    talle: window.selectedTalle,
+                    categoria: 'calzados'
+                });
+            }
+
+            updateCartCount();
+            updateCartDisplay();
+            saveCartToFirebase(window.cart);
+            
+            closeDetails();
+            document.getElementById('modal-cart').classList.add('active');
+            window.selectedTalle = null;
+        }
+
         function addToCartFromModal() {
             // Validar que hay sesión activa
             const currentUser = firebase.auth().currentUser;
@@ -4269,27 +4415,29 @@
                 return;
             }
             
-            const existingItem = cart.find(item => item.id === currentProduct.id);
+            const existingItem = window.cart.find(item => item.id === currentProduct.id);
             if (existingItem) {
-                existingItem.cantidad += currentQty;
+                existingItem.cantidad += (currentQty || 1);
             } else {
-                cart.push({ ...currentProduct, cantidad: currentQty });
+                window.cart.push({ ...currentProduct, cantidad: (currentQty || 1) });
             }
             updateCartCount();
             updateCartDisplay();
             
             // Guardar carrito en Firebase
-            saveCartToFirebase(cart);
+            saveCartToFirebase(window.cart);
             
             closeDetails();
             document.getElementById('modal-cart').classList.add('active');
             currentQty = 1;
-            document.getElementById('qty-display').textContent = '1';
+            const qtyDisplay = document.getElementById('qty-display');
+            if (qtyDisplay) qtyDisplay.textContent = '1';
         }
 
         function updateCartCount() {
             const count = cart.reduce((sum, item) => sum + item.cantidad, 0);
-            document.getElementById('cart-count').textContent = count;
+            const cartCountEl = document.getElementById('cart-count');
+            if (cartCountEl) cartCountEl.textContent = count;
         }
 
         function updateCartDisplay() {
@@ -4301,19 +4449,20 @@
 
             let html = '';
             cart.forEach(item => {
+                const talleText = item.talle ? ` - Talle ${item.talle}` : '';
                 html += `
                 <div class="cart-item">
                     <div class="cart-item-image">
-                        <img src="${item.imagen}" alt="${item.nombre}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23f5f5f5%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22Arial%22 font-size=%2214%22 fill=%22%23999%22%3EProducto%3C/text%3E%3C/svg%3E'">
+                        <img src="${BASE_IMAGE_URL}${item.imagen}" alt="${item.nombre}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23f5f5f5%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22Arial%22 font-size=%2214%22 fill=%22%23999%22%3EProducto%3C/text%3E%3C/svg%3E'">
                     </div>
                     <div class="cart-item-details">
-                        <div class="cart-item-name">${item.nombre}</div>
+                        <div class="cart-item-name">${item.nombre}${talleText}</div>
                         <div class="cart-item-price">$${item.precio.toLocaleString()}</div>
                         <div class="cart-item-qty-control">
-                            <button class="cart-item-qty-btn" onclick="changeItemQty(${item.id}, -1)">−</button>
+                            <button class="cart-item-qty-btn" onclick="changeItemQty(${cart.indexOf(item)}, -1)">−</button>
                             <span class="cart-item-qty-display">${item.cantidad}</span>
-                            <button class="cart-item-qty-btn" onclick="changeItemQty(${item.id}, 1)">+</button>
-                            <button class="cart-item-delete" onclick="removeItemFromCart(${item.id})">Eliminar</button>
+                            <button class="cart-item-qty-btn" onclick="changeItemQty(${cart.indexOf(item)}, 1)">+</button>
+                            <button class="cart-item-delete" onclick="removeItemFromCart(${cart.indexOf(item)})">Eliminar</button>
                         </div>
                     </div>
                 </div>`;
@@ -4331,8 +4480,10 @@
             const subtotal = totalPrice;
             const total = subtotal;
             
-            document.getElementById('cart-subtotal').textContent = `$${subtotal.toLocaleString()}`;
-            document.getElementById('cart-total').textContent = `$${total.toLocaleString()}`;
+            const cartSubtotalEl = document.getElementById('cart-subtotal');
+            const cartTotalEl = document.getElementById('cart-total');
+            if (cartSubtotalEl) cartSubtotalEl.textContent = `$${subtotal.toLocaleString()}`;
+            if (cartTotalEl) cartTotalEl.textContent = `$${total.toLocaleString()}`;
             
             const warningElement = document.getElementById('cart-warning');
             const payButton = document.getElementById('btn-pay');
@@ -4341,51 +4492,55 @@
                 // Para zapatillas: validar cantidad (mínimo 12 productos)
                 if (totalQty < MIN_ORDER_SHOES_QTY) {
                     const falta = MIN_ORDER_SHOES_QTY - totalQty;
-                    document.getElementById('cart-falta').textContent = `Falta: ${falta} ${falta === 1 ? 'producto' : 'productos'}`;
-                    warningElement.classList.remove('hidden');
-                    payButton.disabled = true;
+                    const cartFaltaEl = document.getElementById('cart-falta');
+                    if (cartFaltaEl) cartFaltaEl.textContent = `Falta: ${falta} ${falta === 1 ? 'producto' : 'productos'}`;
+                    if (warningElement) warningElement.classList.remove('hidden');
+                    if (payButton) payButton.disabled = true;
                 } else {
-                    warningElement.classList.add('hidden');
-                    payButton.disabled = false;
+                    if (warningElement) warningElement.classList.add('hidden');
+                    if (payButton) payButton.disabled = false;
                 }
             } else {
                 // Para perfumes: validar precio (mínimo $150,000)
                 const falta = Math.max(0, MIN_ORDER_PERFUMES - total);
                 if (falta > 0) {
-                    document.getElementById('cart-falta').textContent = `$${falta.toLocaleString()}`;
-                    warningElement.classList.remove('hidden');
-                    payButton.disabled = true;
+                    const cartFaltaEl = document.getElementById('cart-falta');
+                    if (cartFaltaEl) cartFaltaEl.textContent = `$${falta.toLocaleString()}`;
+                    if (warningElement) warningElement.classList.remove('hidden');
+                    if (payButton) payButton.disabled = true;
                 } else {
-                    warningElement.classList.add('hidden');
-                    payButton.disabled = false;
+                    if (warningElement) warningElement.classList.add('hidden');
+                    if (payButton) payButton.disabled = false;
                 }
             }
         }
 
-        function changeItemQty(id, change) {
-            const item = cart.find(i => i.id === id);
-            if (item) {
-                item.cantidad += change;
-                if (item.cantidad <= 0) {
-                    removeItemFromCart(id);
+        function changeItemQty(index, change) {
+            if (index >= 0 && index < cart.length) {
+                cart[index].cantidad += change;
+                if (cart[index].cantidad <= 0) {
+                    cart.splice(index, 1);
                 } else {
                     updateCartDisplay();
                     updateCartCount();
+                    saveCartToFirebase(cart);
                 }
             }
         }
 
-        function removeItemFromCart(id) {
-            cart = cart.filter(item => item.id !== id);
-            updateCartDisplay();
-            updateCartCount();
-            
-            // Guardar cambios en Firebase
-            if (firebase.auth().currentUser) {
-                if (cart.length === 0) {
-                    clearCartFromFirebase();
-                } else {
-                    saveCartToFirebase(cart);
+        function removeItemFromCart(index) {
+            if (index >= 0 && index < cart.length) {
+                cart.splice(index, 1);
+                updateCartDisplay();
+                updateCartCount();
+                
+                // Guardar cambios en Firebase
+                if (firebase.auth().currentUser) {
+                    if (cart.length === 0) {
+                        clearCartFromFirebase();
+                    } else {
+                        saveCartToFirebase(cart);
+                    }
                 }
             }
         }
@@ -4467,7 +4622,7 @@
         // ═══════════════════════════════════════════════════════════════════
         
         // Abrir modal de checkout antes de pagar
-        function proceedToPayment() {
+        async function proceedToPayment() {
             const total = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
             
             if (total < MIN_ORDER) {
@@ -4477,6 +4632,31 @@
 
             // Mostrar modal de checkout
             document.getElementById('modal-checkout').classList.add('active');
+            
+            // Cargar automáticamente datos del usuario desde Firebase
+            if (firebase.auth().currentUser) {
+                const uid = firebase.auth().currentUser.uid;
+                try {
+                    const docSnap = await firebase.firestore().collection('usuarios').doc(uid).get();
+                    if (docSnap.exists) {
+                        const userData = docSnap.data();
+                        // Rellenar campos del formulario
+                        if (userData.nombre) document.getElementById('checkout-nombre').value = userData.nombre;
+                        if (userData.email) document.getElementById('checkout-email').value = userData.email;
+                        if (userData.telefono) document.getElementById('checkout-telefono').value = userData.telefono || '';
+                        if (userData.provincia) document.getElementById('checkout-provincia').value = userData.provincia || '';
+                        if (userData.ciudad) document.getElementById('checkout-ciudad').value = userData.ciudad || '';
+                        if (userData.cp) document.getElementById('checkout-cp').value = userData.cp || '';
+                        if (userData.direccion) document.getElementById('checkout-direccion').value = userData.direccion || '';
+                        // IMPORTANTE: Rellenar código de revendedor desde Firebase
+                        if (userData.codigoVendedor) {
+                            document.getElementById('checkout-codigo-revendedor').value = userData.codigoVendedor;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error cargando datos del usuario:', error);
+                }
+            }
         }
 
         // Validar que el código de revendedor existe en Firebase
@@ -4499,61 +4679,148 @@
             }
         }
 
-        // Procesar pago una vez rellenado el formulario
-        async function submitCheckoutAndPay() {
-            const total = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-            
-            // Obtener datos del formulario
-            const checkout = {
-                nombre: document.getElementById('checkout-nombre').value.trim(),
-                apellido: document.getElementById('checkout-apellido').value.trim(),
-                email: document.getElementById('checkout-email').value.trim(),
-                telefono: document.getElementById('checkout-telefono').value.trim(),
-                provincia: document.getElementById('checkout-provincia').value.trim(),
-                ciudad: document.getElementById('checkout-ciudad').value.trim(),
-                cp: document.getElementById('checkout-cp').value.trim(),
-                direccion: document.getElementById('checkout-direccion').value.trim(),
-                observaciones: document.getElementById('checkout-observaciones').value.trim(),
-                codigoRevendedor: document.getElementById('checkout-codigo-revendedor').value.trim().replace(/\s+/g, '').toUpperCase()
-            };
+        // Función centralizada para obtener el código de revendedor del usuario logueado desde Firestore
+        // Función robusta para obtener código de revendedor con fallbacks
+        async function getCodigoVendedorActual() {
+            const usuarioActual = firebase.auth().currentUser;
+            if (!usuarioActual) return null;
 
-            // VALIDACIONES
-            if (!checkout.nombre) { alert('❌ Nombre requerido'); return; }
-            if (!checkout.apellido) { alert('❌ Apellido requerido'); return; }
-            if (!checkout.email) { alert('❌ Email requerido'); return; }
-            if (!checkout.telefono) { alert('❌ Teléfono requerido'); return; }
-            if (!checkout.provincia) { alert('❌ Provincia requerida'); return; }
-            if (!checkout.ciudad) { alert('❌ Ciudad requerida'); return; }
-            if (!checkout.cp) { alert('❌ Código postal requerido'); return; }
-            if (!checkout.direccion) { alert('❌ Dirección requerida'); return; }
-            if (!checkout.codigoRevendedor) { alert('❌ Código de Revendedor requerido'); return; }
-
-            // Validar que el código de revendedor existe en Firebase
-            const codigoValido = await validarCodigoRevendedorEnFirestore(checkout.codigoRevendedor);
-            if (!codigoValido) { 
-                alert('❌ El código ingresado no es de un revendedor'); 
-                return; 
+            // Primero intentar desde memoria / localStorage (más rápido)
+            if (window.currentUser?.codigoVendedor) {
+                console.log('✅ Código encontrado en memoria:', window.currentUser.codigoVendedor);
+                return window.currentUser.codigoVendedor;
+            }
+            const localCode = localStorage.getItem('codigoVendedorLocal');
+            if (localCode) {
+                console.log('✅ Código encontrado en localStorage:', localCode);
+                return localCode;
             }
 
-            // Calcular totales y ganancias ANTES de enviar a pago
-            const totales = calculateOrderTotals(cart);
-
-            // Mostrar estado de carga
-            const payButton = document.getElementById('btn-checkout-pay');
-            const originalText = payButton.textContent;
-            payButton.disabled = true;
-            payButton.textContent = 'Procesando...';
-
             try {
-                // Guardar pedido en Firestore ANTES de Mercado Pago
+                // Esperar un poco si está en offline
+                if (!navigator.onLine) {
+                    console.warn('🌐 Cliente offline, usando fallback local');
+                    return null;
+                }
+
+                const doc = await firebase.firestore()
+                    .collection('usuarios')
+                    .doc(usuarioActual.uid)
+                    .get({ source: 'default' });  // intenta server primero
+
+                if (doc.exists) {
+                    const codigo = doc.data().codigoVendedor;
+                    if (codigo) {
+                        localStorage.setItem('codigoVendedorLocal', codigo);
+                        if (window.currentUser) window.currentUser.codigoVendedor = codigo;
+                        console.log('✅ Código obtenido de Firestore:', codigo);
+                        return codigo;
+                    }
+                }
+            } catch (error) {
+                console.error('Error obteniendo código de revendedor:', error);
+                
+                // Fallback fuerte: si ya tenemos en localStorage, usarlo igual
+                if (localCode) {
+                    console.warn('⚠️ Usando código de localStorage como fallback:', localCode);
+                    return localCode;
+                }
+            }
+            return null;
+        }
+
+        // Procesar pago una vez rellenado el formulario
+        async function submitCheckoutAndPay() {
+            const payButton = document.getElementById('btn-checkout-pay');
+            const originalButtonText = payButton ? payButton.textContent : 'Comprar Ahora';
+            
+            try {
+                console.log('🚀 [CHECKOUT] Iniciando proceso de compra...');
+                const total = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+                
+                // PRIMERO: Verificar que el usuario esté autenticado
+                const usuarioActual = firebase.auth().currentUser;
+                console.log('🔍 [CHECKOUT] Usuario autenticado:', !!usuarioActual);
+                console.log('🔍 [CHECKOUT] UID:', usuarioActual?.uid);
+                console.log('🔍 [CHECKOUT] Conexión en línea:', navigator.onLine);
+                
+                if (!usuarioActual) {
+                    throw new Error('Debes estar autenticado para continuar');
+                }
+                
+                // Obtener código de forma más robusta
+                let codigoRevendedorValido = await getCodigoVendedorActual();
+
+                if (!codigoRevendedorValido) {
+                    // Último recurso: generar uno (aunque no es ideal)
+                    codigoRevendedorValido = generarCodigoVendedor();
+                    console.warn('⚠️ No se encontró código en Firestore. Generando fallback:', codigoRevendedorValido);
+                    
+                    // Intentar guardarlo
+                    try {
+                        await firebase.firestore().collection('usuarios').doc(usuarioActual.uid).set({
+                            codigoVendedor: codigoRevendedorValido
+                        }, { merge: true });
+                        console.log('✅ Código fallback guardado en Firestore');
+                    } catch(e) {
+                        console.warn('⚠️ No se pudo guardar código en Firestore, continuando igual');
+                    }
+                }
+                
+                console.log('✅ [CHECKOUT] Código de revendedor a usar:', codigoRevendedorValido);
+                
+                // Obtener datos del formulario
+                const checkout = {
+                    nombre: document.getElementById('checkout-nombre').value.trim(),
+                    apellido: document.getElementById('checkout-apellido').value.trim(),
+                    email: document.getElementById('checkout-email').value.trim(),
+                    telefono: document.getElementById('checkout-telefono').value.trim(),
+                    provincia: document.getElementById('checkout-provincia').value.trim(),
+                    ciudad: document.getElementById('checkout-ciudad').value.trim(),
+                    cp: document.getElementById('checkout-cp').value.trim(),
+                    direccion: document.getElementById('checkout-direccion').value.trim(),
+                    observaciones: document.getElementById('checkout-observaciones').value.trim(),
+                    codigoRevendedor: codigoRevendedorValido
+                };
+
+                // VALIDACIONES
+                if (!checkout.nombre) throw new Error('Nombre requerido');
+                if (!checkout.apellido) throw new Error('Apellido requerido');
+                if (!checkout.email) throw new Error('Email requerido');
+                if (!checkout.telefono) throw new Error('Teléfono requerido');
+                if (!checkout.provincia) throw new Error('Provincia requerida');
+                if (!checkout.ciudad) throw new Error('Ciudad requerida');
+                if (!checkout.cp) throw new Error('Código postal requerido');
+                if (!checkout.direccion) throw new Error('Dirección requerida');
+                
+                console.log('✅ [CHECKOUT] Validaciones pasadas');
+
+            // Calcular totales y ganancias ANTES de enviar a pago
+                const totales = calculateOrderTotals(cart);
+                console.log('✅ [CHECKOUT] Totales calculados:', totales);
+
+                // Mostrar estado de carga
+                if (payButton) {
+                    payButton.disabled = true;
+                    payButton.textContent = 'Procesando...';
+                    console.log('✅ [CHECKOUT] Botón deshabilitado, texto: Procesando...');
+                }
+                
+                // 🔴 CREAR PEDIDO EN FIRESTORE ANTES DE MERCADO PAGO (ESTRATEGIA DE RESILENCIA)
                 const pedidoId = await savePedidoToFirestore(checkout, cart, totales);
+                
+                if (!pedidoId) {
+                    throw new Error('No se pudo crear el pedido. Por favor intenta nuevamente.');
+                }
+                
+                console.log('✅ [CHECKOUT] Pedido creado en Firestore:', pedidoId);
                 
                 // Actualizar estadísticas del usuario
                 if (firebase.auth().currentUser) {
                     await updateUserStatistics(firebase.auth().currentUser.uid);
                 }
                 
-                // Estructura EXACTA que el Worker espera
+                // Estructura que el Worker espera (alineada con handleCreatePreference)
                 const requestBody = {
                     items: cart.map(item => ({
                         title: item.nombre,
@@ -4565,28 +4832,57 @@
                         name: checkout.nombre,
                         surname: checkout.apellido,
                         email: checkout.email,
-                        phone: {
-                            number: checkout.telefono
-                        },
+                        phone: { number: checkout.telefono },
                         address: {
                             street_name: checkout.direccion,
                             zip_code: checkout.cp
                         }
                     },
-                    metadata: {
-                        cliente: checkout,
-                        carrito: cart
-                    },
                     back_urls: {
-                        success: window.location.origin + '?status=success',
-                        failure: window.location.origin + '?status=failure',
-                        pending: window.location.origin + '?status=pending'
+                        success: window.location.origin + '?status=success&pedidoId=' + pedidoId,
+                        failure: window.location.origin + '?status=failure&pedidoId=' + pedidoId,
+                        pending: window.location.origin + '?status=pending&pedidoId=' + pedidoId
                     },
                     auto_return: 'approved',
-                    external_reference: 'order_' + Date.now()
+                    external_reference: pedidoId,  // 🔴 CRUCIAL: Usar pedidoId para rastreabilidad
+                    notification_url: 'https://workerpagos.tuweb.workers.dev/api/mp/webhook?pedidoId=' + pedidoId,
+                    metadata: {
+                        pedidoId: pedidoId,  // 🔴 Incluir ID del pedido para el Worker
+                        cliente: checkout,
+                        carrito: cart,
+                        codigoVendedor: codigoRevendedorValido,
+                        uid: firebase.auth().currentUser?.uid || '',
+                        timestampCreacion: new Date().toISOString()
+                    }
                 };
 
-                // FETCH EXACTO
+                console.log('🌐 [CHECKOUT] ════════════════════════════════════════════════════════════');
+                console.log('🌐 [CHECKOUT] ENVIANDO AL WORKER - Estructura Corregida para Mercado Pago');
+                console.log('🌐 [CHECKOUT] ════════════════════════════════════════════════════════════');
+                
+                console.log('👤 [CHECKOUT] DATOS DEL CLIENTE:');
+                console.log('   ├─ Nombre:', requestBody.payer.name, requestBody.payer.surname);
+                console.log('   ├─ Email:', requestBody.payer.email);
+                console.log('   ├─ Teléfono:', requestBody.payer.phone.number);
+                console.log('   └─ Dirección:', requestBody.payer.address.street_name);
+                
+                console.log('📦 [CHECKOUT] PRODUCTOS (' + requestBody.items.length + ' item(s)):');
+                requestBody.items.forEach((item, idx) => {
+                    console.log(`   ├─ [${idx + 1}] ${item.title}`);
+                    console.log(`   │  ├─ Cantidad: ${item.quantity}`);
+                    console.log(`   │  └─ Precio unitario: $${item.unit_price}`);
+                });
+                
+                console.log('🔗 [CHECKOUT] METADATA:');
+                console.log('   ├─ Código Vendedor:', requestBody.metadata.codigoVendedor);
+                console.log('   ├─ Usuario UID:', requestBody.metadata.uid);
+                console.log('   ├─ External Reference:', requestBody.external_reference);
+                console.log('   └─ Back URLs:', requestBody.back_urls);
+                
+                console.log('🌐 [CHECKOUT] URL del Worker:', WORKER_URL + MP_ENDPOINT);
+                console.log('🌐 [CHECKOUT] ════════════════════════════════════════════════════════════');
+                
+                // FETCH EXACTO AL WORKER
                 const response = await fetch(WORKER_URL + MP_ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -4595,23 +4891,37 @@
                     body: JSON.stringify(requestBody)
                 });
 
+                console.log('📬 [CHECKOUT] ════════════════════════════════════════════════════════════');
+                console.log('📬 [CHECKOUT] RESPUESTA DEL WORKER');
+                console.log('📬 [CHECKOUT] ════════════════════════════════════════════════════════════');
+                console.log('📬 [CHECKOUT] HTTP Status:', response.status);
+
                 if (!response.ok) {
                     const errorData = await response.json();
-                    console.error('Error al procesar pago:', errorData);
-                    throw new Error(errorData.error || 'Error al procesar el pago');
+                    console.error('❌ [CHECKOUT] Error del Worker:', JSON.stringify(errorData, null, 2));
+                    throw new Error(errorData.error || 'Error al procesar el pago (Worker respondió con error)');
                 }
 
                 const data = await response.json();
+                console.log('✅ [CHECKOUT] Respuesta exitosa:');
+                console.log('   ├─ Preferencia ID:', data.preferenciaId);
+                console.log('   ├─ Init Point (producción):', data.init_point);
+                console.log('   └─ Sandbox Init Point (pruebas):', data.sandbox_init_point);
+                console.log('📬 [CHECKOUT] ════════════════════════════════════════════════════════════');
 
-                // REDIRECCIÓN FINAL
+                // REDIRECCIÓN FINAL A MERCADO PAGO
                 if (data.init_point) {
+                    console.log('🎯 [CHECKOUT] REDIRIGIENDO A MERCADO PAGO...');
+                    console.log('🎯 [CHECKOUT] URL:', data.init_point);
                     window.location.href = data.init_point;
                 } else {
-                    throw new Error('No se obtuvo la URL de pago de Mercado Pago');
+                    throw new Error('No se obtuvo la URL de pago de Mercado Pago. Respuesta: ' + JSON.stringify(data));
                 }
 
             } catch (error) {
-                console.error('Error al pagar:', error.message);
+                console.error('❌ [CHECKOUT] ERROR COMPLETO:', error);
+                console.error('Mensaje:', error.message);
+                console.error('Stack:', error.stack);
                 
                 alert(
                     '❌ Error al procesar el pago\n\n' +
@@ -4620,9 +4930,14 @@
                     'Endpoint: ' + MP_ENDPOINT + '\n\n' +
                     'Abre DevTools (F12) → Console para más detalles'
                 );
-                
-                payButton.disabled = false;
-                payButton.textContent = originalText;
+            } finally {
+                // SIEMPRE restaurar el botón, sin excepciones
+                console.log('🔄 [CHECKOUT] Restaurando estado del botón...');
+                if (payButton) {
+                    payButton.disabled = false;
+                    payButton.textContent = originalButtonText;
+                    console.log('✅ [CHECKOUT] Botón restaurado:', originalButtonText);
+                }
             }
         }
 
@@ -4667,12 +4982,6 @@
         }
 
         // INIT
-        console.log('═══════════════════════════════════════════════════════════════════════════');
-        console.log('🔍 [DIAGNÓSTICO] INICIALIZANDO...');
-        console.log('📦 [DIAGNÓSTICO] Total de productos en array:', products?.length || 0);
-        console.log('📦 [DIAGNÓSTICO] Array productos vacío?', products?.length === 0);
-        console.log('🎯 [DIAGNÓSTICO] Grid DOM existe?', !!document.getElementById('products-grid'));
-        console.log('═══════════════════════════════════════════════════════════════════════════');
         
         setupSearch();
         renderProducts();
@@ -4684,12 +4993,21 @@
 
         // GENERAR CÓDIGO VENDEDOR ÚNICO
         function generarCodigoVendedor() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let codigo = 'RW-';
-            for (let i = 0; i < 5; i++) {
-                codigo += chars.charAt(Math.floor(Math.random() * chars.length));
+            // Siempre basado en el UID para que sea determinista (NUNCA random)
+            const uid = (window.currentUser && window.currentUser.uid)
+                ? window.currentUser.uid
+                : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : null);
+
+            if (uid) {
+                // Tomar 8 caracteres del UID y convertirlos a mayúsculas
+                const parte = uid.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase();
+                return 'RW-' + parte;
             }
-            return codigo;
+
+            // Solo para registro nuevo (uid todavía no existe): usar email
+            const email = document.getElementById('register-email')?.value || Date.now().toString();
+            const base = email.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase();
+            return 'RW-' + base;
         }
 
         // ABRIR MODAL LOGIN
@@ -4730,6 +5048,14 @@
         async function registerUser(e) {
             e.preventDefault();
             
+            // Validar reCAPTCHA usando el ID del widget de registro
+            const recaptchaResponse = grecaptcha.getResponse(window.grecaptchaRegisterId);
+            console.log('📋 reCAPTCHA Response:', recaptchaResponse);
+            if (!recaptchaResponse) {
+                alert('❌ Por favor, completa el reCAPTCHA');
+                return;
+            }
+            
             // Mostrar loading state
             setRegisterButtonLoading(true);
             showLoadingOverlay();
@@ -4757,31 +5083,22 @@
 
                 // ✅ Guardar código en localStorage PRIMERO (antes de Firestore)
                 localStorage.setItem('codigoVendedorLocal', codigoVendedor);
-                console.log('💾 [Register] ✅ Código guardado en localStorage:', codigoVendedor);
 
-                if (!firebase.firestore) {
-                    console.warn("Firebase Firestore no disponible");
-                } else {
+                if (firebase.firestore) {
                     const usuariosCollection = firebase.firestore().collection('usuarios');
                     
                     // Guardar en Firestore sin bloquear el flujo
                     // Esto permite que el registro continúe incluso si Firestore falla
-                    console.log('💾 [Register] Guardando en Firestore:', userData);
-                    console.log('💾 [Register] codigoVendedor a guardar:', userData.codigoVendedor);
-                    
                     usuariosCollection.doc(user.uid).set(userData)
-                        .then(() => {
-                            console.log('✅ [Register] Usuario guardado en Firestore');
-                            console.log('✅ [Register] Datos guardados correctamente con codigoVendedor:', userData.codigoVendedor);
-                        })
-                        .catch(err => console.warn('❌ [Register] Firestore Error: ' + err.message));
+                        .catch(err => {
+                            // Error silencioso
+                        });
                 }
 
                 // Mostrar modal de confirmación con el código vendedor
                 showRegistrationConfirmation(codigoVendedor, nombre);
                 
             } catch (error) {
-                console.error("Error en registro:", error?.message);
                 
                 // FALLBACK: Si el usuario se creó en Firebase pero falló Firestore,
                 // mostrar el modal de todas formas
@@ -4789,7 +5106,6 @@
                     try {
                         showRegistrationConfirmation(codigoVendedor, nombre);
                     } catch (modalError) {
-                        console.error("Error al mostrar modal:", modalError);
                         showRegistrationError(error);
                     }
                 } else {
@@ -4801,6 +5117,14 @@
         // LOGIN CON FIREBASE
         async function loginUser(e) {
             e.preventDefault();
+            
+            // Validar reCAPTCHA usando el ID del widget de login
+            const recaptchaResponse = grecaptcha.getResponse(window.grecaptchaLoginId);
+            console.log('📋 reCAPTCHA Response:', recaptchaResponse);
+            if (!recaptchaResponse) {
+                alert('❌ Por favor, completa el reCAPTCHA');
+                return;
+            }
             
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
@@ -4823,7 +5147,6 @@
                                 // Usuario no en Firestore, crear documento SOLO SI NO EXISTE
                                 // El código se genera UNA SOLA VEZ
                                 const nuevoCodigoVendedor = generarCodigoVendedor();
-                                console.log('🔐 [Login] Usuario NO existe en Firestore. Generando código:', nuevoCodigoVendedor);
                                 
                                 firebase.firestore().collection('usuarios').doc(userCredential.user.uid).set({
                                     uid: userCredential.user.uid,
@@ -4831,15 +5154,10 @@
                                     nombre: userCredential.user.email.split('@')[0],
                                     codigoVendedor: nuevoCodigoVendedor,
                                     creado: new Date()
-                                }).catch(err => console.warn('❌ [Login] Error guardando usuario en Firestore:', err.message));
-                            } else {
-                                // Usuario ya existe: NO modificar su código
-                                const docData = doc.data();
-                                console.log('✅ [Login] Usuario EXISTE en Firestore');
-                                console.log('🔑 [Login] Código vendedor existente:', docData?.codigoVendedor || 'NO TIENE CÓDIGO');
+                                }).catch(err => {});
                             }
                         })
-                        .catch(err => console.warn('❌ [Login] Error verificando usuario en Firestore:', err.message));
+                        .catch(err => {});
                 }
                 
             } catch (error) {
@@ -4956,7 +5274,6 @@
             
             // No copiar si está vacío
             if (!codigo || codigo.trim() === '') {
-                console.warn('Código no disponible para copiar');
                 alert('Tu código de revendedor aún no está disponible. Por favor intenta más tarde.');
                 return;
             }
@@ -4976,9 +5293,7 @@
                         feedback.classList.remove('show');
                     }, 2000);
                 }
-                console.log('✅ Código de revendedor copiado:', codigo);
             }).catch(err => {
-                console.error('Error al copiar código:', err);
                 alert('No se pudo copiar el código. Intenta de nuevo.');
             });
         }
@@ -5021,13 +5336,7 @@
 
         async function openProfileModal() {
             const user = firebase.auth().currentUser;
-            if (!user) {
-                console.error('No hay usuario autenticado');
-                return;
-            }
-
-            console.log('📋 [Profile] Usuario autenticado:', user.uid);
-            console.log('📋 [Profile] window.currentUser:', window.currentUser);
+            if (!user) return;
 
             // Mostrar email
             document.getElementById('profileEmail').textContent = user.email;
@@ -5041,23 +5350,18 @@
             let codigoFinal = '';
             
             // 1. PRIMER INTENTO: localStorage (más rápido y más confiable)
-            console.log('🔍 [Profile] Intentando obtener código de localStorage...');
             const codigoLocal = localStorage.getItem('codigoVendedorLocal');
             if (codigoLocal && codigoLocal.trim() !== '') {
                 document.getElementById('profileCode').textContent = codigoLocal;
-                console.log('✅ [Profile] Código desde localStorage:', codigoLocal);
                 codigoFinal = codigoLocal;
                 codigoEncontrado = true;
             }
             
             // 2. SEGUNDO INTENTO: window.currentUser
             if (!codigoEncontrado) {
-                console.log('🔍 [Profile] Intentando obtener código de window.currentUser...');
                 if (window.currentUser?.codigoVendedor && window.currentUser.codigoVendedor.trim() !== '') {
                     document.getElementById('profileCode').textContent = window.currentUser.codigoVendedor;
-                    console.log('✅ [Profile] Código desde window.currentUser:', window.currentUser.codigoVendedor);
                     codigoFinal = window.currentUser.codigoVendedor;
-                    // Guardar en localStorage también para futuras consultas
                     localStorage.setItem('codigoVendedorLocal', window.currentUser.codigoVendedor);
                     codigoEncontrado = true;
                 }
@@ -5065,75 +5369,58 @@
             
             // 3. TERCER INTENTO: Firestore
             if (!codigoEncontrado) {
-                console.log('🔍 [Profile] Intentando obtener código de Firestore...');
                 document.getElementById('profileCode').textContent = 'Cargando...';
                 try {
                     const doc = await firebase.firestore().collection('usuarios').doc(user.uid).get();
                     
                     if (doc.exists) {
                         const userData = doc.data();
-                        console.log('📋 [Profile] Datos desde Firestore:', userData);
-                        console.log('🔑 [Profile] codigoVendedor en Firestore:', userData?.codigoVendedor);
                         
                         if (userData.codigoVendedor && userData.codigoVendedor.trim() !== '') {
                             document.getElementById('profileCode').textContent = userData.codigoVendedor;
-                            console.log('✅ [Profile] Código desde Firestore:', userData.codigoVendedor);
                             codigoFinal = userData.codigoVendedor;
-                            // Guardar en localStorage para futuras consultas
                             localStorage.setItem('codigoVendedorLocal', userData.codigoVendedor);
-                            // Actualizar window.currentUser
                             if (window.currentUser) {
                                 window.currentUser.codigoVendedor = userData.codigoVendedor;
                             }
                             codigoEncontrado = true;
                         }
                         
-                        // Actualizar window.currentUser con datos frescos
                         if (!window.currentUser || !window.currentUser.codigoVendedor) {
                             window.currentUser = {
                                 uid: user.uid,
                                 email: user.email,
                                 ...userData
                             };
-                            console.log('✅ [Profile] window.currentUser actualizado desde Firestore');
                         }
                     }
                 } catch (error) {
-                    console.error('❌ Error cargando desde Firestore:', error);
+                    // Error silencioso
                 }
             }
             
             // 4. ÚLTIMO RECURSO: Si aún no hay código, generar uno
             if (!codigoEncontrado || !codigoFinal || codigoFinal.trim() === '') {
-                console.warn('⚠️ [Profile] No se encontró código en ningún lado. Generando nuevo...');
                 codigoFinal = generarCodigoVendedor();
                 document.getElementById('profileCode').textContent = codigoFinal;
                 
-                // Guardar en localStorage
                 localStorage.setItem('codigoVendedorLocal', codigoFinal);
                 
-                // Guardar en window.currentUser
                 if (window.currentUser) {
                     window.currentUser.codigoVendedor = codigoFinal;
                 }
                 
-                // Guardar en Firestore en background
                 firebase.firestore().collection('usuarios').doc(user.uid).update({
                     codigoVendedor: codigoFinal
-                }).then(() => {
-                    console.log('✅ [Profile] Código nuevo guardado en Firestore:', codigoFinal);
                 }).catch(err => {
-                    // Si falla update, intentar set (por si el documento no existe)
                     firebase.firestore().collection('usuarios').doc(user.uid).set({
                         uid: user.uid,
                         email: user.email,
                         nombre: window.currentUser?.nombre || user.email.split('@')[0],
                         codigoVendedor: codigoFinal,
                         creado: window.currentUser?.creado || new Date()
-                    }).catch(err2 => console.warn('⚠️ Error guardando en Firestore:', err2.message));
+                    }).catch(err2 => {});
                 });
-                
-                console.log('✅ [Profile] ✅ Código generado y guardado:', codigoFinal);
             }
 
             document.getElementById('profileModal').classList.add('active');
@@ -5312,21 +5599,8 @@
 
         // Reconstruye la interfaz completa del usuario desde los datos cargados
         function initializeUserSession(userData, authUser) {
-            if (!authUser) {
-                console.error('❌ [Session] initializeUserSession llamado SIN authUser');
-                return;
-            }
+            if (!authUser) return;
 
-            console.log('🔧 [Session] === INICIANDO initializeUserSession ===');
-            console.log('🔧 [Session] authUser.uid:', authUser.uid);
-            console.log('🔧 [Session] authUser.email:', authUser.email);
-            console.log('🔧 [Session] userData recibido:', userData);
-            console.log('⚠️⚠️⚠️ CRÍTICO - userData?.codigoVendedor QUE SE RECIBE:', userData?.codigoVendedor || '❌ NO ESTÁ EN userData');
-            
-            // Verificar si hay código en localStorage
-            const codigoLocalStorage = localStorage.getItem('codigoVendedorLocal');
-            console.log('🔍 [Session] Código en localStorage:', codigoLocalStorage || 'NO ENCONTRADO');
-            
             // Si no hay datos de Firestore, crear objeto mínimo
             const safeUserData = userData || {
                 nombre: authUser.email.split('@')[0],
@@ -5334,24 +5608,18 @@
                 creado: new Date()
             };
 
-            console.log('🔧 [Session] userData recibido de Firestore:', userData ? JSON.stringify(userData, null, 2) : 'NULL');
-            console.log('⚠️⚠️⚠️ CRÍTICO - codigoVendedor ANTES de asignar a window:', safeUserData?.codigoVendedor || '❌ VACÍO');
+            // Verificar si hay código en localStorage
+            const codigoLocalStorage = localStorage.getItem('codigoVendedorLocal');
 
-            // Guardar datos en variables globales para acceso rápido
-            console.log('🔧 [Session] === ASIGNANDO window.currentUser ===');
-            
             // ✅ PRIORIDAD: localStorage > Firestore > generar nuevo
             let codigoFinal = '';
             if (codigoLocalStorage && codigoLocalStorage.trim() !== '') {
                 codigoFinal = codigoLocalStorage;
-                console.log('📍 Usando código de localStorage:', codigoFinal);
             } else if (safeUserData.codigoVendedor && safeUserData.codigoVendedor.trim() !== '') {
                 codigoFinal = safeUserData.codigoVendedor;
-                console.log('📍 Usando código de Firestore:', codigoFinal);
             } else {
                 // ✅ FALLBACK: Generar código si no existe
                 codigoFinal = generarCodigoVendedor();
-                console.log('⚠️ Código no encontrado. Generado nuevo:', codigoFinal);
             }
             
             window.currentUser = {
@@ -5363,8 +5631,9 @@
             };
             
             // ✅ CRÍTICO: Guardar codigoVendedor en localStorage SIEMPRE
-            localStorage.setItem('codigoVendedorLocal', window.currentUser.codigoVendedor);
-            console.log('💾 [Session] ✅ Código guardado en localStorage:', window.currentUser.codigoVendedor);
+            if (window.currentUser && window.currentUser.codigoVendedor) {
+                localStorage.setItem('codigoVendedorLocal', window.currentUser.codigoVendedor);
+            }
             
             // ✅ CRÍTICO: Si se generó código nuevo, actualizar Firestore en background
             if (!safeUserData.codigoVendedor || safeUserData.codigoVendedor.trim() === '') {
@@ -5372,24 +5641,11 @@
                     // Actualizar en Firestore sin bloquear
                     firebase.firestore().collection('usuarios').doc(authUser.uid).update({
                         codigoVendedor: codigoFinal
-                    }).then(() => {
-                        console.log('✅ [Session] Código nuevo guardado en Firestore:', codigoFinal);
                     }).catch(err => {
-                        console.warn('⚠️ [Session] Error actualizando Firestore:', err.message);
+                        // Silencioso en background
                     });
                 }
             }
-            
-            console.log('⚠️⚠️⚠️ CRÍTICO - window.currentUser.codigoVendedor DESPUÉS de asignar:', window.currentUser?.codigoVendedor || '❌ SE PERDIÓ');
-            console.log('🔧 [Session] ✅ window.currentUser COMPLETO:', JSON.stringify(window.currentUser, null, 2));
-            
-            // Verificar inmediatamente que se asignó correctamente
-            setTimeout(() => {
-                console.log('✅ VERIFICACIÓN 100ms después:', {
-                    codigoVendedor: window.currentUser?.codigoVendedor,
-                    fullUser: JSON.parse(JSON.stringify(window.currentUser || {}))
-                });
-            }, 100);
 
             // Cargar carrito desde Firebase
             loadCartFromFirebase().then(cartItems => {
@@ -5410,40 +5666,28 @@
                     if (modal && !modal.classList.contains('active')) {
                         modal.classList.add('active');
                         preventBodyScroll(true);
-                        console.log('📧 [Session] Modal de confirmación de email mostrado');
                     }
                 }
             }, 5000);
             
             // ⚠️ VERIFICACIÓN CRÍTICA: Si codigoVendedor está vacío, intentar cargar de nuevo
             if (!window.currentUser?.codigoVendedor || window.currentUser.codigoVendedor === '') {
-                console.warn('⚠️ [Session] codigoVendedor está VACÍO. Intentando recovery...');
-                console.warn('⚠️ [Session] userData original era:', userData ? 'OBJETO' : 'NULL');
-                
                 // Si userData era null, intentar cargar de Firestore AHORA
                 if (!userData) {
-                    console.warn('⚠️ [Session] userData era NULL. Intentando cargar desde Firestore...');
                     firebase.firestore().collection('usuarios').doc(authUser.uid).get()
                         .then(doc => {
                             if (doc.exists) {
                                 const fullData = doc.data();
-                                console.warn('⚠️ [Session] ✅ Documento encontrado en RECOVERY:', fullData);
                                 
                                 if (fullData.codigoVendedor) {
-                                    console.warn('⚠️ [Session] ✅✅ Actualizando window.currentUser con codigoVendedor:', fullData.codigoVendedor);
-                                    
                                     window.currentUser = {
                                         ...window.currentUser,
                                         ...fullData
                                     };
-                                    
-                                    console.warn('⚠️ [Session] ✅✅✅ window.currentUser ACTUALIZADO:', JSON.stringify(window.currentUser));
                                 }
-                            } else {
-                                console.warn('⚠️ [Session] ❌ Documento NO EXISTE en recovery');
                             }
                         })
-                        .catch(err => console.error('⚠️ [Session] ❌ Error en recovery:', err));
+                        .catch(err => {});
                 }
             }
             
@@ -5512,7 +5756,12 @@
         function searchShoesProducts(searchTerm) {
             window.currentShoesSearch = searchTerm;
             window.shoesItemsDisplayed = 6;
-            renderShoesProducts();
+            
+            // Debounce: esperar 300ms antes de renderizar
+            clearTimeout(window.searchShoesProductsTimeout);
+            window.searchShoesProductsTimeout = setTimeout(() => {
+                renderShoesProducts();
+            }, 300);
         }
         
         function changeShoesSort(sortValue) {
@@ -5534,8 +5783,8 @@
             if (!product) return;
             
             window.currentProduct = product;
-            const modal = document.getElementById('modal-details');
-            const detailsContent = document.getElementById('details-content');
+            const modal = document.getElementById('modal-details-shoes');
+            const detailsContent = document.getElementById('details-content-shoes');
             
             // Obtener talles disponibles
             let tallesHtml = '';
@@ -5543,9 +5792,9 @@
                 tallesHtml = `
                     <div style="margin-top: 20px;">
                         <label style="display: block; margin-bottom: 10px; font-weight: 600; color: var(--text);">Seleccionar talle:</label>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
                             ${product.talle.map((talle, idx) => `
-                                <button class="size-btn" onclick="selectTalle(this, '${talle}')" style="padding: 8px 15px; border: 2px solid var(--border); border-radius: 4px; background: white; cursor: pointer; font-weight: 600; color: var(--text);">
+                                <button class="size-btn" onclick="selectTalle(this, '${talle}')" style="padding: 8px 15px; border: 2px solid var(--border); border-radius: 4px; background: white; cursor: pointer; font-weight: 600; color: var(--text); flex-shrink: 0;">
                                     ${talle}
                                 </button>
                             `).join('')}
@@ -5554,34 +5803,57 @@
                 `;
             }
             
+            // Mostrar características
+            let caracteristicasHtml = '';
+            if (product.caracteristicas && product.caracteristicas.length > 0) {
+                caracteristicasHtml = `
+                    <div style="background: var(--gray-light); padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0; font-weight: 600; color: var(--text);">Características:</p>
+                        <ul style="margin: 0; padding-left: 20px; color: var(--text-light); line-height: 1.6;">
+                            ${product.caracteristicas.map(car => `<li>${car}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
             detailsContent.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-                    <div>
+                <div style="width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="width: 100%; margin-bottom: 20px;">
                         <img src="${BASE_IMAGE_URL}${product.imagen}" alt="${product.nombre}" style="width: 100%; border-radius: 8px; object-fit: cover;" onerror="this.src='portadauno.png'">
                     </div>
-                    <div>
-                        <h2 style="margin: 0 0 10px 0; color: var(--text); font-size: 24px;">${product.nombre}</h2>
+                    <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                        <h2 style="margin: 0 0 15px 0; color: var(--text); font-size: 24px; width: 100%;">${product.nombre}</h2>
                         
-                        <div style="margin: 20px 0;">
+                        <div style="margin: 20px 0; width: 100%;">
                             <div style="font-size: 28px; font-weight: 700; color: var(--primary); margin-bottom: 5px;">$${product.precio.toLocaleString()}</div>
                             <div style="font-size: 14px; color: var(--text-light); text-decoration: line-through;">$${product.precioOriginal.toLocaleString()}</div>
                         </div>
                         
-                        <div style="background: var(--gray-light); padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        ${caracteristicasHtml}
+                        
+                        <div style="background: var(--gray-light); padding: 15px; border-radius: 8px; margin: 20px 0; width: 100%; text-align: left;">
                             <p style="margin: 0; color: var(--text); line-height: 1.5;">${product.info}</p>
                         </div>
                         
                         ${tallesHtml}
                         
-                        <div style="margin-top: 30px; display: flex; gap: 10px;">
-                            <button class="btn-primary" onclick="addToCart(${product.id})" style="flex: 1;">Agregar al carrito</button>
-                            <button class="btn-secondary" onclick="closeDetails()" style="flex: 1;">Cerrar</button>
+                        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 300px;">
+                            <button class="btn-primary" onclick="addToCart(${product.id})" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Agregar Producto</button>
+                            <button class="btn-secondary" onclick="closeDetailsShoes()" style="width: 100%; padding: 12px; background: var(--border); color: var(--text); border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Cerrar</button>
                         </div>
                     </div>
                 </div>
             `;
             
             modal.classList.add('active');
+        }
+
+        function closeDetailsShoes() {
+            document.getElementById('modal-details-shoes').classList.remove('active');
+        }
+
+        function closeDetailsShoesIfClickBackground(e) {
+            if (e.target === document.getElementById('modal-details-shoes')) closeDetailsShoes();
         }
         
         function selectTalle(btn, talle) {
@@ -5679,78 +5951,60 @@
     
     <script>
         // ✅ INICIALIZAR FIREBASE - Ahora sí está disponible
-        console.log('🔧 [Firebase] Inicializando Firebase...');
         if (!firebase.apps.length) {
             // firebaseConfig debe estar disponible del script anterior
             firebase.initializeApp(firebaseConfig);
-            console.log('✅ Firebase inicializado CORRECTAMENTE');
         }
         
         // Configurar persistencia de sesión
         firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-            .then(() => console.log('✅ Persistencia de sesión configurada'))
-            .catch(err => console.error('❌ Error configurando persistencia:', err.message));
+            .catch(err => {
+                // Error silencioso
+            });
         
         // SISTEMA DE REINTENTOS PARA FIRESTORE
         async function loadUserDataFromFirestoreWithRetry(uid, maxRetries = 3, delayMs = 500) {
-            console.log('🔍 [Firestore] Intentando cargar usuario con UID:', uid);
-            
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     const userDoc = await firebase.firestore().collection('usuarios').doc(uid).get();
                     if (userDoc.exists) {
-                        const data = userDoc.data();
-                        console.log('✅ [Firestore] Documento EXISTE en intento', attempt);
-                        console.log('📦 [Firestore] Datos completos del documento:', data);
-                        console.log('🔑 [Firestore] codigoVendedor en documento:', data?.codigoVendedor || 'NO EXISTE EN DOCUMENTO');
-                        return data;
+                        return userDoc.data();
                     }
-                    console.log('⚠️ [Firestore] Usuario NO EXISTE en intento', attempt);
                     return null;
                 } catch (error) {
-                    console.warn(`⚠️ [Firestore] Error en intento ${attempt}:`, error.message);
                     if (attempt < maxRetries) {
                         await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
                     }
                 }
             }
-            console.log('❌ [Firestore] Falló después de', maxRetries, 'intentos');
             return null;
         }
 
         // LISTENER DE AUTENTICACIÓN - MONITOREAR CAMBIOS EN SESIÓN
-        firebase.auth().onAuthStateChanged(async (user) => {
-            console.log('════════════════════════════════════════════════════════════════');
-            console.log('👤 [Auth] onAuthStateChanged disparado');
-            console.log('════════════════════════════════════════════════════════════════');
-            
-            if (user) {
-                console.log('👤 [Auth] ✅ Usuario autenticado detectado');
-                console.log('👤 [Auth] Email:', user.email);
-                console.log('👤 [Auth] UID:', user.uid);
+        if (!window.authListenerRegistered) {
+            window.authListenerRegistered = true;
+            firebase.auth().onAuthStateChanged(async (user) => {
                 
-                // Intentar cargar datos de Firestore CON REINTENTOS
-                console.log('🔄 [Auth] Llamando a loadUserDataFromFirestoreWithRetry...');
-                const userData = await loadUserDataFromFirestoreWithRetry(user.uid);
-                console.log('📦 [Auth] ✅ Datos retornados por loadUserDataFromFirestoreWithRetry:');
-                console.log('   → userData:', userData ? JSON.stringify(userData, null, 2) : 'NULL');
-                console.log('   → userData?.codigoVendedor:', userData?.codigoVendedor || 'NO PRESENTE EN DATOS');
-                
-                // Inicializar sesión con datos de Firestore o datos mínimos
-                initializeUserSession(userData, user);
-                
-            } else {
-                // Usuario no autenticado: limpiar interfaz
-                console.log('🔓 [Auth] ❌ No hay usuario autenticado');
-                window.currentUser = null;
-                updateUIForAuthentication(false);
-                const loginBtn = document.querySelector('.login-btn');
-                if (loginBtn) {
-                    loginBtn.textContent = 'Iniciar sesión';
-                    loginBtn.onclick = abrirLogin;
+                if (user) {
+                    
+                    // Intentar cargar datos de Firestore CON REINTENTOS
+                    const userData = await loadUserDataFromFirestoreWithRetry(user.uid);
+                    
+                    // Inicializar sesión con datos de Firestore o datos mínimos
+                    initializeUserSession(userData, user);
+                    
+                } else {
+                    // Usuario no autenticado: limpiar interfaz
+                    window.currentUser = null;
+                    updateUIForAuthentication(false);
+                    const loginBtn = document.querySelector('.login-btn');
+                    if (loginBtn) {
+                        loginBtn.textContent = 'Iniciar sesión';
+                        loginBtn.onclick = abrirLogin;
+                    }
                 }
-            }
-        });
+            });
+        }
     </script>
 
     <!-- MODAL: VALIDACIÓN CÓDIGO REVENDEDOR -->
@@ -5792,34 +6046,19 @@
 
         // INICIALIZAR CARRUSEL CON IMÁGENES DE PRODUCTOS
         function inicializarCarrusel() {
-            console.log('🎬 [Carrusel] Iniciando inicializarCarrusel()');
-            console.log('🎬 [Carrusel] window.products existe:', !!window.products);
-            console.log('🎬 [Carrusel] window.products.length:', window.products ? window.products.length : 0);
-            
             // Filtrar productos con precio entre 5000 y 30000
             const productosArabes = window.products.filter(p => 
                 p.precio >= 5000 && p.precio <= 30000 && p.imagen && p.categoria
             );
-            console.log('🎬 [Carrusel] Productos filtrados (5000-30000):', productosArabes.length);
-            console.log('🎬 [Carrusel] Primeros productos filtrados:', productosArabes.slice(0, 3));
             
             productosCarrusel = productosArabes;
 
-            if (productosCarrusel.length === 0) {
-                console.warn('⚠️ [Carrusel] NO HAY PRODUCTOS para mostrar en carrusel');
-                return;
-            }
+            if (productosCarrusel.length === 0) return;
 
             const wrapper = document.getElementById('carrusel-wrapper');
             const dotsContainer = document.getElementById('carrusel-dots');
 
-            console.log('🎬 [Carrusel] wrapper existe:', !!wrapper);
-            console.log('🎬 [Carrusel] dotsContainer existe:', !!dotsContainer);
-
-            if (!wrapper || !dotsContainer) {
-                console.error('❌ [Carrusel] wrapper o dotsContainer NO EXISTEN');
-                return;
-            }
+            if (!wrapper || !dotsContainer) return;
 
             // Limpiar
             wrapper.innerHTML = '';
@@ -5838,8 +6077,6 @@
                 dot.onclick = () => irASlide(index);
                 dotsContainer.appendChild(dot);
             });
-
-            console.log('✅ [Carrusel] Carrusel inicializado con', productosCarrusel.length, 'productos');
             
             carruselActual = 0;
             actualizarCarrusel();
@@ -5876,34 +6113,31 @@
         }
 
         // Auto-deslizar carrusel cada 5 segundos
-        let carruselInterval = null;
+        window.carruselInterval = null;
         function iniciarAutoDesliz() {
-            if (carruselInterval) clearInterval(carruselInterval);
-            carruselInterval = setInterval(() => {
+            if (window.carruselInterval) clearInterval(window.carruselInterval);
+            window.carruselInterval = setInterval(() => {
                 if (productosCarrusel.length > 1) {
                     carruselSiguiente();
                 }
             }, 5000);
         }
         function detenerAutoDesliz() {
-            if (carruselInterval) clearInterval(carruselInterval);
+            if (window.carruselInterval) clearInterval(window.carruselInterval);
         }
 
-        // Agregar listeners para pausar en hover
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                const container = document.getElementById('carrusel-container');
-                if (container) {
-                    container.addEventListener('mouseenter', detenerAutoDesliz);
-                    container.addEventListener('mouseleave', iniciarAutoDesliz);
-                    iniciarAutoDesliz();
-                }
-            }, 100);
-        });
+        // Agregar listeners para pausar en hover - Se agregará en el DOMContentLoaded consolidado
 
         // Verificar si ya está logueado y mostrar sección de nichos
         function actualizarVistaNichos() {
             const nichosSection = document.getElementById('nichos-section');
+            
+            // Limpiar intervalos antes de reinicializar (solo si no hay cambio en progreso)
+            if (!window.isChangingCatalog) {
+                if (window.carruselAutoplay) clearInterval(window.carruselAutoplay);
+                if (window.carruselAutoplayShoesPreview) clearInterval(window.carruselAutoplayShoesPreview);
+                if (window.carruselInterval) clearInterval(window.carruselInterval);
+            }
             
             if (window.currentUser) {
                 // Verificar si ya validó el código (localStorage)
@@ -5918,8 +6152,8 @@
                         nichosSection.classList.remove('hide');
                     }
                     // Inicializar carruseles
-                    setTimeout(inicializarCarrusel, 100);
-                    setTimeout(inicializarCarruselShoesPreview, 150);
+                    setTimeout(inicializarCarrusel, 50);
+                    setTimeout(inicializarCarruselShoesPreview, 100);
                 }
             } else {
                 // Usuario NO logueado: mostrar nichos
@@ -5927,41 +6161,36 @@
                     nichosSection.classList.remove('hide');
                 }
                 // IMPORTANTE: Inicializar carruseles también cuando no hay usuario logueado
-                setTimeout(inicializarCarrusel, 100);
-                setTimeout(inicializarCarruselShoesPreview, 150);
+                setTimeout(inicializarCarrusel, 50);
+                setTimeout(inicializarCarruselShoesPreview, 100);
             }
         }
 
         // Abrir modal de validación de código
         function abrirModalCodigo() {
-            // Si no se especificó catálogo, asumir Perfumes
+            // Evitar llamadas concurrentes
+            if (window.isChangingCatalog) return;
+            
+            // Establecer catálogo de Perfumes si no está establecido
             if (!window.currentCatalog) {
                 window.currentCatalog = 'perfumes';
             }
             
-            console.log('🔓 [AbrirModalCodigo] Iniciando...');
-            console.log('🔓 [AbrirModalCodigo] Usuario logueado:', !!firebase.auth().currentUser);
-            console.log('🔓 [AbrirModalCodigo] window.codigoValidado:', window.codigoValidado);
-            console.log('🔓 [AbrirModalCodigo] window.currentUser:', window.currentUser);
-            
             // Si ya validó, mostrar catálogo directamente
             if (window.codigoValidado) {
-                console.log('✅ [AbrirModalCodigo] Código ya validado. Mostrando catálogo...');
                 mostrarCatalogo();
                 return;
             }
             
             // Si NO está logueado, abrir login
             if (!firebase.auth().currentUser) {
-                console.warn('⚠️ [AbrirModalCodigo] Usuario NO logueado. Abriendo login...');
                 alert('Debes iniciar sesión primero para acceder al catálogo de revendedor.');
                 abrirLogin();
                 return;
             }
             
             // Si está logueado pero no tiene código, generar uno
-            if (!window.currentUser?.codigoVendedor) {
-                console.warn('⚠️ [AbrirModalCodigo] Usuario logueado pero sin código. Generando...');
+            if (window.currentUser && !window.currentUser.codigoVendedor) {
                 const nuevoCodigoVendedor = generarCodigoVendedor();
                 window.currentUser.codigoVendedor = nuevoCodigoVendedor;
                 localStorage.setItem('codigoVendedorLocal', nuevoCodigoVendedor);
@@ -5969,7 +6198,7 @@
                 // Actualizar en Firestore en background
                 firebase.firestore().collection('usuarios').doc(firebase.auth().currentUser.uid).update({
                     codigoVendedor: nuevoCodigoVendedor
-                }).catch(err => console.warn('⚠️ Error actualizando Firestore:', err.message));
+                }).catch(err => {});
             }
             
             const modal = document.getElementById('codigo-modal');
@@ -5978,20 +6207,31 @@
             
             if (modal) {
                 modal.classList.add('active');
-                input.focus();
-                input.value = '';
-                error.classList.remove('show');
-                error.textContent = '';
-                console.log('✅ [AbrirModalCodigo] Modal abierto. Código del usuario:', window.currentUser?.codigoVendedor);
+                if (input) {
+                    input.focus();
+                    input.value = '';
+                }
+                if (error) error.classList.remove('show');
             }
         }
 
         // Cerrar modal de validación
         function cerrarModalCodigo() {
+            // Limpiar todos los timers cuando se cierra el modal
+            if (window.cleanupAllTimers) window.cleanupAllTimers();
+            
             const modal = document.getElementById('codigo-modal');
             if (modal) {
                 modal.classList.remove('active');
             }
+        }
+        
+        // Función para volver a nichos sin perder sesión
+        function volverANichos() {
+            if (window.isChangingCatalog) return;
+            window.currentCatalog = null;
+            ocultarCatalogo();
+            cerrarModalCodigo();
         }
 
         // Validar código de revendedor
@@ -6000,12 +6240,6 @@
             const error = document.getElementById('codigo-error');
             // Normalizar: eliminar TODOS los espacios y convertir a MAYÚSCULAS
             let codigo = codigoInput.value.trim().replace(/\s+/g, '').toUpperCase();
-
-            console.log('🔍 [Validación] Código ingresado (raw):', codigoInput.value);
-            console.log('🔍 [Validación] Código ingresado (limpio):', codigo);
-            console.log('🔍 [Validación] Longitud:', codigo.length);
-            console.log('🔍 [Validación] Usuario actual logueado:', !!firebase.auth().currentUser);
-            console.log('🔍 [Validación] window.currentUser:', window.currentUser);
 
             // Validar que no esté vacío
             if (!codigo) {
@@ -6021,88 +6255,62 @@
             btnValidar.disabled = true;
 
             try {
-                // ESTRATEGIA 1: Si el usuario está logueado, verificar su código directo
+                // ESTRATEGIA 1: Si el usuario está logueado, verificar su código directo desde Firestore
                 const usuarioActual = firebase.auth().currentUser;
-                if (usuarioActual && window.currentUser?.codigoVendedor) {
-                    console.log('🔍 [Validación] Usuario logueado. Verificando su código...');
-                    // Normalizar igual: eliminar espacios y MAYÚSCULAS
-                    const codigoDelUsuario = window.currentUser.codigoVendedor.trim().replace(/\s+/g, '').toUpperCase();
-                    console.log('🔍 [Validación] Código del usuario:', codigoDelUsuario);
+                if (usuarioActual) {
+                    const codigoDelFirestore = await getCodigoVendedorActual();
                     
-                    if (codigo === codigoDelUsuario) {
-                        console.log('✅ [Validación] Código VÁLIDO (match directo con usuario logueado)');
-                        error.classList.remove('show');
+                    // Normalizar igual: eliminar espacios y MAYÚSCULAS
+                    if (codigoDelFirestore) {
+                        const codigoDelUsuario = codigoDelFirestore.trim().replace(/\s+/g, '').toUpperCase();
                         
-                        // Guardar en localStorage
-                        localStorage.setItem('codigoRevendedorValidado', codigo);
-                        localStorage.setItem('codigoRevendedorValidadoFecha', new Date().getTime());
-                        
-                        window.codigoValidado = true;
-                        
-                        cerrarModalCodigo();
-                        mostrarCatalogo();
-                        return;
+                        if (codigo === codigoDelUsuario) {
+                            error.classList.remove('show');
+                            
+                            // Guardar en localStorage
+                            localStorage.setItem('codigoRevendedorValidado', codigo);
+                            localStorage.setItem('codigoRevendedorValidadoFecha', new Date().getTime());
+                            
+                            window.codigoValidado = true;
+                            
+                            cerrarModalCodigo();
+                            mostrarCatalogo();
+                            return;
+                        }
                     }
                 }
 
-                console.log('🔍 [Validación] Buscando en Firestore...');
-                
                 // ESTRATEGIA 2: Buscar en Firestore (para usuarios no logueados o código no coincide)
                 let resultado = await firebase.firestore()
                     .collection('usuarios')
                     .where('codigoVendedor', '==', codigo)
                     .get();
 
-                console.log('🔍 [Validación] Resultados encontrados (búsqueda exacta):', resultado.size);
-                if (resultado.size > 0) {
-                    console.log('✅ [Validación] ENCONTRADO:', resultado.docs[0].data());
-                }
-
                 // Si no encuentra, intentar búsquedas alternativas
                 if (resultado.empty) {
-                    console.warn('⚠️ [Validación] No encontrado con búsqueda exacta. Intentando variantes...');
-                    
                     // Intentar búsqueda 2: convertir a minúsculas
                     resultado = await firebase.firestore()
                         .collection('usuarios')
                         .where('codigoVendedor', '==', codigo.toLowerCase())
                         .get();
-                    
-                    console.log('🔍 [Validación] Resultados con minúsculas:', resultado.size);
-                    if (resultado.size > 0) {
-                        console.log('✅ [Validación] ENCONTRADO (minúsculas):', resultado.docs[0].data());
-                    }
                 }
 
                 // Intentar búsqueda 3: sin el prefijo "RW-" por si acaso
                 if (resultado.empty && codigo.startsWith('RW-')) {
                     const codigoSinPrefijo = codigo.substring(3);
-                    console.log('🔍 [Validación] Intentando sin prefijo RW-:', codigoSinPrefijo);
                     
                     resultado = await firebase.firestore()
                         .collection('usuarios')
                         .where('codigoVendedor', '==', codigoSinPrefijo)
                         .get();
-                    
-                    console.log('🔍 [Validación] Resultados sin prefijo:', resultado.size);
-                    if (resultado.size > 0) {
-                        console.log('✅ [Validación] ENCONTRADO (sin prefijo):', resultado.docs[0].data());
-                    }
                 }
 
                 if (resultado.empty) {
-                    console.error('❌ [Validación] Código NO encontrado en Firestore');
-                    console.warn('⚠️ [Validación] Nota: Si el código es incorrecto, verifica que sea exacto.');
-                    console.warn('⚠️ [Validación] Los códigos son sensibles a mayúsculas/minúsculas y espacios en blanco.');
-                    
                     // Código NO válido
                     error.textContent = 'Código de revendedor inválido. Verifica que sea exacto (sin espacios extras) e intenta de nuevo.';
                     error.classList.add('show');
                 } else {
-                    console.log('✅ [Validación] Código VÁLIDO encontrado');
                     const usuarioDoc = resultado.docs[0];
-                    console.log('✅ [Validación] Usuario encontrado (UID):', usuarioDoc.id);
-                    console.log('✅ [Validación] Datos del usuario:', usuarioDoc.data());
                     
                     // Código VÁLIDO
                     error.classList.remove('show');
@@ -6113,8 +6321,6 @@
                     
                     window.codigoValidado = true;
                     
-                    console.log('💾 [Validación] Código guardado en localStorage');
-                    
                     // Cerrar modal
                     cerrarModalCodigo();
                     
@@ -6122,9 +6328,6 @@
                     mostrarCatalogo();
                 }
             } catch (error) {
-                console.error('❌ [Validación] Error validando código:', error);
-                console.error('❌ [Validación] Mensaje de error:', error.message);
-                console.error('❌ [Validación] Code:', error.code);
                 
                 // Mostrar error específico de Firestore si existe
                 if (error.code === 'permission-denied') {
@@ -6142,82 +6345,143 @@
 
         // Mostrar catálogo y ocultar nichos
         function mostrarCatalogo() {
-            const nichosSection = document.getElementById('nichos-section');
-            const filtersContainer = document.getElementById('filters-container');
-            const productsContainer = document.getElementById('products-container');
-            const paginationSection = document.getElementById('pagination-section');
-            const portadaDosSection = document.getElementById('portada-dos-section');
-            const revendSection = document.querySelector('.revend-section');
-            const shoesCategorySection = document.getElementById('shoes-category-section');
+            // Evitar cambios concurrentes
+            if (window.isChangingCatalog) return;
+            window.isChangingCatalog = true;
+            
+            try {
+                const nichosSection = document.getElementById('nichos-section');
+                const filtersContainer = document.getElementById('filters-container');
+                const productsContainer = document.getElementById('products-container');
+                const paginationSection = document.getElementById('pagination-section');
+                const portadaDosSection = document.getElementById('portada-dos-section');
+                const revendSection = document.querySelector('.revend-section');
+                const shoesCategorySection = document.getElementById('shoes-category-section');
 
-            if (nichosSection) nichosSection.classList.add('hide');
-            
-            if (window.currentCatalog === 'calzados') {
-                // Mostrar catálogo de Calzados con interfaz similar a Perfumes
-                if (shoesCategorySection) shoesCategorySection.style.display = 'block';
-                if (filtersContainer) filtersContainer.classList.remove('hidden');
-                if (productsContainer) productsContainer.classList.remove('hidden');
-                if (paginationSection) paginationSection.classList.remove('hidden');
+                if (nichosSection) nichosSection.classList.add('hide');
                 
-                // Cambiar placeholder de búsqueda
-                const searchInput = document.getElementById('products-search');
-                if (searchInput) {
-                    searchInput.placeholder = 'Buscar zapatillas...';
-                    searchInput.onkeyup = (e) => searchShoesProducts(e.target.value);
+                if (window.currentCatalog === 'calzados') {
+                    if (shoesCategorySection) shoesCategorySection.style.display = 'block';
+                    if (filtersContainer) filtersContainer.classList.remove('hidden');
+                    if (productsContainer) productsContainer.classList.remove('hidden');
+                    if (paginationSection) paginationSection.classList.remove('hidden');
+                    
+                    const searchInput = document.getElementById('products-search');
+                    if (searchInput) {
+                        searchInput.placeholder = 'Buscar zapatillas...';
+                        if (window.shoeSearchHandler) {
+                            searchInput.removeEventListener('keyup', window.shoeSearchHandler);
+                        }
+                        window.shoeSearchHandler = (e) => searchShoesProducts(e.target.value);
+                        searchInput.addEventListener('keyup', window.shoeSearchHandler);
+                    }
+                    
+                    const filterBtns = document.querySelectorAll('.filter-btn');
+                    
+                    // Limpiar referencia anterior si existe
+                    if (window.shoeFilterHandlers) {
+                        filterBtns.forEach((btn, idx) => {
+                            if (window.shoeFilterHandlers[idx]) {
+                                btn.removeEventListener('click', window.shoeFilterHandlers[idx]);
+                            }
+                        });
+                    }
+                    
+                    // Crear array para guardar referencias de handlers
+                    window.shoeFilterHandlers = [];
+                    
+                    // Actualizar texto y agregar listener una sola vez por botón
+                    filterBtns.forEach((btn, idx) => {
+                        if (idx === 0) btn.textContent = 'Todo';
+                        else if (idx === 1) btn.textContent = 'Adultos';
+                        else if (idx === 2) btn.textContent = 'Niños';
+                        else btn.style.display = 'none';
+                        
+                        // Crear handler con closure para cada botón y guardar referencia
+                        const handler = function(e) {
+                            filterShoesProducts(e.target.textContent.toLowerCase());
+                        };
+                        window.shoeFilterHandlers[idx] = handler;
+                        btn.addEventListener('click', handler);
+                    });
+                    
+                    const sortSelect = document.getElementById('sort-select');
+                    if (sortSelect) {
+                        if (window.shoeSortHandler) {
+                            sortSelect.removeEventListener('change', window.shoeSortHandler);
+                        }
+                        window.shoeSortHandler = (e) => changeShoesSort(e.target.value);
+                        sortSelect.addEventListener('change', window.shoeSortHandler);
+                    }
+                    
+                    renderShoesProducts();
+                } else if (window.currentCatalog === 'perfumes') {
+                    if (shoesCategorySection) shoesCategorySection.style.display = 'none';
+                    if (filtersContainer) filtersContainer.classList.remove('hidden');
+                    if (productsContainer) productsContainer.classList.remove('hidden');
+                    if (paginationSection) paginationSection.classList.remove('hidden');
+                    
+                    const searchInput = document.getElementById('products-search');
+                    if (searchInput) {
+                        searchInput.placeholder = 'Buscar perfumes...';
+                        if (window.perfumeSearchHandler) {
+                            searchInput.removeEventListener('keyup', window.perfumeSearchHandler);
+                        }
+                        window.perfumeSearchHandler = (e) => searchProducts(e.target.value);
+                        searchInput.addEventListener('keyup', window.perfumeSearchHandler);
+                    }
+                    
+                    const filterBtns = document.querySelectorAll('.filter-btn');
+                    
+                    // Limpiar referencia anterior si existe
+                    if (window.perfumeFilterHandlers) {
+                        filterBtns.forEach((btn, idx) => {
+                            if (window.perfumeFilterHandlers[idx]) {
+                                btn.removeEventListener('click', window.perfumeFilterHandlers[idx]);
+                            }
+                        });
+                    }
+                    
+                    // Crear array para guardar referencias de handlers
+                    window.perfumeFilterHandlers = [];
+                    
+                    // Actualizar texto y agregar listener una sola vez por botón
+                    filterBtns.forEach((btn, idx) => {
+                        if (idx === 0) btn.textContent = 'Todos';
+                        else if (idx === 1) btn.textContent = 'Hombre';
+                        else if (idx === 2) btn.textContent = 'Mujer';
+                        else if (idx === 3) btn.textContent = 'Unisex';
+                        btn.style.display = 'inline-block';
+                        
+                        // Crear handler con closure para cada botón y guardar referencia
+                        const handler = function(e) {
+                            filterProducts(e.target.textContent.toLowerCase());
+                        };
+                        window.perfumeFilterHandlers[idx] = handler;
+                        btn.addEventListener('click', handler);
+                    });
+                    
+                    const sortSelect = document.getElementById('sort-select');
+                    if (sortSelect) {
+                        if (window.perfumeSortHandler) {
+                            sortSelect.removeEventListener('change', window.perfumeSortHandler);
+                        }
+                        window.perfumeSortHandler = (e) => changeSort(e.target.value);
+                        sortSelect.addEventListener('change', window.perfumeSortHandler);
+                    }
+                    
+                    renderProducts();
                 }
                 
-                // Actualizar botones de filtro
-                const filterBtns = document.querySelectorAll('.filter-btn');
-                filterBtns.forEach(btn => {
-                    btn.onclick = function() {
-                        filterShoesProducts(this.textContent.toLowerCase());
-                    };
-                });
+                if (portadaDosSection) portadaDosSection.style.display = 'block';
+                if (revendSection) revendSection.style.display = 'block';
                 
-                // Actualizar select de ordenamiento
-                const sortSelect = document.getElementById('sort-select');
-                if (sortSelect) {
-                    sortSelect.onchange = (e) => changeShoesSort(e.target.value);
-                }
-                
-                // Renderizar productos de zapatillas
-                renderShoesProducts();
-            } else {
-                // Mostrar catálogo de Perfumes (comportamiento original)
-                if (shoesCategorySection) shoesCategorySection.style.display = 'none';
-                if (filtersContainer) filtersContainer.classList.remove('hidden');
-                if (productsContainer) productsContainer.classList.remove('hidden');
-                if (paginationSection) paginationSection.classList.remove('hidden');
-                
-                // Cambiar placeholder de búsqueda
-                const searchInput = document.getElementById('products-search');
-                if (searchInput) {
-                    searchInput.placeholder = 'Buscar perfumes...';
-                    searchInput.onkeyup = (e) => searchProducts(e.target.value);
-                }
-                
-                // Actualizar botones de filtro
-                const filterBtns = document.querySelectorAll('.filter-btn');
-                filterBtns.forEach(btn => {
-                    btn.onclick = function() {
-                        filterProducts(this.textContent.toLowerCase());
-                    };
-                });
-                
-                // Actualizar select de ordenamiento
-                const sortSelect = document.getElementById('sort-select');
-                if (sortSelect) {
-                    sortSelect.onchange = (e) => changeSort(e.target.value);
-                }
-                
-                // Renderizar productos si no está hecho
-                renderProducts();
+                updateCartCount();
+            } catch (error) {
+                // Error silencioso
+            } finally {
+                window.isChangingCatalog = false;
             }
-            
-            if (portadaDosSection) portadaDosSection.style.display = 'block';
-            if (revendSection) revendSection.style.display = 'block';
-            
-            updateCartCount();
         }
 
         // Manejar click del botón "Quiero mi tienda" / "Recibir ideas"
@@ -6252,6 +6516,29 @@
 
         // Mostrar sección de nichos (Inicio)
         function mostrarInicio() {
+            // Limpiar todos los timers y listeners cuando se regresa a inicio
+            if (window.cleanupAllTimers) window.cleanupAllTimers();
+            
+            // Remover listeners de filtros
+            if (window.shoeFilterHandlers && window.shoeFilterHandlers.length > 0) {
+                const filterBtns = document.querySelectorAll('.filter-btn');
+                filterBtns.forEach((btn, idx) => {
+                    if (window.shoeFilterHandlers[idx]) {
+                        btn.removeEventListener('click', window.shoeFilterHandlers[idx]);
+                    }
+                });
+                window.shoeFilterHandlers = [];
+            }
+            if (window.perfumeFilterHandlers && window.perfumeFilterHandlers.length > 0) {
+                const filterBtns = document.querySelectorAll('.filter-btn');
+                filterBtns.forEach((btn, idx) => {
+                    if (window.perfumeFilterHandlers[idx]) {
+                        btn.removeEventListener('click', window.perfumeFilterHandlers[idx]);
+                    }
+                });
+                window.perfumeFilterHandlers = [];
+            }
+            
             const nichosSection = document.getElementById('nichos-section');
             const filtersContainer = document.getElementById('filters-container');
             const productsContainer = document.getElementById('products-container');
@@ -6269,19 +6556,61 @@
 
         // Ocultar catálogo y mostrar nichos
         function ocultarCatalogo() {
-            const nichosSection = document.getElementById('nichos-section');
-            const filtersContainer = document.getElementById('filters-container');
-            const productsContainer = document.getElementById('products-container');
-            const paginationSection = document.getElementById('pagination-section');
-            const portadaDosSection = document.getElementById('portada-dos-section');
-            const revendSection = document.querySelector('.revend-section');
+            // Evitar cambios concurrentes
+            if (window.isChangingCatalog) return;
+            window.isChangingCatalog = true;
+            
+            try {
+                // Limpiar intervalos de forma segura
+                if (window.carruselAutoplay) {
+                    clearInterval(window.carruselAutoplay);
+                    window.carruselAutoplay = null;
+                }
+                if (window.carruselAutoplayShoesPreview) {
+                    clearInterval(window.carruselAutoplayShoesPreview);
+                    window.carruselAutoplayShoesPreview = null;
+                }
+                
+                const nichosSection = document.getElementById('nichos-section');
+                const filtersContainer = document.getElementById('filters-container');
+                const productsContainer = document.getElementById('products-container');
+                const paginationSection = document.getElementById('pagination-section');
+                const portadaDosSection = document.getElementById('portada-dos-section');
+                const revendSection = document.querySelector('.revend-section');
 
-            if (nichosSection) nichosSection.classList.remove('hide');
-            if (filtersContainer) filtersContainer.classList.add('hidden');
-            if (productsContainer) productsContainer.classList.add('hidden');
-            if (paginationSection) paginationSection.classList.add('hidden');
-            if (portadaDosSection) portadaDosSection.style.display = 'none';
-            if (revendSection) revendSection.style.display = 'none';
+                if (nichosSection) nichosSection.classList.remove('hide');
+                if (filtersContainer) filtersContainer.classList.add('hidden');
+                if (productsContainer) productsContainer.classList.add('hidden');
+                if (paginationSection) paginationSection.classList.add('hidden');
+                if (portadaDosSection) portadaDosSection.style.display = 'none';
+                if (revendSection) revendSection.style.display = 'none';
+                
+                // Limpiar timeouts de búsqueda pendientes
+                if (window.searchProductsTimeout) {
+                    clearTimeout(window.searchProductsTimeout);
+                    window.searchProductsTimeout = null;
+                }
+                if (window.searchShoesProductsTimeout) {
+                    clearTimeout(window.searchShoesProductsTimeout);
+                    window.searchShoesProductsTimeout = null;
+                }
+                
+                // Limpiar intervalo del carrusel principal
+                if (window.carruselInterval) {
+                    clearInterval(window.carruselInterval);
+                    window.carruselInterval = null;
+                }
+                
+                // Reinicializar catálogo
+                window.currentCatalog = null;
+                
+                // Re-inicializar carruseles de nichos
+                setTimeout(inicializarCarrusel, 50);
+                setTimeout(inicializarCarruselShoesPreview, 100);
+            } catch (error) {
+            } finally {
+                window.isChangingCatalog = false;
+            }
         }
 
         // Abrir modal "Próximamente"
@@ -6303,14 +6632,7 @@
             }
         }
 
-        // Verificar sesión al cargar la página
-        document.addEventListener('DOMContentLoaded', function() {
-            // Esperar a que Firebase esté listo
-            setTimeout(() => {
-                actualizarVistaNichos();
-                actualizarBotonesRevend();
-            }, 500);
-        });
+        // DOMContentLoaded consolidado - Se ejecutará una única vez
 
         // También actualizar cuando el usuario se loguea/desloguea
         // Interceptar el initializeUserSession existente
@@ -6328,6 +6650,7 @@
             window.codigoValidado = false;
             localStorage.removeItem('codigoRevendedorValidado');
             localStorage.removeItem('codigoRevendedorValidadoFecha');
+            window.currentCatalog = null;  // Volver a nichos
             ocultarCatalogo();
             actualizarBotonesRevend();
         };
@@ -6347,77 +6670,121 @@
             }
         }
 
-        // Verificar expiración cada 5 minutos
-        setInterval(verificarExpiracionCodigo, 5 * 60 * 1000);
+        // Verificar expiración cada 5 minutos - Almacenar en variable para poder limpiarlo
+        // FUNCIÓN PARA LIMPIAR TODOS LOS INTERVALS Y TIMEOUTS
+        window.cleanupAllTimers = function() {
+            if (window.verificarExpiracionInterval) {
+                clearInterval(window.verificarExpiracionInterval);
+                window.verificarExpiracionInterval = null;
+            }
+            if (window.carruselAutoplay) {
+                clearInterval(window.carruselAutoplay);
+                window.carruselAutoplay = null;
+            }
+            if (window.carruselAutoplayShoesPreview) {
+                clearInterval(window.carruselAutoplayShoesPreview);
+                window.carruselAutoplayShoesPreview = null;
+            }
+            if (window.carruselInterval) {
+                clearInterval(window.carruselInterval);
+                window.carruselInterval = null;
+            }
+            if (window.searchProductsTimeout) {
+                clearTimeout(window.searchProductsTimeout);
+                window.searchProductsTimeout = null;
+            }
+            if (window.searchShoesProductsTimeout) {
+                clearTimeout(window.searchShoesProductsTimeout);
+                window.searchShoesProductsTimeout = null;
+            }
+        };
+        
+        // Crear interval solo si no existe
+        if (!window.verificarExpiracionInterval) {
+            window.verificarExpiracionInterval = setInterval(verificarExpiracionCodigo, 5 * 60 * 1000);
+        }
 
         // ════════════════════════════════════════════════
         // SCRIPT DE VERIFICACIÓN PARA USUARIO
         // ════════════════════════════════════════════════
+        
+        // DOMContentLoaded único y consolidado
+        document.addEventListener('DOMContentLoaded', function(event) {
+            // Ejecutar solo una vez
+            if (window.domLoaded) return;
+            window.domLoaded = true;
+            
+            // Esperar a que Firebase esté listo
+            setTimeout(() => {
+                // Limpiar cualquier timer previo
+                window.cleanupAllTimers();
+                
+                // Inicializar carruseles de nichos
+                inicializarCarrusel();
+                inicializarCarruselShoesPreview();
+                
+                // Actualizar vista de nichos
+                actualizarVistaNichos();
+                actualizarBotonesRevend();
+                
+                // Agregar listeners para carrusel principal
+                const container = document.getElementById('carrusel-container');
+                if (container) {
+                    // Remover listeners previos si existen (por si acaso)
+                    container.removeEventListener('mouseenter', detenerAutoDesliz);
+                    container.removeEventListener('mouseleave', iniciarAutoDesliz);
+                    
+                    // Agregar nuevos listeners
+                    container.addEventListener('mouseenter', detenerAutoDesliz);
+                    container.addEventListener('mouseleave', iniciarAutoDesliz);
+                    iniciarAutoDesliz();
+                }
+            }, 300);
+        }, { once: true });
+        
         window.verificarPlataforma = function() {
-            console.clear();
-            console.log('%c═════ VERIFICACIÓN DE PLATAFORMA ═════', 'color: #0066ff; font-weight: bold; font-size: 14px;');
-            
-            // 1. FLECHAS DEL CARRUSEL
-            console.log('\n%c✓ FLECHAS DEL CARRUSEL', 'color: #2BA84F; font-weight: bold;');
-            const flechas = document.querySelectorAll('.carrusel-nav');
-            console.log(`  Cantidad: ${flechas.length} (debe ser 2)`);
-            if (flechas.length > 0) {
-                const styles = window.getComputedStyle(flechas[0]);
-                console.log(`  Color: ${styles.color}`);
-                console.log(`  Background: ${styles.background}`);
-                console.log(`  Box-shadow: ${styles.boxShadow}`);
-                console.log(`  Outline: ${styles.outline}`);
-            }
-            
-            // 2. AUTOPLAY
-            console.log('\n%c✓ AUTOPLAY DEL CARRUSEL', 'color: #2BA84F; font-weight: bold;');
-            console.log(`  Intervalo activo: ${carruselInterval ? '✅ SÍ' : '❌ NO'}`);
-            console.log(`  Productos en carrusel: ${productosCarrusel.length}`);
-            console.log(`  Slide actual: ${carruselActual}`);
-            
-            // 3. PORTADA
-            console.log('\n%c✓ PORTADA DEL BANNER VERDE', 'color: #2BA84F; font-weight: bold;');
-            const portada = document.querySelector('.revend-section-inner img');
-            if (portada) {
-                const portadaStyles = window.getComputedStyle(portada);
-                console.log(`  Ancho: ${portadaStyles.width}`);
-                console.log(`  Max-width: ${portadaStyles.maxWidth}`);
-                console.log(`  Origen: ${portada.src}`);
-            }
-            
-            // 4. EMAIL CONFIRMATION
-            console.log('\n%c✓ CONFIRMACIÓN POR EMAIL', 'color: #2BA84F; font-weight: bold;');
-            const emailConfirmado = localStorage.getItem('emailConfirmado');
-            console.log(`  Estado: ${emailConfirmado ? '✅ Confirmado' : '⏳ Pendiente'}`);
-            
-            // 5. CÓDIGO DE REVENDEDOR
-            console.log('\n%c✓ CÓDIGO DE REVENDEDOR', 'color: #2BA84F; font-weight: bold;');
-            console.log(`  window.currentUser: ${window.currentUser ? '✅ Cargado' : '❌ No cargado'}`);
-            if (window.currentUser?.codigoVendedor) {
-                console.log(`    Código: ${window.currentUser.codigoVendedor}`);
-            }
-            const codigoLocal = localStorage.getItem('codigoVendedorLocal');
-            if (codigoLocal) {
-                console.log(`  localStorage: ✅ ${codigoLocal}`);
-            }
-            
-            // 6. PRODUCTOS
-            console.log('\n%c✓ PRODUCTOS', 'color: #2BA84F; font-weight: bold;');
-            console.log(`  Total en catálogo: ${window.products ? window.products.length : 0}`);
-            console.log(`  En carrusel (5000-30000): ${productosCarrusel.length}`);
-            
-            // 7. USUARIO AUTENTICADO
-            console.log('\n%c✓ AUTENTICACIÓN', 'color: #2BA84F; font-weight: bold;');
-            const user = firebase.auth().currentUser;
-            console.log(`  Usuario: ${user ? user.email : 'NO LOGUEADO'}`);
-            console.log(`  UID: ${user ? user.uid : '-'}`);
-            
-            console.log('\n%c═════════════════════════════════════════════', 'color: #0066ff; font-weight: bold;');
-            console.log('%cAbre la consola (F12) y ejecuta: verificarPlataforma()', 'color: #666; font-size: 12px;');
+            // Diagnóstico de la plataforma (función vacía por ahora)
         };
         
-        // Ejecutar verificación automáticamente en carga
-        setTimeout(window.verificarPlataforma, 2000);
+        window.grecaptchaLoginId = null;
+        window.grecaptchaRegisterId = null;
+        
+        // Callback para cuando reCAPTCHA esté listo
+        window.onRecaptchaReady = function() {
+            // Renderizar widget de login
+            if (document.getElementById('recaptcha-login')) {
+                try {
+                    window.grecaptchaLoginId = grecaptcha.render('recaptcha-login', {
+                        sitekey: '6LeNuM0sAAAAAJ8_Jdv1DhVqhJMsmDZl7KokfCw_',
+                        theme: 'light'
+                    });
+                    console.log('✅ reCAPTCHA Login renderizado. ID:', window.grecaptchaLoginId);
+                } catch (err) {
+                    console.error('Error renderizando reCAPTCHA Login:', err);
+                }
+            }
+            
+            // Renderizar widget de registro
+            if (document.getElementById('recaptcha-register')) {
+                try {
+                    window.grecaptchaRegisterId = grecaptcha.render('recaptcha-register', {
+                        sitekey: '6LeNuM0sAAAAAJ8_Jdv1DhVqhJMsmDZl7KokfCw_',
+                        theme: 'light'
+                    });
+                    console.log('✅ reCAPTCHA Register renderizado. ID:', window.grecaptchaRegisterId);
+                } catch (err) {
+                    console.error('Error renderizando reCAPTCHA Register:', err);
+                }
+            }
+        };
+        
+        // Ejecutar el callback si grecaptcha ya está disponible
+        if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
+            window.onRecaptchaReady();
+        }
     </script>
+    
+    <!-- reCAPTCHA: Renderizado manual -->
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaReady&render=explicit" async defer></script>
 </body>
 </html>
