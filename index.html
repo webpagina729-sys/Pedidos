@@ -673,7 +673,6 @@
     <div class="topbar-right">
         <span class="badge-live">Panel activo</span>
         <button class="btn-logout" onclick="logout()">Salir</button>
-        <!-- BOTON MENU VENDEDORES -->
         <button class="btn-menu" onclick="openDrawer()" title="Buscar vendedor">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="6" x2="21" y2="6"/>
@@ -743,16 +742,16 @@
             </button>
         </div>
 
-        <!-- NICHO TABS -->
+        <!-- NICHO TABS — ORDEN: Perfumes Arabes · Calzados · De Todo -->
         <div class="tabs-bar">
             <button class="tab-btn active" id="tbtn-perfumes" onclick="switchTab('perfumes')">
                 Perfumes Arabes <span class="pill on" id="pill-perfumes">0</span>
             </button>
-            <button class="tab-btn" id="tbtn-detodo" onclick="switchTab('detodo')">
-                De Todo <span class="pill" id="pill-detodo">0</span>
-            </button>
             <button class="tab-btn" id="tbtn-calzados" onclick="switchTab('calzados')">
                 Calzados <span class="pill" id="pill-calzados">0</span>
+            </button>
+            <button class="tab-btn" id="tbtn-detodo" onclick="switchTab('detodo')">
+                De Todo <span class="pill" id="pill-detodo">0</span>
             </button>
         </div>
 
@@ -760,13 +759,13 @@
             <div class="stats-row" id="stats-perfumes"></div>
             <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
         </div>
-        <div class="tab-pane" id="pane-detodo">
-            <div class="stats-row" id="stats-detodo"></div>
-            <div id="list-detodo"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-        </div>
         <div class="tab-pane" id="pane-calzados">
             <div class="stats-row" id="stats-calzados"></div>
             <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+        </div>
+        <div class="tab-pane" id="pane-detodo">
+            <div class="stats-row" id="stats-detodo"></div>
+            <div id="list-detodo"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
         </div>
 
     </div>
@@ -830,7 +829,6 @@
     </div>
 
     <div class="drawer-body" id="drawer-body">
-        <!-- Estado inicial: instrucciones -->
         <div class="drawer-state" id="drawer-idle">
             <div class="drawer-state-icon idle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -864,7 +862,6 @@
         </div>
         <div id="drawer-result" style="display:none"></div>
 
-        <!-- Lista de todos los vendedores (cargada al abrir) -->
         <div id="drawer-all-section" style="display:none; margin-top: 20px;">
             <div class="section-heading">Todos los vendedores</div>
             <div class="all-vendors-list" id="drawer-all-list"></div>
@@ -960,9 +957,7 @@ function openDrawer() {
     document.getElementById('drawer-vendors').classList.add('open');
     document.getElementById('drawer-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
-    // Auto-cargar lista de todos los vendedores al abrir
     loadAllVendors();
-    // Focus en el input
     setTimeout(() => document.getElementById('vendor-search-input').focus(), 300);
 }
 function closeDrawer() {
@@ -970,11 +965,10 @@ function closeDrawer() {
     document.getElementById('drawer-overlay').classList.remove('open');
     document.body.style.overflow = '';
 }
-// Cerrar con ESC
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
 // ═══════════════════════════════════════════════════════════
-// DRAWER — CARGAR TODOS LOS VENDEDORES (lista al fondo)
+// DRAWER — CARGAR TODOS LOS VENDEDORES
 // ═══════════════════════════════════════════════════════════
 let allVendorsCache = null;
 
@@ -993,9 +987,7 @@ async function loadAllVendors() {
         const vendors = [];
         snap.forEach(doc => {
             const d = doc.data();
-            if (d.codigoVendedor) {
-                vendors.push({ id: doc.id, ...d });
-            }
+            if (d.codigoVendedor) vendors.push({ id: doc.id, ...d });
         });
         vendors.sort((a,b) => (a.codigoVendedor||'').localeCompare(b.codigoVendedor||''));
         allVendorsCache = vendors;
@@ -1026,7 +1018,6 @@ function renderAllVendorsList(vendors) {
 function fillAndSearch(code) {
     document.getElementById('vendor-search-input').value = code;
     searchVendor();
-    // scroll al top del drawer-body
     document.getElementById('drawer-body').scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1043,25 +1034,17 @@ function drawerShow(id) {
 async function searchVendor() {
     const rawCode = document.getElementById('vendor-search-input').value.trim();
     if (!rawCode) { drawerShow('drawer-idle'); return; }
-
     drawerShow('drawer-loading');
-
     try {
-        // Buscar en colección "usuarios" por campo codigoVendedor
         const snap = await db.collection('usuarios')
-            .where('codigoVendedor', '==', rawCode)
-            .get();
-
+            .where('codigoVendedor', '==', rawCode).get();
         if (snap.empty) {
-            // Intento 2: búsqueda case-insensitive manual si no encontró exacto
-            // (carga todos y filtra, solo si son pocos)
             const all = await db.collection('usuarios').get();
             let found = null;
             all.forEach(doc => {
                 const d = doc.data();
-                if ((d.codigoVendedor||'').toLowerCase() === rawCode.toLowerCase()) {
+                if ((d.codigoVendedor||'').toLowerCase() === rawCode.toLowerCase())
                     found = { id: doc.id, ...d };
-                }
             });
             if (!found) { drawerShow('drawer-notfound'); return; }
             renderVendorCard(found);
@@ -1077,26 +1060,16 @@ async function searchVendor() {
 
 function renderVendorCard(v) {
     const result = document.getElementById('drawer-result');
-
-    // Construir filas de datos dinámicamente según los campos existentes
     const rows = [];
-
-    if (v.nombre || v.apellido) {
-        const nombre = [v.nombre, v.apellido].filter(Boolean).join(' ');
-        rows.push(row(iconUser(), 'Nombre', nombre));
-    }
+    if (v.nombre || v.apellido) rows.push(row(iconUser(), 'Nombre', [v.nombre,v.apellido].filter(Boolean).join(' ')));
     if (v.codigoVendedor) rows.push(row(iconTag(), 'C&#243;digo', v.codigoVendedor));
     if (v.email)          rows.push(row(iconMail(), 'Email', v.email));
-    if (v.telefono || v.phone || v.cel) {
-        rows.push(row(iconPhone(), 'Tel&#233;fono', v.telefono || v.phone || v.cel));
-    }
-    if (v.ciudad || v.localidad) rows.push(row(iconPin(), 'Ciudad', v.ciudad || v.localidad));
+    if (v.telefono || v.phone || v.cel) rows.push(row(iconPhone(), 'Tel&#233;fono', v.telefono||v.phone||v.cel));
+    if (v.ciudad || v.localidad) rows.push(row(iconPin(), 'Ciudad', v.ciudad||v.localidad));
     if (v.provincia)    rows.push(row(iconPin(), 'Provincia', v.provincia));
     if (v.direccion)    rows.push(row(iconPin(), 'Direcci&#243;n', v.direccion));
-    if (v.instagram || v.ig) rows.push(row(iconIG(), 'Instagram', v.instagram || v.ig));
-    if (v.notas || v.observaciones) rows.push(row(iconNote(), 'Notas', v.notas || v.observaciones));
-
-    // Campos adicionales genéricos
+    if (v.instagram || v.ig) rows.push(row(iconIG(), 'Instagram', v.instagram||v.ig));
+    if (v.notas || v.observaciones) rows.push(row(iconNote(), 'Notas', v.notas||v.observaciones));
     const knownFields = ['nombre','apellido','codigoVendedor','email','telefono','phone','cel','ciudad','localidad','provincia','direccion','instagram','ig','notas','observaciones','id'];
     Object.entries(v).forEach(([k,val]) => {
         if (knownFields.includes(k)) return;
@@ -1104,10 +1077,7 @@ function renderVendorCard(v) {
         if (!val) return;
         rows.push(row(iconDot(), esc(k), esc(String(val))));
     });
-
-    const displayName = [v.nombre, v.apellido].filter(Boolean).join(' ') || v.email || v.id;
-    const initials = displayName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-
+    const displayName = [v.nombre,v.apellido].filter(Boolean).join(' ') || v.email || v.id;
     result.innerHTML = `
         <div class="vendor-result">
             <div class="vendor-result-header">
@@ -1119,14 +1089,13 @@ function renderVendorCard(v) {
                 </div>
                 <div>
                     <div class="vendor-result-name">${esc(displayName)}</div>
-                    <div class="vendor-result-code">${esc(v.codigoVendedor || '—')}</div>
+                    <div class="vendor-result-code">${esc(v.codigoVendedor||'—')}</div>
                 </div>
             </div>
             <div class="vendor-result-body">
                 ${rows.length ? rows.join('') : '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0;">Sin datos adicionales</div>'}
             </div>
-        </div>
-    `;
+        </div>`;
     drawerShow('drawer-result');
 }
 
@@ -1137,8 +1106,6 @@ function row(icon, label, value) {
         <span class="vr-val">${value}</span>
     </div>`;
 }
-
-// Mini iconos SVG inline para las filas
 function iconUser()  { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`; }
 function iconTag()   { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`; }
 function iconMail()  { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`; }
@@ -1179,7 +1146,7 @@ async function load() {
                         : (p.cliente?.nombre || 'Cliente web');
                     pedidos.push({
                         _src:   'worker', id,
-                        _uid:   p.uid || id,
+                        _uid:   p.uid || null,   // null si no viene uid
                         _vName: vName,
                         _vCode: p.codigoVendedor || '',
                         codigoVendedor: p.codigoVendedor || '',
@@ -1253,21 +1220,42 @@ async function load() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CLASIFICAR NICHO
+// CLASIFICAR NICHO  ← FIX PRINCIPAL
+// Prioridad: 1) campo nicho del doc  2) palabras clave calzado
+//            3) palabras clave perfume  4) si tiene items → detodo
+//            5) fallback → perfumes
 // ═══════════════════════════════════════════════════════════
 function cat(p) {
+    // 1) Si viene el campo nicho explícito, usarlo primero
     if (p.nicho) {
         const n = p.nicho.toLowerCase();
-        if (n.includes('calzad')) return 'calzados';
-        if (n.includes('detodo')||n==='de todo') return 'detodo';
-        return 'perfumes';
+        if (n.includes('calzad') || n.includes('zapatilla') || n.includes('zapato') ||
+            n.includes('bota') || n.includes('sandalia') || n.includes('sneaker')) return 'calzados';
+        if (n.includes('detodo') || n === 'de todo' || n.includes('de todo')) return 'detodo';
+        if (n.includes('perfume') || n.includes('arabe') || n.includes('árabe')) return 'perfumes';
+        // nicho definido pero no reconocido → seguir con keywords de items
     }
+
+    // 2) Detectar calzados por palabras clave en los productos (tiene prioridad sobre perfumes)
     const items = p.items || [];
-    const KZ = ['zapatilla','zapato','bota','sandalia','calzado','mocasin','sneaker','talle'];
-    if (items.some(i=>KZ.some(k=>(i.nombre||'').toLowerCase().includes(k)))) return 'calzados';
-    const KP = ['perfume','arabe','árabe','oud','lattafa','haramain','body splash','eau de','extrait'];
-    if (items.some(i=>KP.some(k=>(i.nombre||'').toLowerCase().includes(k)))) return 'perfumes';
-    if (items.length>0) return 'detodo';
+    const KZ = [
+        'zapatilla','zapato','bota','sandalia','calzado',
+        'mocasin','moc', 'sneaker','talle','tenis','chinela',
+        'ojotas','alpargata','botita','botines','botin'
+    ];
+    if (items.some(i => KZ.some(k => (i.nombre||'').toLowerCase().includes(k)))) return 'calzados';
+
+    // 3) Detectar perfumes
+    const KP = [
+        'perfume','arabe','árabe','oud','lattafa','haramain',
+        'body splash','eau de','extrait','colonia','fragancia','attar'
+    ];
+    if (items.some(i => KP.some(k => (i.nombre||'').toLowerCase().includes(k)))) return 'perfumes';
+
+    // 4) Tiene items pero no califica en ninguna categoría específica → De Todo
+    if (items.length > 0) return 'detodo';
+
+    // 5) Sin items ni nicho definido → perfumes (default histórico)
     return 'perfumes';
 }
 
@@ -1319,8 +1307,9 @@ function renderList(ps, k) {
     }
     const byV = {};
     ps.forEach(p => {
-        if (!byV[p._uid]) byV[p._uid] = { name:p._vName, code:p._vCode, peds:[] };
-        byV[p._uid].peds.push(p);
+        const key = p._uid || p.id; // agrupar por uid, o por id si no hay uid
+        if (!byV[key]) byV[key] = { name:p._vName, code:p._vCode, peds:[] };
+        byV[key].peds.push(p);
     });
     let html = '';
     Object.values(byV).forEach(v => {
@@ -1380,7 +1369,8 @@ function card(p) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Boleta</button>`;
 
-    const btnDel = `<button class="btn-act btn-del" onclick="askDelete('${p.id}','${p._uid}')">
+    // FIX ELIMINAR: guardamos uid y src como atributos data- del botón
+    const btnDel = `<button class="btn-act btn-del" onclick="askDelete('${p.id}','${p._uid||''}','${p._src||''}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         Eliminar</button>`;
 
@@ -1422,7 +1412,7 @@ function txt(p) {
     const fRaw = p.fechaCreacion?.toDate ? p.fechaCreacion.toDate() : new Date((p.fechaCreacion?.seconds||0)*1000);
     const items  = p.items || [];
     const nicho  = cat(p);
-    const nichoL = nicho==='perfumes'?'Perfumes Arabes':nicho==='detodo'?'De Todo':'Calzados';
+    const nichoL = nicho==='perfumes'?'Perfumes Arabes':nicho==='calzados'?'Calzados':'De Todo';
     const code   = p.codigoVendedor || p._vCode || '—';
     const vname  = p._vName || '—';
     const env    = p.cliente || p.envio || {};
@@ -1480,10 +1470,10 @@ function doWA(id) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ELIMINAR PEDIDO
+// ELIMINAR PEDIDO  ← FIX PRINCIPAL
 // ═══════════════════════════════════════════════════════════
-function askDelete(id, uid) {
-    deleteTarget = { id, uid };
+function askDelete(id, uid, src) {
+    deleteTarget = { id, uid: uid || null, src: src || '' };
     document.getElementById('del-modal').classList.add('show');
 }
 function closeModal() {
@@ -1492,7 +1482,7 @@ function closeModal() {
 }
 async function confirmDelete() {
     if (!deleteTarget) return;
-    const { id, uid } = deleteTarget;
+    const { id, uid, src } = deleteTarget;
     const btn = document.getElementById('del-confirm-btn');
     btn.textContent = 'Eliminando...'; btn.disabled = true;
 
@@ -1500,12 +1490,51 @@ async function confirmDelete() {
         const cardEl = document.getElementById('oc-'+id);
         if (cardEl) cardEl.classList.add('deleting');
 
-        if (uid && uid !== 'worker') {
-            await db.collection('usuarios').doc(uid)
-                    .collection('pedidos').doc(id).delete();
-        }
-        try { await db.collection('pedidos').doc(id).delete(); } catch(_) {}
+        let deleted = false;
 
+        // Caso 1: viene de Firestore SDK (sabemos el uid del usuario)
+        if (src === 'fb' && uid) {
+            try {
+                await db.collection('usuarios').doc(uid)
+                        .collection('pedidos').doc(id).delete();
+                deleted = true;
+            } catch(e) { console.warn('No se pudo borrar en usuarios/pedidos:', e.message); }
+        }
+
+        // Caso 2: viene del Worker (uid puede ser el del usuario o null)
+        // Intentar borrar en la colección raíz primero
+        try {
+            await db.collection('pedidos').doc(id).delete();
+            deleted = true;
+        } catch(_) {}
+
+        // Si el worker nos dio un uid válido, también intentar en la subcolección
+        if (uid && src === 'worker') {
+            try {
+                await db.collection('usuarios').doc(uid)
+                        .collection('pedidos').doc(id).delete();
+                deleted = true;
+            } catch(_) {}
+        }
+
+        // Caso 3: buscar en todas las subcolecciones si todavía no se borró
+        if (!deleted) {
+            try {
+                const usersSnap = await db.collection('usuarios').get();
+                const jobs = [];
+                usersSnap.forEach(uDoc => {
+                    jobs.push(
+                        db.collection('usuarios').doc(uDoc.id)
+                          .collection('pedidos').doc(id).delete()
+                          .then(() => { deleted = true; })
+                          .catch(() => {})
+                    );
+                });
+                await Promise.all(jobs);
+            } catch(_) {}
+        }
+
+        // Eliminar de la lista local siempre (para refrescar UI)
         pedidos = pedidos.filter(p => p.id !== id);
 
         const pend = pedidos.filter(p=>(p.estado||'pendiente')==='pendiente').length;
@@ -1547,7 +1576,7 @@ function doPDF(id) {
     y=26;
     const fRaw = p.fechaCreacion?.toDate ? p.fechaCreacion.toDate() : new Date((p.fechaCreacion?.seconds||0)*1000);
     const nicho = cat(p);
-    const nichoL = nicho==='perfumes'?'Perfumes Arabes':nicho==='detodo'?'De Todo':'Calzados';
+    const nichoL = nicho==='perfumes'?'Perfumes Arabes':nicho==='calzados'?'Calzados':'De Todo';
     const code   = p.codigoVendedor||p._vCode||'—';
     const vname  = p._vName||'—';
     const items  = p.items||[];
@@ -1661,10 +1690,11 @@ function downloadTotalPDF(statusFilter) {
     doc.text(`Generado: ${ahora} (hora Buenos Aires)`, LM, y); y+=5;
     doc.text(`Total de pedidos: ${ps.length}`, LM, y); y+=12;
 
+    // Orden: Perfumes, Calzados, De Todo
     const secs = [
         {k:'perfumes', l:'PERFUMES ARABES'},
-        {k:'detodo',   l:'DE TODO'},
-        {k:'calzados', l:'CALZADOS'}
+        {k:'calzados', l:'CALZADOS'},
+        {k:'detodo',   l:'DE TODO'}
     ];
     secs.forEach(sec => {
         const sp = ps.filter(p=>cat(p)===sec.k);
@@ -1679,8 +1709,9 @@ function downloadTotalPDF(statusFilter) {
 
         const byV = {};
         sp.forEach(p=>{
-            if (!byV[p._uid]) byV[p._uid]={name:p._vName,code:p._vCode,peds:[]};
-            byV[p._uid].peds.push(p);
+            const key = p._uid || p.id;
+            if (!byV[key]) byV[key]={name:p._vName,code:p._vCode,peds:[]};
+            byV[key].peds.push(p);
         });
 
         Object.values(byV).forEach(v=>{
@@ -1769,7 +1800,6 @@ function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Cerrar modal al click fuera
 document.getElementById('del-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
