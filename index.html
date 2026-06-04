@@ -99,6 +99,213 @@
         }
         .btn-logout:hover { border-color: var(--red); color: var(--red); }
 
+        /* ── BOTÓN MENÚ HAMBURGUESA ── */
+        .btn-menu {
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            cursor: pointer;
+            color: var(--text2);
+            transition: all .18s;
+            flex-shrink: 0;
+        }
+        .btn-menu:hover { border-color: var(--blue); color: var(--blue); }
+        .btn-menu svg { width: 18px; height: 18px; }
+
+        /* ── DRAWER OVERLAY ── */
+        .drawer-overlay {
+            position: fixed; inset: 0; z-index: 500;
+            background: rgba(0,0,0,.55);
+            backdrop-filter: blur(3px);
+            opacity: 0; pointer-events: none;
+            transition: opacity .25s;
+        }
+        .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+        /* ── DRAWER PANEL ── */
+        .drawer {
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: 360px; max-width: 94vw;
+            z-index: 501;
+            background: var(--bg2);
+            border-left: 1px solid var(--border2);
+            display: flex; flex-direction: column;
+            transform: translateX(100%);
+            transition: transform .28s cubic-bezier(.4,0,.2,1);
+            box-shadow: -8px 0 40px rgba(0,0,0,.5);
+        }
+        .drawer.open { transform: translateX(0); }
+
+        /* ── DRAWER HEADER ── */
+        .drawer-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 22px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .drawer-title {
+            font-size: 15px; font-weight: 700; color: var(--text);
+            display: flex; align-items: center; gap: 9px;
+        }
+        .drawer-title svg { width: 16px; height: 16px; color: var(--blue); }
+        .btn-close-drawer {
+            width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 7px;
+            background: transparent;
+            border: 1px solid var(--border);
+            cursor: pointer; color: var(--text3);
+            transition: all .18s;
+        }
+        .btn-close-drawer:hover { border-color: var(--border2); color: var(--text); }
+        .btn-close-drawer svg { width: 14px; height: 14px; }
+
+        /* ── DRAWER SEARCH ── */
+        .drawer-search-wrap {
+            padding: 18px 22px 14px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .drawer-search-label {
+            font-size: 10px; font-weight: 700;
+            color: var(--text3); letter-spacing: .6px;
+            text-transform: uppercase; margin-bottom: 8px;
+        }
+        .search-input-wrap {
+            position: relative; display: flex; align-items: center;
+        }
+        .search-icon {
+            position: absolute; left: 12px;
+            width: 15px; height: 15px;
+            color: #6b7280;
+            pointer-events: none; flex-shrink: 0;
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: 9px;
+            color: var(--text);
+            font-size: 14px; font-family: var(--font);
+            transition: all .18s;
+            outline: none;
+        }
+        .search-input::placeholder { color: var(--text3); }
+        .search-input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px var(--blue-glow);
+        }
+        .btn-search {
+            position: absolute; right: 6px;
+            padding: 5px 12px; border-radius: 6px;
+            background: var(--blue); color: white;
+            border: none; font-size: 12px; font-weight: 700;
+            cursor: pointer; font-family: var(--font);
+            transition: background .18s; white-space: nowrap;
+        }
+        .btn-search:hover { background: var(--blue-dim); }
+
+        /* ── DRAWER BODY (scrollable) ── */
+        .drawer-body {
+            flex: 1; overflow-y: auto;
+            padding: 18px 22px;
+        }
+
+        /* ── VENDOR RESULT CARD ── */
+        .vendor-result {
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 12px;
+            overflow: hidden;
+            animation: fadeIn .22s ease;
+        }
+        .vendor-result-header {
+            padding: 14px 16px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .vendor-avatar {
+            width: 40px; height: 40px;
+            background: var(--blue-pale);
+            border: 1px solid var(--blue-glow);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .vendor-avatar svg { width: 20px; height: 20px; color: var(--blue); }
+        .vendor-result-name {
+            font-size: 14px; font-weight: 700; color: var(--text);
+            line-height: 1.3;
+        }
+        .vendor-result-code {
+            display: inline-flex; align-items: center;
+            background: var(--blue); color: white;
+            font-size: 10px; font-weight: 700;
+            padding: 2px 9px; border-radius: 20px;
+            margin-top: 3px;
+        }
+        .vendor-result-body { padding: 14px 16px; }
+        .vr-row {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .vr-row:last-child { border-bottom: none; }
+        .vr-icon { width: 15px; height: 15px; color: var(--text3); flex-shrink: 0; margin-top: 2px; }
+        .vr-label { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; min-width: 68px; flex-shrink: 0; padding-top: 2px; }
+        .vr-val { color: var(--text); word-break: break-word; }
+
+        /* ── ESTADOS DRAWER ── */
+        .drawer-state {
+            text-align: center; padding: 40px 20px;
+        }
+        .drawer-state-icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 14px;
+        }
+        .drawer-state-icon.idle   { background: var(--surface); border: 1px solid var(--border2); }
+        .drawer-state-icon.load   { background: var(--blue-pale); border: 1px solid var(--blue-glow); }
+        .drawer-state-icon.error  { background: var(--red-pale); border: 1px solid rgba(244,63,94,.2); }
+        .drawer-state-icon.empty  { background: var(--amber-pale); border: 1px solid rgba(245,158,11,.2); }
+        .drawer-state-icon svg { width: 22px; height: 22px; }
+        .drawer-state h4 { font-size: 14px; font-weight: 700; margin-bottom: 5px; color: var(--text2); }
+        .drawer-state p  { font-size: 12px; color: var(--text3); line-height: 1.5; }
+
+        /* ── LISTA DE TODOS LOS VENDEDORES ── */
+        .all-vendors-list { display: flex; flex-direction: column; gap: 8px; }
+        .vendor-mini-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 11px 14px;
+            cursor: pointer;
+            transition: all .18s;
+            display: flex; align-items: center; gap: 11px;
+        }
+        .vendor-mini-card:hover { border-color: var(--blue); }
+        .vendor-mini-dot {
+            width: 8px; height: 8px;
+            background: var(--blue);
+            border-radius: 50%; flex-shrink: 0;
+        }
+        .vendor-mini-info { flex: 1; min-width: 0; }
+        .vendor-mini-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .vendor-mini-code { font-size: 11px; color: var(--text3); }
+        .vendor-mini-arrow { color: var(--text3); width: 14px; height: 14px; flex-shrink: 0; }
+
+        .section-heading {
+            font-size: 10px; font-weight: 700; color: var(--text3);
+            text-transform: uppercase; letter-spacing: .6px;
+            margin-bottom: 12px;
+        }
+
         /* ── LOGIN ── */
         .login-wrap {
             min-height: 100vh;
@@ -120,8 +327,9 @@
             border: 1px solid var(--blue-glow);
             border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 22px; margin-bottom: 20px;
+            margin-bottom: 20px;
         }
+        .login-icon svg { width: 26px; height: 26px; color: var(--blue); }
         .login-box h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
         .login-box p  { color: var(--text2); font-size: 13px; margin-bottom: 28px; }
         .field { margin-bottom: 16px; }
@@ -185,7 +393,7 @@
         .btn-head:hover { border-color: var(--blue); color: var(--blue); }
         .btn-head svg { width:15px; height:15px; flex-shrink:0; }
 
-        /* ── STATUS TABS (Pendientes / Aprobados) ── */
+        /* ── STATUS TABS ── */
         .status-tabs {
             display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
         }
@@ -295,11 +503,13 @@
         }
         .order-num-wrap { display: flex; flex-direction: column; gap: 3px; }
         .order-num { font-size: 13px; font-weight: 700; color: var(--text); }
-        .order-date { font-size: 11px; color: var(--text3); }
+        .order-date { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 5px; }
+        .order-date svg { width: 11px; height: 11px; }
 
         .ship-block { display: flex; flex-direction: column; gap: 3px; }
         .ship-row { font-size: 12px; color: var(--text2); display: flex; gap: 6px; align-items: baseline; }
         .ship-row strong { color: var(--text); font-weight: 600; }
+        .ship-row svg { width: 12px; height: 12px; flex-shrink: 0; margin-top: 2px; color: var(--text3); }
 
         .status-chip {
             padding: 4px 12px; border-radius: 20px;
@@ -411,7 +621,8 @@
 
         /* ── EMPTY / LOADER ── */
         .empty { text-align: center; padding: 64px 20px; color: var(--text3); }
-        .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: .5; }
+        .empty-icon { margin-bottom: 12px; opacity: .5; display: flex; justify-content: center; }
+        .empty-icon svg { width: 36px; height: 36px; }
         .empty h3 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
         .loader { text-align: center; padding: 64px 20px; color: var(--text3); }
         .spin {
@@ -447,6 +658,7 @@
             .order-head, .order-foot { padding: 12px 14px; }
             .login-box { padding: 36px 24px; }
             .stab span { display: none; }
+            .drawer { width: 92vw; }
         }
     </style>
 </head>
@@ -461,19 +673,32 @@
     <div class="topbar-right">
         <span class="badge-live">Panel activo</span>
         <button class="btn-logout" onclick="logout()">Salir</button>
+        <!-- BOTON MENU VENDEDORES -->
+        <button class="btn-menu" onclick="openDrawer()" title="Buscar vendedor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
     </div>
 </header>
 
 <!-- ══ LOGIN ══ -->
 <div class="login-wrap" id="login-wrap">
     <div class="login-box">
-        <div class="login-icon">&#128272;</div>
+        <div class="login-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </div>
         <h1>Panel de Pedidos</h1>
-        <p>Ingresá la clave para acceder a todos los pedidos</p>
+        <p>Ingres&#225; la clave para acceder a todos los pedidos</p>
         <div class="login-err" id="login-err"></div>
         <div class="field">
             <label>Clave de acceso</label>
-            <input type="password" id="pin" placeholder="••••••••"
+            <input type="password" id="pin" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
                 onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
         </div>
         <button class="btn-login" onclick="doLogin()">Ingresar</button>
@@ -486,7 +711,7 @@
 
         <div class="page-head">
             <div>
-                <div class="page-title">Gestión de Pedidos <span id="count-lbl"></span></div>
+                <div class="page-title">Gesti&#243;n de Pedidos <span id="count-lbl"></span></div>
             </div>
             <div class="head-actions">
                 <button class="btn-head" onclick="downloadTotalPDF('pendiente')">
@@ -504,7 +729,7 @@
             </div>
         </div>
 
-        <!-- STATUS TABS: Pendientes / Aprobados -->
+        <!-- STATUS TABS -->
         <div class="status-tabs">
             <button class="stab pend active" id="stab-pendiente" onclick="switchStatus('pendiente')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -554,13 +779,98 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </div>
         <h3>Eliminar pedido</h3>
-        <p>Esta acción eliminará el pedido de Firestore. No se puede deshacer.</p>
+        <p>Esta acci&#243;n eliminar&#225; el pedido de Firestore. No se puede deshacer.</p>
         <div class="modal-actions">
             <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
             <button class="modal-confirm-btn" id="del-confirm-btn" onclick="confirmDelete()">Eliminar</button>
         </div>
     </div>
 </div>
+
+<!-- ══ DRAWER OVERLAY ══ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+
+<!-- ══ DRAWER PANEL VENDEDORES ══ -->
+<aside class="drawer" id="drawer-vendors">
+    <div class="drawer-header">
+        <div class="drawer-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Directorio de Vendedores
+        </div>
+        <button class="btn-close-drawer" onclick="closeDrawer()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="drawer-search-wrap">
+        <div class="drawer-search-label">Buscar por c&#243;digo de revendedor</div>
+        <div class="search-input-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+                type="text"
+                class="search-input"
+                id="vendor-search-input"
+                placeholder="Ej: RW001"
+                autocomplete="off"
+                onkeydown="if(event.key==='Enter')searchVendor()"
+            />
+            <button class="btn-search" onclick="searchVendor()">Buscar</button>
+        </div>
+    </div>
+
+    <div class="drawer-body" id="drawer-body">
+        <!-- Estado inicial: instrucciones -->
+        <div class="drawer-state" id="drawer-idle">
+            <div class="drawer-state-icon idle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </div>
+            <h4>Ingres&#225; un c&#243;digo</h4>
+            <p>Escrib&#237; el c&#243;digo del revendedor en el campo de arriba y presion&#225; Buscar.</p>
+        </div>
+        <div class="drawer-state" id="drawer-loading" style="display:none">
+            <div class="drawer-state-icon load">
+                <div class="spin" style="margin:0;width:22px;height:22px;border-width:2px"></div>
+            </div>
+            <h4>Buscando...</h4>
+            <p>Consultando base de datos de vendedores.</p>
+        </div>
+        <div class="drawer-state" id="drawer-notfound" style="display:none">
+            <div class="drawer-state-icon empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h4>Vendedor no encontrado</h4>
+            <p>No existe ning&#250;n vendedor con ese c&#243;digo. Verific&#225; e intent&#225; de nuevo.</p>
+        </div>
+        <div class="drawer-state" id="drawer-error" style="display:none">
+            <div class="drawer-state-icon error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <h4>Error de conexi&#243;n</h4>
+            <p id="drawer-error-msg">No se pudo conectar con Firebase.</p>
+        </div>
+        <div id="drawer-result" style="display:none"></div>
+
+        <!-- Lista de todos los vendedores (cargada al abrir) -->
+        <div id="drawer-all-section" style="display:none; margin-top: 20px;">
+            <div class="section-heading">Todos los vendedores</div>
+            <div class="all-vendors-list" id="drawer-all-list"></div>
+        </div>
+    </div>
+</aside>
 
 <div class="toast" id="toast"></div>
 
@@ -590,10 +900,10 @@ const WA_NUMBER = '5491126805111';
 const KEY       = '38916201';
 const S_KEY     = 'rw_dark_v1';
 
-let pedidos     = [];         // todos
-let activeTab   = 'perfumes';
-let activeStatus = 'pendiente'; // 'pendiente' | 'pagado'
-let deleteTarget = null;        // { id, uid } del pedido a eliminar
+let pedidos      = [];
+let activeTab    = 'perfumes';
+let activeStatus = 'pendiente';
+let deleteTarget = null;
 
 // ═══════════════════════════════════════════════════════════
 // HORA BUENOS AIRES
@@ -623,7 +933,7 @@ function init() {
 }
 function doLogin() {
     const v = document.getElementById('pin').value.trim();
-    if (!v) { loginErr('Ingresá la clave'); return; }
+    if (!v) { loginErr('Ingres\u00e1 la clave'); return; }
     if (v === KEY) { sessionStorage.setItem(S_KEY,'ok'); showMain(); load(); }
     else { loginErr('Clave incorrecta'); document.getElementById('pin').value=''; }
 }
@@ -644,13 +954,202 @@ function showMain() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// DRAWER — ABRIR / CERRAR
+// ═══════════════════════════════════════════════════════════
+function openDrawer() {
+    document.getElementById('drawer-vendors').classList.add('open');
+    document.getElementById('drawer-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    // Auto-cargar lista de todos los vendedores al abrir
+    loadAllVendors();
+    // Focus en el input
+    setTimeout(() => document.getElementById('vendor-search-input').focus(), 300);
+}
+function closeDrawer() {
+    document.getElementById('drawer-vendors').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+// Cerrar con ESC
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+// ═══════════════════════════════════════════════════════════
+// DRAWER — CARGAR TODOS LOS VENDEDORES (lista al fondo)
+// ═══════════════════════════════════════════════════════════
+let allVendorsCache = null;
+
+async function loadAllVendors() {
+    const section = document.getElementById('drawer-all-section');
+    const list    = document.getElementById('drawer-all-list');
+    if (allVendorsCache) {
+        renderAllVendorsList(allVendorsCache);
+        section.style.display = 'block';
+        return;
+    }
+    list.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px;">Cargando vendedores...</div>';
+    section.style.display = 'block';
+    try {
+        const snap = await db.collection('usuarios').get();
+        const vendors = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d.codigoVendedor) {
+                vendors.push({ id: doc.id, ...d });
+            }
+        });
+        vendors.sort((a,b) => (a.codigoVendedor||'').localeCompare(b.codigoVendedor||''));
+        allVendorsCache = vendors;
+        renderAllVendorsList(vendors);
+    } catch(e) {
+        list.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px;">No se pudo cargar la lista.</div>';
+    }
+}
+
+function renderAllVendorsList(vendors) {
+    const list = document.getElementById('drawer-all-list');
+    if (!vendors.length) {
+        list.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px;">No hay vendedores registrados.</div>';
+        return;
+    }
+    list.innerHTML = vendors.map(v => `
+        <div class="vendor-mini-card" onclick="fillAndSearch('${esc(v.codigoVendedor)}')">
+            <div class="vendor-mini-dot"></div>
+            <div class="vendor-mini-info">
+                <div class="vendor-mini-name">${esc(v.nombre||v.email||v.id)}</div>
+                <div class="vendor-mini-code">C&#243;d: ${esc(v.codigoVendedor)}</div>
+            </div>
+            <svg class="vendor-mini-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+    `).join('');
+}
+
+function fillAndSearch(code) {
+    document.getElementById('vendor-search-input').value = code;
+    searchVendor();
+    // scroll al top del drawer-body
+    document.getElementById('drawer-body').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAWER — BUSCAR VENDEDOR POR CÓDIGO
+// ═══════════════════════════════════════════════════════════
+function drawerShow(id) {
+    ['drawer-idle','drawer-loading','drawer-notfound','drawer-error','drawer-result'].forEach(s => {
+        document.getElementById(s).style.display = 'none';
+    });
+    document.getElementById(id).style.display = 'block';
+}
+
+async function searchVendor() {
+    const rawCode = document.getElementById('vendor-search-input').value.trim();
+    if (!rawCode) { drawerShow('drawer-idle'); return; }
+
+    drawerShow('drawer-loading');
+
+    try {
+        // Buscar en colección "usuarios" por campo codigoVendedor
+        const snap = await db.collection('usuarios')
+            .where('codigoVendedor', '==', rawCode)
+            .get();
+
+        if (snap.empty) {
+            // Intento 2: búsqueda case-insensitive manual si no encontró exacto
+            // (carga todos y filtra, solo si son pocos)
+            const all = await db.collection('usuarios').get();
+            let found = null;
+            all.forEach(doc => {
+                const d = doc.data();
+                if ((d.codigoVendedor||'').toLowerCase() === rawCode.toLowerCase()) {
+                    found = { id: doc.id, ...d };
+                }
+            });
+            if (!found) { drawerShow('drawer-notfound'); return; }
+            renderVendorCard(found);
+        } else {
+            const doc = snap.docs[0];
+            renderVendorCard({ id: doc.id, ...doc.data() });
+        }
+    } catch(e) {
+        document.getElementById('drawer-error-msg').textContent = e.message || 'Error desconocido.';
+        drawerShow('drawer-error');
+    }
+}
+
+function renderVendorCard(v) {
+    const result = document.getElementById('drawer-result');
+
+    // Construir filas de datos dinámicamente según los campos existentes
+    const rows = [];
+
+    if (v.nombre || v.apellido) {
+        const nombre = [v.nombre, v.apellido].filter(Boolean).join(' ');
+        rows.push(row(iconUser(), 'Nombre', nombre));
+    }
+    if (v.codigoVendedor) rows.push(row(iconTag(), 'C&#243;digo', v.codigoVendedor));
+    if (v.email)          rows.push(row(iconMail(), 'Email', v.email));
+    if (v.telefono || v.phone || v.cel) {
+        rows.push(row(iconPhone(), 'Tel&#233;fono', v.telefono || v.phone || v.cel));
+    }
+    if (v.ciudad || v.localidad) rows.push(row(iconPin(), 'Ciudad', v.ciudad || v.localidad));
+    if (v.provincia)    rows.push(row(iconPin(), 'Provincia', v.provincia));
+    if (v.direccion)    rows.push(row(iconPin(), 'Direcci&#243;n', v.direccion));
+    if (v.instagram || v.ig) rows.push(row(iconIG(), 'Instagram', v.instagram || v.ig));
+    if (v.notas || v.observaciones) rows.push(row(iconNote(), 'Notas', v.notas || v.observaciones));
+
+    // Campos adicionales genéricos
+    const knownFields = ['nombre','apellido','codigoVendedor','email','telefono','phone','cel','ciudad','localidad','provincia','direccion','instagram','ig','notas','observaciones','id'];
+    Object.entries(v).forEach(([k,val]) => {
+        if (knownFields.includes(k)) return;
+        if (typeof val === 'object' && val !== null) return;
+        if (!val) return;
+        rows.push(row(iconDot(), esc(k), esc(String(val))));
+    });
+
+    const displayName = [v.nombre, v.apellido].filter(Boolean).join(' ') || v.email || v.id;
+    const initials = displayName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+    result.innerHTML = `
+        <div class="vendor-result">
+            <div class="vendor-result-header">
+                <div class="vendor-avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="vendor-result-name">${esc(displayName)}</div>
+                    <div class="vendor-result-code">${esc(v.codigoVendedor || '—')}</div>
+                </div>
+            </div>
+            <div class="vendor-result-body">
+                ${rows.length ? rows.join('') : '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0;">Sin datos adicionales</div>'}
+            </div>
+        </div>
+    `;
+    drawerShow('drawer-result');
+}
+
+function row(icon, label, value) {
+    return `<div class="vr-row">
+        <span class="vr-icon">${icon}</span>
+        <span class="vr-label">${label}</span>
+        <span class="vr-val">${value}</span>
+    </div>`;
+}
+
+// Mini iconos SVG inline para las filas
+function iconUser()  { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`; }
+function iconTag()   { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`; }
+function iconMail()  { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`; }
+function iconPhone() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.77 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.68 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`; }
+function iconPin()   { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`; }
+function iconIG()    { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>`; }
+function iconNote()  { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`; }
+function iconDot()   { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/></svg>`; }
+
+// ═══════════════════════════════════════════════════════════
 // CARGA PEDIDOS
-// — Fuente 1: Worker  → colección raíz  pedidos/{pedidoId}
-//             campos: pedidoId, estadoPago, cliente, productos, total,
-//                     codigoVendedor, uid, fecha
-// — Fuente 2: Firestore SDK → usuarios/{uid}/pedidos/{id}
-//             campos: estado, items, cliente/envio, fechaCreacion,
-//                     codigoVendedor, totalFinal, etc.
 // ═══════════════════════════════════════════════════════════
 async function load() {
     ['perfumes','detodo','calzados'].forEach(k => {
@@ -660,12 +1159,9 @@ async function load() {
 
     try {
         pedidos = [];
-        // Mapa para deduplicar: clave = pedidoId normalizado
         const seen = new Set();
 
-        // ── FUENTE 1: Worker /api/pedidos (colección raíz Firestore) ──
-        // Esta es la fuente PRINCIPAL porque el Worker es quien crea
-        // el pedido cuando el usuario aprieta "Comprar".
+        // FUENTE 1: Worker
         try {
             const wRes = await fetch(WORKER + '/api/pedidos');
             if (wRes.ok) {
@@ -674,23 +1170,16 @@ async function load() {
                     const id = p.pedidoId || p.id;
                     if (!id || seen.has(id)) return;
                     seen.add(id);
-
-                    // estadoPago: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
-                    // lo normalizamos a estado: 'pendiente' | 'pagado' | 'cancelado'
                     const ep = (p.estadoPago || '').toUpperCase();
                     const estado = ep === 'APROBADO' ? 'pagado'
                                  : ep === 'RECHAZADO' ? 'cancelado'
                                  : 'pendiente';
-
-                    // Nombre visible del vendedor
                     const vName = p.codigoVendedor
                         ? ('Vendedor ' + p.codigoVendedor)
                         : (p.cliente?.nombre || 'Cliente web');
-
                     pedidos.push({
-                        _src:   'worker',
-                        id,
-                        _uid:   p.uid || id,          // para eliminar
+                        _src:   'worker', id,
+                        _uid:   p.uid || id,
                         _vName: vName,
                         _vCode: p.codigoVendedor || '',
                         codigoVendedor: p.codigoVendedor || '',
@@ -702,22 +1191,16 @@ async function load() {
                         })),
                         totalFinal:     Number(p.total || 0),
                         totalInversion: Number(p.total || 0),
-                        // fechaCreacion compatible con el resto del código
                         fechaCreacion: { seconds: Math.floor(Number(p.fecha || Date.now()) / 1000) },
-                        // datos de envío: el Worker guarda en "cliente"
                         cliente: p.cliente || null,
                         envio:   p.cliente || null,
                         nicho:   p.nicho   || null,
                     });
                 });
             }
-        } catch(we) {
-            console.warn('Worker /api/pedidos no disponible:', we.message);
-        }
+        } catch(we) { console.warn('Worker /api/pedidos no disponible:', we.message); }
 
-        // ── FUENTE 2: Firestore SDK → usuarios/{uid}/pedidos ──
-        // Pedidos guardados directamente desde el index (sin pasar por Worker).
-        // Solo agregamos los que NO vinieron ya del Worker.
+        // FUENTE 2: Firestore SDK
         try {
             const usersSnap = await db.collection('usuarios').get();
             const jobs = [];
@@ -729,31 +1212,23 @@ async function load() {
                       .then(snap => {
                           snap.forEach(pDoc => {
                               const id = pDoc.id;
-                              if (seen.has(id)) return; // ya vino del Worker
+                              if (seen.has(id)) return;
                               seen.add(id);
-
                               const data = pDoc.data();
-                              // estado puede ser 'pendiente'/'pagado'/'cancelado' (minúscula)
-                              // o en algunos casos undefined → asumir pendiente
                               const estado = (data.estado || 'pendiente').toLowerCase();
-
                               pedidos.push({
-                                  _src:   'fb',
-                                  id,
+                                  _src:   'fb', id,
                                   _uid:   uDoc.id,
                                   _vName: ud.nombre || ud.email || uDoc.id,
                                   _vCode: ud.codigoVendedor || '',
-                                  ...data,
-                                  estado,
+                                  ...data, estado,
                               });
                           });
                       }).catch(()=>{})
                 );
             });
             await Promise.all(jobs);
-        } catch(fe) {
-            console.warn('Firestore SDK error:', fe.message);
-        }
+        } catch(fe) { console.warn('Firestore SDK error:', fe.message); }
 
         pedidos.sort((a,b)=>(b.fechaCreacion?.seconds||0)-(a.fechaCreacion?.seconds||0));
 
@@ -772,7 +1247,7 @@ async function load() {
         console.error(e);
         ['perfumes','detodo','calzados'].forEach(k => {
             document.getElementById('list-'+k).innerHTML =
-                `<div class="empty"><div class="empty-icon">&#9888;</div><h3>Error al cargar</h3><p>${e.message}</p></div>`;
+                `<div class="empty"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><h3>Error al cargar</h3><p>${e.message}</p></div>`;
         });
     }
 }
@@ -797,14 +1272,12 @@ function cat(p) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// RENDER COMPLETO (aplica filtro status + nicho)
+// RENDER COMPLETO
 // ═══════════════════════════════════════════════════════════
 function renderAll() {
     const filtered = pedidos.filter(p => (p.estado||'pendiente') === activeStatus);
-
     const cats = { perfumes:[], detodo:[], calzados:[] };
     filtered.forEach(p => cats[cat(p)].push(p));
-
     ['perfumes','detodo','calzados'].forEach(k => {
         setPill(k, cats[k].length);
         renderStats(cats[k], k);
@@ -839,7 +1312,9 @@ function renderList(ps, k) {
         const msg = activeStatus === 'pendiente'
             ? 'No hay pedidos pendientes en este nicho.'
             : 'No hay pedidos aprobados en este nicho.';
-        el.innerHTML = `<div class="empty"><div class="empty-icon">&#128235;</div><h3>Sin pedidos</h3><p>${msg}</p></div>`;
+        el.innerHTML = `<div class="empty">
+            <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M16 19h6"/><path d="M19 16v6"/></svg></div>
+            <h3>Sin pedidos</h3><p>${msg}</p></div>`;
         return;
     }
     const byV = {};
@@ -851,7 +1326,8 @@ function renderList(ps, k) {
     Object.values(byV).forEach(v => {
         html += `<div class="vendor-block">
             <div class="vendor-head">
-                <span class="vendor-name">&#128100; ${esc(v.name)}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="vendor-name">${esc(v.name)}</span>
                 <span class="vendor-code">Cod: ${esc(v.code||'—')}</span>
                 <span class="vendor-qty">${v.peds.length} pedido${v.peds.length!==1?'s':''}</span>
             </div>`;
@@ -886,28 +1362,24 @@ function card(p) {
     const envioBlock = hasEnvio ? `
         <div class="ship-block">
             ${envNombre ? `<div class="ship-row"><strong>${esc(envNombre)}</strong></div>` : ''}
-            ${env.telefono  ? `<div class="ship-row">&#128222; ${esc(env.telefono)}</div>` : ''}
-            ${env.email     ? `<div class="ship-row">&#9993; ${esc(env.email)}</div>` : ''}
-            ${(env.direccion||env.ciudad) ? `<div class="ship-row">&#128205; ${[env.direccion,env.ciudad,env.provincia,env.cp].filter(Boolean).join(', ')}</div>` : ''}
-            ${env.observaciones ? `<div class="ship-row">&#128203; ${esc(env.observaciones)}</div>` : ''}
+            ${env.telefono  ? `<div class="ship-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.77 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.68 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> ${esc(env.telefono)}</div>` : ''}
+            ${env.email     ? `<div class="ship-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> ${esc(env.email)}</div>` : ''}
+            ${(env.direccion||env.ciudad) ? `<div class="ship-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${esc([env.direccion,env.ciudad,env.provincia,env.cp].filter(Boolean).join(', '))}</div>` : ''}
+            ${env.observaciones ? `<div class="ship-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${esc(env.observaciones)}</div>` : ''}
         </div>` : '<span style="font-size:12px;color:var(--text3)">Sin datos de envio</span>';
 
-    // Botón copiar
     const btnCopy = `<button class="btn-act btn-copy" onclick="doCopy('${p.id}',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Copiar</button>`;
 
-    // Botón WhatsApp
     const btnWA = `<button class="btn-act btn-wa" onclick="doWA('${p.id}')">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
         Enviar pedido</button>`;
 
-    // Botón PDF boleta
     const btnPDF = `<button class="btn-act btn-pdf" onclick="doPDF('${p.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Boleta</button>`;
 
-    // Botón eliminar
     const btnDel = `<button class="btn-act btn-del" onclick="askDelete('${p.id}','${p._uid}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         Eliminar</button>`;
@@ -917,7 +1389,10 @@ function card(p) {
         <div class="order-head">
             <div class="order-num-wrap">
                 <div class="order-num">Pedido #${p.id.slice(-8).toUpperCase()}</div>
-                <div class="order-date">&#128197; ${fecha}</div>
+                <div class="order-date">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    ${fecha}
+                </div>
             </div>
             ${envioBlock}
             <span class="status-chip s-${estado}">${estado==='pagado'?'Aprobado':'Pendiente'}</span>
@@ -928,7 +1403,7 @@ function card(p) {
         </table>
         <div class="order-foot">
             <div class="foot-meta">
-                <strong>${items.length}</strong> prod. · <strong>${totalU}</strong> unidades
+                <strong>${items.length}</strong> prod. &middot; <strong>${totalU}</strong> unidades
             </div>
             <div class="actions">
                 ${btnCopy}
@@ -1022,24 +1497,17 @@ async function confirmDelete() {
     btn.textContent = 'Eliminando...'; btn.disabled = true;
 
     try {
-        // Marcar card visualmente
-        const card = document.getElementById('oc-'+id);
-        if (card) card.classList.add('deleting');
+        const cardEl = document.getElementById('oc-'+id);
+        if (cardEl) cardEl.classList.add('deleting');
 
-        // Eliminar de Firestore subcolección
         if (uid && uid !== 'worker') {
             await db.collection('usuarios').doc(uid)
                     .collection('pedidos').doc(id).delete();
         }
-        // Eliminar de colección raíz (si existe)
-        try {
-            await db.collection('pedidos').doc(id).delete();
-        } catch(_) {}
+        try { await db.collection('pedidos').doc(id).delete(); } catch(_) {}
 
-        // Quitar del array local
         pedidos = pedidos.filter(p => p.id !== id);
 
-        // Actualizar contadores
         const pend = pedidos.filter(p=>(p.estado||'pendiente')==='pendiente').length;
         const apro = pedidos.filter(p=>(p.estado||'pendiente')==='pagado').length;
         document.getElementById('scnt-pendiente').textContent = pend;
@@ -1054,8 +1522,8 @@ async function confirmDelete() {
     } catch(e) {
         toast('Error al eliminar: ' + e.message, 'err');
         btn.textContent = 'Eliminar'; btn.disabled = false;
-        const card = document.getElementById('oc-'+id);
-        if (card) card.classList.remove('deleting');
+        const cardEl = document.getElementById('oc-'+id);
+        if (cardEl) cardEl.classList.remove('deleting');
     }
 }
 
@@ -1165,12 +1633,12 @@ function doPDF(id) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PDF FACTURAS AGRUPADAS (pendientes o aprobadas)
+// PDF FACTURAS AGRUPADAS
 // ═══════════════════════════════════════════════════════════
 function downloadTotalPDF(statusFilter) {
     const ps = pedidos.filter(p=>(p.estado||'pendiente')===statusFilter);
     const label = statusFilter==='pendiente' ? 'PENDIENTES' : 'APROBADOS';
-    if (!ps.length) { toast(`No hay pedidos ${label.toLowerCase()} aún`,'err'); return; }
+    if (!ps.length) { toast(`No hay pedidos ${label.toLowerCase()} aun`,'err'); return; }
 
     const {jsPDF} = window.jspdf;
     const doc = new jsPDF({format:'a4', unit:'mm'});
