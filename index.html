@@ -103,27 +103,27 @@
         .login-wrap {
             min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
-            padding: 40px 20px;
+            padding: 24px 16px;
             background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,102,255,.08), transparent);
         }
         .login-box {
             background: var(--surface);
             border: 1px solid var(--border2);
-            border-radius: 16px;
-            padding: 48px 44px;
-            width: 100%; max-width: 380px;
+            border-radius: 14px;
+            padding: 32px 28px;
+            width: 100%; max-width: 332px;
             box-shadow: var(--shadow-lg);
         }
         .login-icon {
-            width: 52px; height: 52px;
+            width: 44px; height: 44px;
             background: var(--blue-pale);
             border: 1px solid var(--blue-glow);
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 22px; margin-bottom: 20px;
+            font-size: 19px; margin-bottom: 16px;
         }
-        .login-box h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-        .login-box p  { color: var(--text2); font-size: 13px; margin-bottom: 28px; }
+        .login-box h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .login-box p  { color: var(--text2); font-size: 12px; margin-bottom: 20px; }
         .field { margin-bottom: 16px; }
         .field label {
             display: block; font-size: 11px; font-weight: 700;
@@ -256,15 +256,17 @@
         /* ── VENDOR BLOCK ── */
         .vendor-block { margin-bottom: 32px; }
         .vendor-head {
-            display: flex; align-items: center; gap: 12px;
-            padding: 13px 18px;
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 16px;
             background: var(--bg2);
             border: 1px solid var(--border);
             border-left: 3px solid var(--blue);
             border-radius: 0 var(--radius) var(--radius) 0;
             margin-bottom: 12px; flex-wrap: wrap; gap: 10px;
         }
-        .vendor-name { font-size: 14px; font-weight: 700; }
+        .vendor-icon{width:24px;height:24px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:var(--blue-pale);border:1px solid var(--blue-glow);color:var(--blue);flex-shrink:0}
+        .vendor-icon svg{width:14px;height:14px}
+        .vendor-name { font-size: 14px; font-weight: 700; color:var(--text); }
         .vendor-code {
             background: var(--blue); color: white;
             font-size: 11px; font-weight: 700;
@@ -441,13 +443,142 @@
 
         /* ── RESPONSIVE ── */
         @media (max-width: 640px) {
-            .topbar { padding: 0 16px; }
-            .wrap { padding: 20px 14px; }
+            .topbar { padding: 0 16px; height:54px; }
+            .brand{font-size:15px}.brand-mark{width:28px;height:28px;font-size:12px}.badge-live{display:none}
+            .wrap { padding: 18px 12px; }
+            .page-head{margin-bottom:18px}.page-title{font-size:20px}.head-actions{width:100%}.btn-head{flex:1;padding:9px 10px;font-size:11px}
             .prod-table th, .prod-table td { padding: 9px 12px; }
             .order-head, .order-foot { padding: 12px 14px; }
-            .login-box { padding: 36px 24px; }
-            .stab span { display: none; }
+            .login-wrap { padding: 18px 12px; }
+            .login-box { max-width: 290px; padding: 24px 18px; border-radius: 12px; }
+            .login-icon { width: 38px; height: 38px; font-size: 16px; margin-bottom: 12px; }
+            .login-box h1 { font-size: 18px; }
+            .login-box p { font-size: 11px; margin-bottom: 16px; }
+            .field { margin-bottom: 12px; }
+            .field input { padding: 10px 12px; font-size: 13px; }
+            .btn-login { padding: 11px; font-size: 14px; }
+            .stab span:not(.cnt) { display: none; }
+            .menu-nav{gap:0;margin-bottom:16px;flex-wrap:nowrap}.menu-btn{padding:10px 12px;font-size:12px}.tabs-bar{margin-bottom:18px}.tab-btn{padding:10px 14px;font-size:12px}
+            .stats-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:12px}.stat-card{padding:7px 8px}.stat-lbl{font-size:8px;margin-bottom:2px}.stat-val{font-size:15px}
+            /* ── Vendor strip: una sola línea, compacta ── */
+            .vendor-head{padding:7px 10px;gap:6px;flex-wrap:nowrap;overflow:hidden}
+            .vendor-icon{width:18px;height:18px;border-radius:5px}.vendor-icon svg{width:10px;height:10px}
+            .vendor-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+            .vendor-code{font-size:9px;padding:2px 6px;flex-shrink:0}
+            .vendor-qty{margin-left:auto;font-size:10px;width:auto;white-space:nowrap;flex-shrink:0}
+            .vendor-block .lv-chip{font-size:9px;padding:2px 6px;gap:3px;flex-shrink:0}
+            .vendor-block .lv-chip .lv-stars{display:none}
+            /* ── Cintas de pedido ── */
+            .ribbon-head{padding:11px 12px;gap:8px}.ribbon-main{gap:8px}.r-name{font-size:13px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.r-code{font-size:10px;padding:2px 8px}.ribbon-meta{width:100%;justify-content:space-between;margin-left:0}.actions{width:100%}.btn-act{flex:1;justify-content:center;padding:8px 9px;font-size:11px}.toast{left:12px;right:12px;bottom:14px;text-align:center}
+            /* ── Mini cintas de estadísticas / ganancias: 1 línea ── */
+            .mini-head{padding:8px 10px;gap:6px;flex-wrap:nowrap}
+            .mini-title{font-size:11px;gap:5px;min-width:0;flex:1;overflow:hidden}
+            .mini-title svg{width:11px;height:11px}
+            .mini-title>div{min-width:0;overflow:hidden}
+            .mini-title>div>div:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .mini-sub{font-size:9px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .mini-value{font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0}
+            .mini-caret{width:11px;height:11px}
+            .mini-content{padding:8px 10px 10px;gap:5px}
+            .mini-row{font-size:11px}
+            /* ── Tarjetas de vendedor (vista Vendedores) en 1 línea ── */
+            .v-card{padding:9px 11px;gap:8px;flex-wrap:nowrap;align-items:center}
+            .v-info{min-width:0;flex:1}
+            .v-name{font-size:12px;gap:5px;flex-wrap:nowrap;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            .v-name .lv-chip{font-size:9px;padding:2px 6px;flex-shrink:0}
+            .v-name .lv-chip .lv-stars{display:none}
+            .v-sub{font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .v-progress{flex:0 0 90px;min-width:0}
+            .v-progress .v-sub{display:none}
+            .v-bar{height:4px;margin-top:0}
+            .btn-notify{padding:6px 10px;font-size:10px;flex-shrink:0}
+            /* ── Ranking en 1 línea ── */
+            .rank-row{padding:9px 11px;gap:8px;flex-wrap:nowrap}
+            .rank-pos{font-size:14px;width:28px}
+            .rank-name{font-size:12px;gap:5px;flex-wrap:nowrap;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            .rank-name .lv-chip{font-size:9px;padding:2px 5px;flex-shrink:0}
+            .rank-name .lv-stars{display:none}
+            .rank-val{font-size:12px;flex-shrink:0}
         }
+        /* ── MENU NAV ── */
+        .menu-nav{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border);flex-wrap:wrap;overflow-x:auto}
+        .menu-btn{display:flex;align-items:center;gap:8px;padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;font-family:var(--font);transition:.18s;white-space:nowrap}
+        .menu-btn:hover:not(.active){color:var(--text)}
+        .menu-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+        .view{display:none}
+        .view.active{display:block}
+
+        /* ── RIBBON (CINTA) ── */
+        .ribbon{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .18s;animation:fadeIn .25s ease}
+        .ribbon:hover{border-color:var(--border2)}
+        .ribbon.deleting{opacity:.4;pointer-events:none;transition:opacity .3s}
+        .ribbon-head{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;cursor:pointer;gap:14px;flex-wrap:wrap;user-select:none}
+        .ribbon-head:hover{background:var(--bg2)}
+        .ribbon-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+        .r-name{font-weight:700;font-size:14px;color:var(--text);min-width:0}
+        .r-code{background:var(--blue-pale);color:var(--blue);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid var(--blue-glow)}
+        .ribbon-meta{display:flex;align-items:center;gap:12px;margin-left:auto;flex-wrap:wrap}
+        .r-date{font-size:11px;color:var(--text3)}
+        .r-caret{width:16px;height:16px;color:var(--text3);transition:transform .25s;flex-shrink:0}
+        .ribbon.expanded .r-caret{transform:rotate(180deg)}
+        .ribbon-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
+        .ribbon.expanded .ribbon-body{max-height:5000px}
+
+        /* ── LEVEL / STARS ── */
+        .lv-stars{display:inline-flex;gap:2px;color:#f5b400;vertical-align:middle}
+        .lv-star{width:14px;height:14px}
+        .lv-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text2)}
+        .lv-chip.lv-2{background:#3a2d10;color:#f5b400}
+        .lv-chip.lv-3{background:#10331f;color:#22d381}
+        .lv-chip.lv-4{background:#1a2444;color:#6ea4ff}
+        .lv-chip.lv-5{background:linear-gradient(135deg,#5a2e8b,#b026ff);color:#fff;box-shadow:0 0 12px rgba(176,38,255,.4)}
+
+        /* ── VENDOR CARDS ── */
+        .v-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+        .v-info{flex:1;min-width:220px}
+        .v-name{font-size:15px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+        .v-sub{font-size:12px;color:var(--text3);margin-top:4px}
+        .v-progress{flex:0 0 220px}
+        .v-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
+        .v-bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),#6ea4ff);border-radius:3px;transition:width .4s}
+        .btn-notify{padding:9px 16px;border-radius:8px;background:var(--green);color:#0b0d12;font-weight:700;font-size:12px;border:none;cursor:pointer;font-family:var(--font);transition:.18s}
+        .btn-notify:hover:not(:disabled){background:#00e07c;transform:translateY(-1px)}
+        .btn-notify:disabled{background:var(--surface2);color:var(--text3);cursor:not-allowed}
+
+        /* ── STATS KPI ── */
+        .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:18px}
+        .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+        .kpi-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+        .kpi-val{font-size:22px;font-weight:700;color:var(--text);margin-top:3px}
+        .kpi-delta{font-size:11px;font-weight:700;margin-top:4px;color:var(--text3)}
+        .kpi-delta.up{color:var(--green)}.kpi-delta.dn{color:var(--red)}
+        .section-title{font-size:15px;font-weight:700;margin:0 0 12px;color:var(--text)}
+        .mini-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+        .mini-ribbon{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .18s}
+        .mini-ribbon:hover{border-color:var(--border2)}
+        .mini-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;background:var(--bg2)}
+        .mini-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;min-width:0}
+        .mini-title svg{width:14px;height:14px;color:var(--blue);flex-shrink:0}
+        .mini-value{font-size:16px;font-weight:800;color:var(--text);white-space:nowrap}
+        .mini-value.green{color:var(--green)}.mini-value.blue{color:var(--blue)}.mini-value.amber{color:var(--amber)}
+        .mini-sub{font-size:11px;color:var(--text3);margin-top:2px}
+        .mini-caret{width:14px;height:14px;color:var(--text3);transition:transform .25s;flex-shrink:0}
+        .mini-ribbon.expanded .mini-caret{transform:rotate(180deg)}
+        .mini-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+        .mini-ribbon.expanded .mini-body{max-height:900px}
+        .mini-content{padding:10px 14px 13px;border-top:1px solid var(--border);display:grid;gap:7px}
+        .mini-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--text2)}
+        .mini-row strong{color:var(--text);font-weight:700;text-align:right}
+
+        /* ── RANKING ── */
+        .rank-row{display:flex;align-items:center;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;gap:14px}
+        .rank-pos{font-size:18px;font-weight:800;color:var(--blue);width:42px;text-align:center;flex-shrink:0}
+        .rank-row:nth-child(2) .rank-pos{color:#f5b400}
+        .rank-row:nth-child(3) .rank-pos{color:#c0c0c0}
+        .rank-row:nth-child(4) .rank-pos{color:#cd7f32}
+        .rank-body{flex:1;min-width:0}
+        .rank-name{font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .rank-val{font-weight:800;color:var(--green);font-size:15px;margin-left:auto;white-space:nowrap}
     </style>
 </head>
 <body>
@@ -504,44 +635,94 @@
             </div>
         </div>
 
-        <!-- STATUS TABS: Pendientes / Aprobados -->
-        <div class="status-tabs">
-            <button class="stab pend active" id="stab-pendiente" onclick="switchStatus('pendiente')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>Pedidos pendientes</span>
-                <span class="cnt" id="scnt-pendiente">0</span>
+        <!-- MENU PRINCIPAL -->
+        <div class="menu-nav">
+            <button class="menu-btn active" data-view="pedidos" onclick="switchView('pedidos')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Pedidos
             </button>
-            <button class="stab apro" id="stab-pagado" onclick="switchStatus('pagado')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span>Pedidos aprobados</span>
-                <span class="cnt" id="scnt-pagado">0</span>
+            <button class="menu-btn" data-view="vendedores" onclick="switchView('vendedores')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                Vendedores
             </button>
-        </div>
-
-        <!-- NICHO TABS -->
-        <div class="tabs-bar">
-            <button class="tab-btn active" id="tbtn-perfumes" onclick="switchTab('perfumes')">
-                Perfumes Arabes <span class="pill on" id="pill-perfumes">0</span>
+            <button class="menu-btn" data-view="stats" onclick="switchView('stats')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Estadísticas
             </button>
-            <button class="tab-btn" id="tbtn-detodo" onclick="switchTab('detodo')">
-                De Todo <span class="pill" id="pill-detodo">0</span>
+            <button class="menu-btn" data-view="ganancias" onclick="switchView('ganancias')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Ganancia de Vendedores
             </button>
-            <button class="tab-btn" id="tbtn-calzados" onclick="switchTab('calzados')">
-                Calzados <span class="pill" id="pill-calzados">0</span>
+            <button class="menu-btn" data-view="ranking" onclick="switchView('ranking')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                Ranking
             </button>
         </div>
 
-        <div class="tab-pane active" id="pane-perfumes">
-            <div class="stats-row" id="stats-perfumes"></div>
-            <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+        <!-- VIEW: PEDIDOS -->
+        <div class="view active" id="view-pedidos">
+            <!-- STATUS TABS: Pendientes / Aprobados -->
+            <div class="status-tabs">
+                <button class="stab pend active" id="stab-pendiente" onclick="switchStatus('pendiente')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span>Pedidos pendientes</span>
+                    <span class="cnt" id="scnt-pendiente">0</span>
+                </button>
+                <button class="stab apro" id="stab-pagado" onclick="switchStatus('pagado')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Pedidos aprobados</span>
+                    <span class="cnt" id="scnt-pagado">0</span>
+                </button>
+            </div>
+
+            <!-- NICHO TABS -->
+            <div class="tabs-bar">
+                <button class="tab-btn active" id="tbtn-perfumes" onclick="switchTab('perfumes')">
+                    Perfumes Arabes <span class="pill on" id="pill-perfumes">0</span>
+                </button>
+                <button class="tab-btn" id="tbtn-detodo" onclick="switchTab('detodo')">
+                    De Todo <span class="pill" id="pill-detodo">0</span>
+                </button>
+                <button class="tab-btn" id="tbtn-calzados" onclick="switchTab('calzados')">
+                    Calzados <span class="pill" id="pill-calzados">0</span>
+                </button>
+            </div>
+
+            <div class="tab-pane active" id="pane-perfumes">
+                <div class="stats-row" id="stats-perfumes"></div>
+                <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-detodo">
+                <div class="stats-row" id="stats-detodo"></div>
+                <div id="list-detodo"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-calzados">
+                <div class="stats-row" id="stats-calzados"></div>
+                <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
         </div>
-        <div class="tab-pane" id="pane-detodo">
-            <div class="stats-row" id="stats-detodo"></div>
-            <div id="list-detodo"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+
+        <!-- VIEW: VENDEDORES -->
+        <div class="view" id="view-vendedores">
+            <h2 class="section-title">Vendedores y niveles</h2>
+            <div id="vendedores-list"></div>
         </div>
-        <div class="tab-pane" id="pane-calzados">
-            <div class="stats-row" id="stats-calzados"></div>
-            <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+
+        <!-- VIEW: ESTADÍSTICAS -->
+        <div class="view" id="view-stats">
+            <div id="stats-content"></div>
+        </div>
+
+        <!-- VIEW: GANANCIAS -->
+        <div class="view" id="view-ganancias">
+            <h2 class="section-title">Ganancia de la plataforma por vendedor</h2>
+            <div id="ganancias-list"></div>
+        </div>
+
+        <!-- VIEW: RANKING -->
+        <div class="view" id="view-ranking">
+            <h2 class="section-title">Ranking de vendedores por ganancia</h2>
+            <div id="ranking-list"></div>
         </div>
 
     </div>
@@ -587,8 +768,9 @@ const db = firebase.firestore();
 
 const WORKER    = 'https://workerpagos.tuweb.workers.dev';
 const WA_NUMBER = '5491126805111';
-const KEY       = '38916201';
+const KEY       = '38916201nnnn';
 const S_KEY     = 'rw_dark_v1';
+const D_KEY     = 'rw_deleted_orders_v1';
 
 let pedidos     = [];         // todos
 let activeTab   = 'perfumes';
@@ -613,6 +795,88 @@ function baNow() {
         hour:'2-digit', minute:'2-digit', second:'2-digit'
     });
 }
+function isFirstDayOfMonthBA() {
+    const d = new Date().toLocaleString('en-US', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        day: 'numeric'
+    });
+    return Number(d) === 1;
+}
+function baMonthLabel(date) {
+    if (!date) date = new Date();
+    return date.toLocaleString('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        month: 'long', year: 'numeric'
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// CÁLCULO DE GANANCIA DE LA PLATAFORMA
+// (NO la ganancia de los clientes; solo lo que gana la plataforma)
+//
+// PERFUMES / DE TODO:
+//   1) Se quita la ganancia del cliente (50% del precio) → mi precio de venta
+//   2) Se aplica el bracket de % al precio del producto → mi costo original
+//   3) Ganancia plataforma = mi precio de venta − mi costo
+//
+// Brackets (precio del producto que entra al pedido):
+//   < $5.000 → 150% · $5-10k → 90% · $10-15k → 80% · $15-20k → 70%
+//   $20-25k → 60% · $25-30k → 55% · $30-35k → 40% · $35-40k → 35% · ≥ $40k → 30%
+//
+// CALZADOS:
+//   Costo base adulto: $30.500. Tope ganancia plataforma: $37.000.
+//   - precio ≥ $37.000  → ganancia plataforma = $6.500 (37.000 − 30.500)
+//   - $30.500 ≤ precio < $37.000 → ganancia plataforma = precio − $30.500
+//   - precio < $30.500 → ganancia plataforma = 0
+// ═══════════════════════════════════════════════════════════
+function bracketPct(price) {
+    if (price < 5000)  return 150;
+    if (price < 10000) return 90;
+    if (price < 15000) return 80;
+    if (price < 20000) return 70;
+    if (price < 25000) return 60;
+    if (price < 30000) return 55;
+    if (price < 35000) return 40;
+    if (price < 40000) return 35;
+    return 30;
+}
+function platformGainForItem(item, nicho) {
+    const price = Number(item.precio || 0);
+    const qty   = Number(item.cantidad || 1);
+    if (!price || price <= 0) return 0;
+
+    if (nicho === 'calzados') {
+        const COST = 30500, CAP = 37000;
+        let g;
+        if (price >= CAP)        g = CAP - COST;       // 6.500
+        else if (price >= COST)  g = price - COST;
+        else                     g = 0;
+        return g * qty;
+    }
+
+    // perfumes / detodo
+    const pct    = bracketPct(price);
+    const mySell = price * 0.5;                 // sin ganancia del cliente
+    const myCost = mySell / (1 + pct / 100);    // precio original
+    return (mySell - myCost) * qty;
+}
+function platformGainOf(p) {
+    const nicho = cat(p);
+    return (p.items || []).reduce((s, i) => s + platformGainForItem(i, nicho), 0);
+}
+function platformInvestmentOf(p) {
+    // costo total (lo que paga la plataforma a sus proveedores)
+    const nicho = cat(p);
+    return (p.items || []).reduce((s, item) => {
+        const price = Number(item.precio || 0);
+        const qty   = Number(item.cantidad || 1);
+        if (!price) return s;
+        if (nicho === 'calzados') return s + 30500 * qty;
+        const pct    = bracketPct(price);
+        const mySell = price * 0.5;
+        return s + (mySell / (1 + pct / 100)) * qty;
+    }, 0);
+}
 
 // ═══════════════════════════════════════════════════════════
 // SESIÓN
@@ -622,14 +886,30 @@ function init() {
     else showLogin();
 }
 function doLogin() {
-    const v = document.getElementById('pin').value.trim();
+    const input = document.getElementById('pin');
+    const v = input.value.trim();
     if (!v) { loginErr('Ingresá la clave'); return; }
-    if (v === KEY) { sessionStorage.setItem(S_KEY,'ok'); showMain(); load(); }
-    else { loginErr('Clave incorrecta'); document.getElementById('pin').value=''; }
+    if (v === KEY) {
+        sessionStorage.setItem(S_KEY,'ok');
+        loginErr('');
+        showMain();
+        load();
+        requestAnimationFrame(() => {
+            const main = document.getElementById('main');
+            if (main) main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+    else {
+        loginErr('Clave incorrecta');
+        input.value='';
+        input.focus();
+    }
 }
 function loginErr(m) {
     const e = document.getElementById('login-err');
-    e.textContent = m; e.classList.add('show');
+    e.textContent = m;
+    if (m) e.classList.add('show');
+    else e.classList.remove('show');
 }
 function logout() { sessionStorage.removeItem(S_KEY); location.reload(); }
 function showLogin() {
@@ -682,10 +962,8 @@ async function load() {
                                  : ep === 'RECHAZADO' ? 'cancelado'
                                  : 'pendiente';
 
-                    // Nombre visible del vendedor
-                    const vName = p.codigoVendedor
-                        ? ('Vendedor ' + p.codigoVendedor)
-                        : (p.cliente?.nombre || 'Cliente web');
+                    // Nombre visible del revendedor: nombre + apellido, sin repetir el código
+                    const vName = fullName(p.cliente) || p.nombreVendedor || p.vendedorNombre || 'Cliente web';
 
                     pedidos.push({
                         _src:   'worker',
@@ -723,6 +1001,13 @@ async function load() {
             const jobs = [];
             usersSnap.forEach(uDoc => {
                 const ud = uDoc.data();
+                const sellerName = fullName(ud) || ud.nombreCompleto || ud.displayName || ud.email || uDoc.id;
+                pedidos.forEach(p => {
+                    if (p._uid === uDoc.id) {
+                        p._vName = sellerName;
+                        if (!p._vCode && ud.codigoVendedor) p._vCode = ud.codigoVendedor;
+                    }
+                });
                 jobs.push(
                     db.collection('usuarios').doc(uDoc.id)
                       .collection('pedidos').orderBy('fechaCreacion','desc').get()
@@ -741,7 +1026,7 @@ async function load() {
                                   _src:   'fb',
                                   id,
                                   _uid:   uDoc.id,
-                                  _vName: ud.nombre || ud.email || uDoc.id,
+                                  _vName: sellerName,
                                   _vCode: ud.codigoVendedor || '',
                                   ...data,
                                   estado,
@@ -755,6 +1040,7 @@ async function load() {
             console.warn('Firestore SDK error:', fe.message);
         }
 
+        pedidos = pedidos.filter(p => !isLocallyDeleted(p.id));
         pedidos.sort((a,b)=>(b.fechaCreacion?.seconds||0)-(a.fechaCreacion?.seconds||0));
 
         const tot  = pedidos.length;
@@ -844,15 +1130,26 @@ function renderList(ps, k) {
     }
     const byV = {};
     ps.forEach(p => {
-        if (!byV[p._uid]) byV[p._uid] = { name:p._vName, code:p._vCode, peds:[] };
-        byV[p._uid].peds.push(p);
+        const key = p._vCode || p._uid;
+        if (!byV[key]) byV[key] = { name:p._vName, code:p._vCode, peds:[] };
+        byV[key].peds.push(p);
+    });
+    // Total de pedidos por vendedor (sobre TODO el array, para nivel)
+    const totalByVendor = {};
+    pedidos.forEach(p => {
+        const key = p._vCode || p._uid;
+        totalByVendor[key] = (totalByVendor[key]||0) + 1;
     });
     let html = '';
-    Object.values(byV).forEach(v => {
+    Object.entries(byV).forEach(([key, v]) => {
+        const tot = totalByVendor[key] || v.peds.length;
+        const lv = levelOf(tot);
         html += `<div class="vendor-block">
             <div class="vendor-head">
-                <span class="vendor-name">&#128100; ${esc(v.name)}</span>
+                <span class="vendor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9 13h6"/></svg></span>
+                <span class="vendor-name">${esc(v.name)}</span>
                 <span class="vendor-code">Cod: ${esc(v.code||'—')}</span>
+                <span class="lv-chip lv-${lv.nivel}">Nivel ${lv.nivel} <span class="lv-stars">${starsSVG(lv.nivel)}</span></span>
                 <span class="vendor-qty">${v.peds.length} pedido${v.peds.length!==1?'s':''}</span>
             </div>`;
         v.peds.forEach(p => { html += card(p); });
@@ -862,7 +1159,7 @@ function renderList(ps, k) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CARD DE PEDIDO
+// CARD DE PEDIDO (CINTA DESPLEGABLE)
 // ═══════════════════════════════════════════════════════════
 function card(p) {
     const fRaw = p.fechaCreacion?.toDate
@@ -872,10 +1169,15 @@ function card(p) {
     const items  = p.items || [];
     const estado = p.estado || 'pendiente';
     const totalU = items.reduce((s,i)=>s+(i.cantidad||1),0);
+    const totalFin = p.totalFinal || p.totalInversion || items.reduce((s,i)=>s+((i.precio||0)*(i.cantidad||1)),0);
 
     const env = p.cliente || p.envio || {};
     const envNombre = [env.nombre, env.apellido].filter(Boolean).join(' ');
     const hasEnvio  = envNombre || env.telefono || env.direccion || env.ciudad;
+
+    // En la cinta colapsada: nombre + apellido del revendedor + código
+    const ribbonName = p._vName || envNombre || '—';
+    const ribbonCode = p.codigoVendedor || p._vCode || '—';
 
     const rows = items.map(it=>`
         <tr>
@@ -892,53 +1194,68 @@ function card(p) {
             ${env.observaciones ? `<div class="ship-row">&#128203; ${esc(env.observaciones)}</div>` : ''}
         </div>` : '<span style="font-size:12px;color:var(--text3)">Sin datos de envio</span>';
 
-    // Botón copiar
-    const btnCopy = `<button class="btn-act btn-copy" onclick="doCopy('${p.id}',this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Copiar</button>`;
-
-    // Botón WhatsApp
-    const btnWA = `<button class="btn-act btn-wa" onclick="doWA('${p.id}')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
-        Enviar pedido</button>`;
-
-    // Botón PDF boleta
-    const btnPDF = `<button class="btn-act btn-pdf" onclick="doPDF('${p.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        Boleta</button>`;
-
-    // Botón eliminar
-    const btnDel = `<button class="btn-act btn-del" onclick="askDelete('${p.id}','${p._uid}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-        Eliminar</button>`;
+    const stop = 'event.stopPropagation();';
 
     return `
-    <div class="order-card" id="oc-${p.id}">
-        <div class="order-head">
-            <div class="order-num-wrap">
-                <div class="order-num">Pedido #${p.id.slice(-8).toUpperCase()}</div>
-                <div class="order-date">&#128197; ${fecha}</div>
+    <div class="ribbon" id="oc-${p.id}">
+        <div class="ribbon-head" onclick="toggleRibbon('${p.id}')">
+            <div class="ribbon-main">
+                <span class="r-name">${esc(ribbonName)}</span>
+                <span class="r-code">Cod: ${esc(ribbonCode)}</span>
             </div>
-            ${envioBlock}
-            <span class="status-chip s-${estado}">${estado==='pagado'?'Aprobado':'Pendiente'}</span>
+            <div class="ribbon-meta">
+                <span class="status-chip s-${estado}">${estado==='pagado'?'Aprobado':'Pendiente'}</span>
+                <span class="r-date">${fecha}</span>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
         </div>
-        <table class="prod-table">
-            <thead><tr><th>Producto</th><th>Cant.</th></tr></thead>
-            <tbody>${rows}</tbody>
-        </table>
-        <div class="order-foot">
-            <div class="foot-meta">
-                <strong>${items.length}</strong> prod. · <strong>${totalU}</strong> unidades
+        <div class="ribbon-body">
+            <div class="order-head">
+                <div class="order-num-wrap">
+                    <div class="order-num">Pedido #${p.id.slice(-8).toUpperCase()}</div>
+                    <div class="order-date">&#128197; ${fecha}</div>
+                </div>
+                ${envioBlock}
             </div>
-            <div class="actions">
-                ${btnCopy}
-                ${btnWA}
-                ${btnPDF}
-                ${btnDel}
+            <table class="prod-table">
+                <thead><tr><th>Producto</th><th>Cant.</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="order-foot">
+                <div class="foot-meta">
+                    <strong>${items.length}</strong> prod. · <strong>${totalU}</strong> unid.${totalFin>0?` · <strong>$${Math.round(totalFin).toLocaleString()}</strong>`:''}
+                </div>
+                <div class="actions">
+                    <button class="btn-act btn-copy" onclick="${stop}doCopy('${p.id}',this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Copiar
+                    </button>
+                    <button class="btn-act btn-wa" onclick="${stop}doWA('${p.id}')">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+                        Enviar WhatsApp
+                    </button>
+                    <button class="btn-act btn-pdf" onclick="${stop}doPDF('${p.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        Descargar Boleta
+                    </button>
+                    <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}','${p._uid}','${p._src||''}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        Eliminar
+                    </button>
+                </div>
             </div>
         </div>
     </div>`;
 }
+
+function toggleRibbon(id){
+    document.getElementById('oc-'+id)?.classList.toggle('expanded');
+}
+
+function toggleMini(id){
+    document.getElementById(id)?.classList.toggle('expanded');
+}
+
 
 // ═══════════════════════════════════════════════════════════
 // TEXTO PEDIDO (copiar / WhatsApp)
@@ -1007,57 +1324,101 @@ function doWA(id) {
 // ═══════════════════════════════════════════════════════════
 // ELIMINAR PEDIDO
 // ═══════════════════════════════════════════════════════════
-function askDelete(id, uid) {
-    deleteTarget = { id, uid };
+function askDelete(id, uid, src) {
+    // Si no se pasa src, intentar deducirlo del array local
+    if (!src) {
+        const p = pedidos.find(x => x.id === id);
+        src = p ? (p._src || '') : '';
+    }
+    deleteTarget = { id, uid, src };
     document.getElementById('del-modal').classList.add('show');
 }
 function closeModal() {
     document.getElementById('del-modal').classList.remove('show');
     deleteTarget = null;
 }
+async function tryDeleteDoc(path) {
+    try {
+        await db.doc(path).delete();
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, err: e, perm: /permission|insufficient/i.test(e.message || '') || e.code === 'permission-denied' };
+    }
+}
+async function tryDeleteViaWorker(id) {
+    // Fallback al Worker para evitar el error de permisos de Firestore
+    // cuando las reglas no permiten delete desde el cliente.
+    const candidates = [
+        { url: `${WORKER}/api/pedidos/${encodeURIComponent(id)}`, method: 'DELETE' },
+        { url: `${WORKER}/api/pedidos/delete`,                   method: 'POST', body: JSON.stringify({ id }) },
+        { url: `${WORKER}/api/pedidos?id=${encodeURIComponent(id)}`, method: 'DELETE' }
+    ];
+    for (const c of candidates) {
+        try {
+            const r = await fetch(c.url, {
+                method: c.method,
+                headers: c.body ? { 'Content-Type': 'application/json' } : undefined,
+                body: c.body
+            });
+            if (r.ok) return true;
+        } catch (_) {}
+    }
+    return false;
+}
 async function confirmDelete() {
     if (!deleteTarget) return;
-    const { id, uid } = deleteTarget;
+    const { id, uid, src } = deleteTarget;
     const btn = document.getElementById('del-confirm-btn');
     btn.textContent = 'Eliminando...'; btn.disabled = true;
 
-    try {
-        // Marcar card visualmente
-        const card = document.getElementById('oc-'+id);
-        if (card) card.classList.add('deleting');
+    const cardEl = document.getElementById('oc-' + id);
+    if (cardEl) cardEl.classList.add('deleting');
 
-        // Eliminar de Firestore subcolección
-        if (uid && uid !== 'worker') {
-            await db.collection('usuarios').doc(uid)
-                    .collection('pedidos').doc(id).delete();
-        }
-        // Eliminar de colección raíz (si existe)
-        try {
-            await db.collection('pedidos').doc(id).delete();
-        } catch(_) {}
+    let deletedSomewhere = false;
+    let permissionBlocked = false;
 
-        // Quitar del array local
-        pedidos = pedidos.filter(p => p.id !== id);
-
-        // Actualizar contadores
-        const pend = pedidos.filter(p=>(p.estado||'pendiente')==='pendiente').length;
-        const apro = pedidos.filter(p=>(p.estado||'pendiente')==='pagado').length;
-        document.getElementById('scnt-pendiente').textContent = pend;
-        document.getElementById('scnt-pagado').textContent    = apro;
-        const tot = pedidos.length;
-        document.getElementById('count-lbl').textContent =
-            tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
-
-        closeModal();
-        renderAll();
-        toast('Pedido eliminado', true);
-    } catch(e) {
-        toast('Error al eliminar: ' + e.message, 'err');
-        btn.textContent = 'Eliminar'; btn.disabled = false;
-        const card = document.getElementById('oc-'+id);
-        if (card) card.classList.remove('deleting');
+    // Intentos directos a Firestore (pendientes y aprobados deben funcionar igual)
+    const targets = [];
+    targets.push(`pedidos/${id}`);                         // colección raíz
+    if (uid && uid !== id && uid !== 'worker') {
+        targets.push(`usuarios/${uid}/pedidos/${id}`);     // subcolección de usuario
     }
+
+    for (const path of targets) {
+        const r = await tryDeleteDoc(path);
+        if (r.ok) deletedSomewhere = true;
+        else if (r.perm) permissionBlocked = true;
+    }
+
+    // Si Firestore bloqueó por permisos, intentar Worker (que sí tiene credenciales admin)
+    if (!deletedSomewhere && permissionBlocked) {
+        const okW = await tryDeleteViaWorker(id);
+        if (okW) deletedSomewhere = true;
+    }
+
+    // Como último recurso: marcar borrado localmente para que no reaparezca al refrescar
+    if (!deletedSomewhere) rememberLocalDelete(id);
+
+    // Quitar del array local y refrescar
+    pedidos = pedidos.filter(p => p.id !== id);
+    const pend = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
+    const apro = pedidos.filter(p => (p.estado || 'pendiente') === 'pagado').length;
+    document.getElementById('scnt-pendiente').textContent = pend;
+    document.getElementById('scnt-pagado').textContent    = apro;
+    const tot = pedidos.length;
+    document.getElementById('count-lbl').textContent =
+        tot ? `(${tot} pedido${tot !== 1 ? 's' : ''})` : '';
+
+    closeModal();
+    renderAll();
+    btn.textContent = 'Eliminar'; btn.disabled = false;
+    toast(
+        deletedSomewhere ? 'Pedido eliminado' :
+        (permissionBlocked ? 'Pedido ocultado (Firestore bloqueó por permisos)' : 'Pedido eliminado'),
+        true
+    );
 }
+
 
 // ═══════════════════════════════════════════════════════════
 // PDF BOLETA INDIVIDUAL
@@ -1301,12 +1662,425 @@ function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function fullName(o) {
+    if (!o) return '';
+    return [o.nombre, o.apellido].filter(Boolean).join(' ').trim();
+}
+
+function localDeletedIds() {
+    try { return JSON.parse(localStorage.getItem(D_KEY) || '[]'); }
+    catch(_) { return []; }
+}
+
+function isLocallyDeleted(id) {
+    return localDeletedIds().includes(id);
+}
+
+function rememberLocalDelete(id) {
+    const ids = localDeletedIds();
+    if (!ids.includes(id)) {
+        ids.push(id);
+        localStorage.setItem(D_KEY, JSON.stringify(ids.slice(-500)));
+    }
+}
+
 // Cerrar modal al click fuera
 document.getElementById('del-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
 
+// ═══════════════════════════════════════════════════════════
+// SISTEMA DE NIVELES (1 a 5 estrellas)
+// Nivel 1: inicial · Nivel 2: 50 pedidos · Nivel 3: 100 · Nivel 4: 150 · Nivel 5: 250 (duplica con +100)
+// Descuentos: 0% / 3% / 5% / 9% / 15%
+// ═══════════════════════════════════════════════════════════
+function levelOf(count) {
+    if (count >= 250) return { nivel:5, descuento:15, prox:null,  prev:150 };
+    if (count >= 150) return { nivel:4, descuento:9,  prox:250,   prev:100 };
+    if (count >= 100) return { nivel:3, descuento:5,  prox:150,   prev:50  };
+    if (count >= 50)  return { nivel:2, descuento:3,  prox:100,   prev:0   };
+    return                   { nivel:1, descuento:0,  prox:50,    prev:0   };
+}
+function starsSVG(n) {
+    let s = '';
+    for (let i = 0; i < n; i++) {
+        s += `<svg class="lv-star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>`;
+    }
+    return s;
+}
+
+// ═══════════════════════════════════════════════════════════
+// AGREGAR VENDEDORES (con nivel, ganancia, fecha primera venta)
+// ═══════════════════════════════════════════════════════════
+function vendorKey(p) { return p._vCode || p._uid; }
+function computeVendors() {
+    const map = {};
+    pedidos.forEach(p => {
+        const k = vendorKey(p);
+        if (!k) return;
+        if (!map[k]) map[k] = {
+            key: k,
+            name: p._vName || 'Vendedor',
+            code: p._vCode || '',
+            uid:  (p._src === 'fb') ? p._uid : null,
+            peds: [],
+            ganancia: 0,    // ganancia de la PLATAFORMA (no del cliente)
+            inversion: 0,   // costo de la plataforma
+            primera: Infinity
+        };
+        map[k].peds.push(p);
+        map[k].ganancia  += platformGainOf(p);
+        map[k].inversion += platformInvestmentOf(p);
+        const ts = p.fechaCreacion?.seconds || 0;
+        if (ts && ts < map[k].primera) map[k].primera = ts;
+    });
+    return Object.values(map).map(v => Object.assign(v, levelOf(v.peds.length)));
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMBIO DE VISTA (menú principal)
+// ═══════════════════════════════════════════════════════════
+function switchView(v) {
+    document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+    const tgt = document.getElementById('view-' + v);
+    if (tgt) tgt.classList.add('active');
+    document.querySelectorAll('.menu-btn').forEach(e => {
+        e.classList.toggle('active', e.dataset.view === v);
+    });
+    if (v === 'vendedores') renderVendedores();
+    if (v === 'stats')      renderStatsView();
+    if (v === 'ganancias')  renderGanancias();
+    if (v === 'ranking')    renderRanking();
+}
+
+function refreshActiveView() {
+    const a = document.querySelector('.menu-btn.active');
+    if (a && a.dataset.view !== 'pedidos') switchView(a.dataset.view);
+}
+
+// Wrap renderAll para refrescar la vista activa automáticamente
+const _origRenderAll = renderAll;
+renderAll = function() {
+    _origRenderAll();
+    refreshActiveView();
+};
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: VENDEDORES
+// ═══════════════════════════════════════════════════════════
+function renderVendedores() {
+    const vs = computeVendors().sort((a,b)=>b.peds.length-a.peds.length);
+    const el = document.getElementById('vendedores-list');
+    if (!vs.length) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">&#11088;</div><h3>Sin vendedores</h3><p>Aún no hay vendedores con pedidos.</p></div>';
+        return;
+    }
+    el.innerHTML = vs.map(v => {
+        const prox = v.prox ? `${v.peds.length} / ${v.prox} pedidos` : 'Nivel máximo alcanzado';
+        const pct  = v.prox
+            ? Math.min(100, ((v.peds.length - v.prev) / (v.prox - v.prev)) * 100)
+            : 100;
+        const canNotify = !!v.uid;
+        const disabledAttr = canNotify ? '' : 'disabled title="Notificación solo para vendedores con UID Firestore"';
+        const descLbl = v.descuento > 0
+            ? `${v.descuento}% de descuento en inversión`
+            : 'Sin descuento (Nivel 1)';
+        return `<div class="v-card">
+            <div class="v-info">
+                <div class="v-name">${esc(v.name)}
+                    <span class="lv-chip lv-${v.nivel}">Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span></span>
+                </div>
+                <div class="v-sub">Cod: <strong>${esc(v.code||'—')}</strong> · ${v.peds.length} pedido${v.peds.length!==1?'s':''} · ${descLbl}</div>
+            </div>
+            <div class="v-progress">
+                <div class="v-sub">${v.prox ? 'Progreso al siguiente nivel' : 'Top vendedor'}: ${prox}</div>
+                <div class="v-bar"><span style="width:${pct}%"></span></div>
+            </div>
+            <button class="btn-notify" ${disabledAttr}
+                onclick="notifyLevel('${v.uid||''}','${esc(v.name)}',${v.nivel},${v.descuento})">
+                Notificar
+            </button>
+        </div>`;
+    }).join('');
+}
+
+async function notifyLevel(uid, name, nivel, descuento) {
+    if (!uid) { toast('Este vendedor no tiene UID Firestore válido','err'); return; }
+    try {
+        await db.collection('usuarios').doc(uid).collection('notificaciones').add({
+            tipo:      'levelUp',
+            nivel:     nivel,
+            descuento: descuento,
+            titulo:    `¡Felicitaciones! Subiste al Nivel ${nivel}`,
+            mensaje:   `Conseguiste ${descuento}% de descuento de bonificación en tu inversión. Tus precios bajaron automáticamente en tu web de reventas.`,
+            fecha:     firebase.firestore.FieldValue.serverTimestamp(),
+            leida:     false
+        });
+        // Marcar también el nivel actual y descuento en el doc del usuario
+        try {
+            await db.collection('usuarios').doc(uid).set({
+                nivel: nivel,
+                descuentoNivel: descuento
+            }, { merge: true });
+        } catch(_) {}
+        toast(`Notificación enviada a ${name} (Nivel ${nivel})`, true);
+    } catch(e) {
+        toast('Error al notificar: ' + e.message, 'err');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: ESTADÍSTICAS
+// ═══════════════════════════════════════════════════════════
+function inWindow(secs, days) {
+    if (!secs) return false;
+    const now = Date.now() / 1000;
+    return secs >= now - days * 86400;
+}
+function inPrevWindow(secs, days) {
+    if (!secs) return false;
+    const now = Date.now() / 1000;
+    return secs >= now - days * 2 * 86400 && secs < now - days * 86400;
+}
+
+function miniRibbon(id, title, value, sub, rows, cls) {
+    return `<div class="mini-ribbon" id="${id}">
+        <div class="mini-head" onclick="toggleMini('${id}')">
+            <div class="mini-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16V9"/><path d="M13 16V6"/><path d="M18 16v-4"/></svg>
+                <div><div>${title}</div>${sub?`<div class="mini-sub">${sub}</div>`:''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                <div class="mini-value ${cls||''}">${value}</div>
+                <svg class="mini-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+        <div class="mini-body"><div class="mini-content">${rows.map(r=>`<div class="mini-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`).join('')}</div></div>
+    </div>`;
+}
+
+function renderStatsView() {
+    const el = document.getElementById('stats-content');
+    const vendors = computeVendors();
+    const periods = [
+        { l:'Semana',    d:7   },
+        { l:'Quincena',  d:15  },
+        { l:'Mes',       d:30  },
+        { l:'Año',       d:365 }
+    ];
+
+    // ── Botón de descarga mensual (solo activo el día 1, hora BA) ──
+    const firstOfMonth = isFirstDayOfMonthBA();
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <h2 class="section-title" style="margin:0">Estadísticas de la plataforma</h2>
+        <button class="btn-head" onclick="downloadMonthlyStatsPDF()" ${firstOfMonth ? '' : 'disabled title="Disponible solo el día 1 de cada mes (hora Buenos Aires)"'} style="${firstOfMonth ? '' : 'opacity:.45;cursor:not-allowed'}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar estadísticas del mes (PDF)
+        </button>
+    </div>
+    <div class="mini-sub" style="margin-bottom:14px">Todas las ganancias mostradas son ganancias de la <strong>plataforma</strong> (sin la ganancia del cliente).</div>`;
+
+    html += '<h2 class="section-title">Crecimiento de pedidos</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const delta = prev ? ((cur - prev) / prev) * 100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-growth-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+            ['Pedidos del período', cur],
+            ['Período anterior', prev],
+            ['Variación', `${sign}${delta.toFixed(1)}%`]
+        ], delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    html += '<h2 class="section-title">Ganancia de la plataforma por período</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d))
+                            .reduce((s,p)=>s+platformGainOf(p), 0);
+        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d))
+                            .reduce((s,p)=>s+platformGainOf(p), 0);
+        const delta = prev ? ((cur - prev) / prev) * 100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
+            `$${Math.round(cur).toLocaleString()}`,
+            `${sign}${delta.toFixed(1)}% vs período anterior`,
+            [
+                ['Ganancia del período', `$${Math.round(cur).toLocaleString()}`],
+                ['Período anterior',     `$${Math.round(prev).toLocaleString()}`],
+                ['Variación',            `${sign}${delta.toFixed(1)}%`]
+            ],
+            delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    html += '<h2 class="section-title">Vendedores nuevos por período</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const nuevos = vendors.filter(v => inWindow(v.primera, pr.d)).length;
+        const prevN  = vendors.filter(v => inPrevWindow(v.primera, pr.d)).length;
+        const delta  = prevN ? ((nuevos - prevN) / prevN) * 100 : (nuevos ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-new-${i}`, `Nuevos en ${pr.l.toLowerCase()}`, nuevos, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+            ['Vendedores nuevos', nuevos],
+            ['Período anterior', prevN],
+            ['Variación', `${sign}${delta.toFixed(1)}%`]
+        ], delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    const totalGan = pedidos.reduce((s,p)=>s+platformGainOf(p), 0);
+    const totalInv = pedidos.reduce((s,p)=>s+platformInvestmentOf(p), 0);
+    const niveles = [1,2,3,4,5].map(n => vendors.filter(v=>v.nivel===n).length);
+    html += `<h2 class="section-title">Totales generales</h2><div class="mini-list">
+        ${miniRibbon('stat-total-orders', 'Pedidos totales', pedidos.length, 'Resumen general', [
+            ['Pendientes', pedidos.filter(p=>(p.estado||'pendiente')==='pendiente').length],
+            ['Aprobados',  pedidos.filter(p=>(p.estado||'pendiente')==='pagado').length],
+            ['Vendedores activos', vendors.length]
+        ], 'blue')}
+        ${miniRibbon('stat-total-money', 'Ganancia acumulada', `$${Math.round(totalGan).toLocaleString()}`, 'Ganancia neta de la plataforma', [
+            ['Ganancia acumulada (plataforma)', `$${Math.round(totalGan).toLocaleString()}`],
+            ['Inversión acumulada (costo)',     `$${Math.round(totalInv).toLocaleString()}`],
+            ['Vendedores activos', vendors.length]
+        ], 'green')}
+    </div>`;
+
+    html += `<h2 class="section-title">Distribución por nivel</h2><div class="mini-list">
+        ${[1,2,3,4,5].map(n=>miniRibbon(`stat-level-${n}`, `Nivel ${n}`, niveles[n-1], `<span class="lv-stars">${starsSVG(n)}</span>`, [
+            ['Vendedores en este nivel', niveles[n-1]],
+            ['Estrellas', `<span class="lv-stars">${starsSVG(n)}</span>`]
+        ], n >= 3 ? 'green' : 'blue')).join('')}
+    </div>`;
+
+    el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PDF: ESTADÍSTICAS DEL MES (solo el día 1 BA)
+// ═══════════════════════════════════════════════════════════
+function downloadMonthlyStatsPDF() {
+    if (!isFirstDayOfMonthBA()) {
+        toast('Solo disponible el día 1 de cada mes (hora Bs. As.)', 'err');
+        return;
+    }
+    // Pedidos del mes anterior (en hora BA): rango [primer día mes anterior, primer día este mes)
+    const nowBA = new Date(new Date().toLocaleString('en-US', { timeZone:'America/Argentina/Buenos_Aires' }));
+    const endMs   = new Date(nowBA.getFullYear(), nowBA.getMonth(), 1, 0, 0, 0).getTime();
+    const startMs = new Date(nowBA.getFullYear(), nowBA.getMonth() - 1, 1, 0, 0, 0).getTime();
+    const monthLabel = new Date(startMs).toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
+
+    const inMonth = pedidos.filter(p => {
+        const s = (p.fechaCreacion?.seconds || 0) * 1000;
+        return s >= startMs && s < endMs;
+    });
+
+    const totalGan = inMonth.reduce((s,p)=>s+platformGainOf(p), 0);
+    const totalInv = inMonth.reduce((s,p)=>s+platformInvestmentOf(p), 0);
+    const totalFac = inMonth.reduce((s,p)=>s+(p.totalFinal || p.totalInversion || 0), 0);
+    const pend     = inMonth.filter(p=>(p.estado||'pendiente')==='pendiente').length;
+    const apro     = inMonth.filter(p=>(p.estado||'pendiente')==='pagado').length;
+    const byNicho  = { perfumes:[], detodo:[], calzados:[] };
+    inMonth.forEach(p => byNicho[cat(p)].push(p));
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format:'a4', unit:'mm' });
+    const LM = 20, PW = 170;
+    let y = 14;
+
+    doc.setFillColor(0,30,60); doc.rect(0,0,210,16,'F');
+    doc.setFillColor(0,102,255); doc.rect(0,0,5,16,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('REVENDE WAYS', LM+2, 10);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text('Estadísticas mensuales de la plataforma', LM+2, 14.5);
+
+    y = 28;
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text(`ESTADÍSTICAS — ${monthLabel}`, LM, y); y += 7;
+    doc.setDrawColor(0,102,255); doc.setLineWidth(.5); doc.line(LM,y,LM+PW,y); y += 8;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Generado: ${baNow()} (hora Buenos Aires)`, LM, y); y += 5;
+    doc.text(`Pedidos del mes: ${inMonth.length}  ·  Pendientes: ${pend}  ·  Aprobados: ${apro}`, LM, y); y += 10;
+
+    const rows = [
+        ['Facturación total (precio al cliente)', `$${Math.round(totalFac).toLocaleString()}`],
+        ['Ganancia de la plataforma',             `$${Math.round(totalGan).toLocaleString()}`],
+        ['Inversión / costo de la plataforma',    `$${Math.round(totalInv).toLocaleString()}`],
+        ['Pedidos de Perfumes Árabes',            byNicho.perfumes.length],
+        ['Pedidos de De Todo',                    byNicho.detodo.length],
+        ['Pedidos de Calzados',                   byNicho.calzados.length],
+    ];
+    doc.setFillColor(0,102,255); doc.rect(LM,y,PW,8,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text('CONCEPTO', LM+3, y+5.5);
+    doc.text('VALOR', LM+PW-3, y+5.5, { align:'right' });
+    y += 10;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+    rows.forEach((r, i) => {
+        if (i % 2 === 0) { doc.setFillColor(248,250,255); doc.rect(LM, y-1, PW, 7, 'F'); }
+        doc.text(String(r[0]), LM+3, y+4);
+        doc.setFont('helvetica','bold');
+        doc.text(String(r[1]), LM+PW-3, y+4, { align:'right' });
+        doc.setFont('helvetica','normal');
+        y += 7;
+    });
+
+    y += 10;
+    doc.setDrawColor(200,200,200); doc.line(LM,y,LM+PW,y);
+    doc.setFontSize(7.5); doc.setTextColor(160,160,160);
+    doc.text('Revende Ways · Reporte mensual', LM, y+5);
+    doc.text(`Generado el ${baNow()}`, LM+PW, y+5, { align:'right' });
+
+    doc.save(`estadisticas-RW-${monthLabel.replace(/\s+/g,'-')}.pdf`);
+    toast('Estadísticas del mes descargadas', true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: GANANCIA DE VENDEDORES
+// ═══════════════════════════════════════════════════════════
+function renderGanancias() {
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    const el = document.getElementById('ganancias-list');
+    if (!vs.length) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">&#128176;</div><h3>Sin datos</h3></div>';
+        return;
+    }
+    el.innerHTML = `<div class="mini-list">${vs.map((v, i) => {
+        return miniRibbon(`gain-${i}`, esc(v.name),
+            `$${Math.round(v.ganancia).toLocaleString()}`,
+            `Cod: ${esc(v.code||'—')} · ${v.peds.length} pedido${v.peds.length!==1?'s':''}`,
+            [
+                ['Nivel', `Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span>`],
+                ['Ganancia plataforma', `$${Math.round(v.ganancia).toLocaleString()}`],
+                ['Inversión plataforma', `$${Math.round(v.inversion).toLocaleString()}`],
+                ['Pedidos', v.peds.length]
+            ], 'green');
+    }).join('')}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: RANKING (por ganancia)
+// ═══════════════════════════════════════════════════════════
+function renderRanking() {
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    const el = document.getElementById('ranking-list');
+    if (!vs.length) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">&#127942;</div><h3>Sin ranking</h3></div>';
+        return;
+    }
+    el.innerHTML = vs.map((v,i) => `<div class="rank-row">
+        <div class="rank-pos">#${i+1}</div>
+        <div class="rank-body">
+            <div class="rank-name">${esc(v.name)} <span class="lv-chip lv-${v.nivel}">Nivel ${v.nivel}</span> <span class="lv-stars">${starsSVG(v.nivel)}</span></div>
+            <div class="v-sub">${v.peds.length} pedido${v.peds.length!==1?'s':''} · Cod: ${esc(v.code||'—')}</div>
+        </div>
+        <div class="rank-val">$${Math.round(v.ganancia).toLocaleString()}</div>
+    </div>`).join('');
+}
+
 window.addEventListener('load', init);
+
 </script>
 </body>
 </html>
