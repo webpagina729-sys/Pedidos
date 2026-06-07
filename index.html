@@ -1,0 +1,2938 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revende Ways | Panel de Pedidos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
+    <style>
+        :root {
+            --blue:        #0066ff;
+            --blue-dim:    #1a4fff;
+            --blue-pale:   rgba(0,102,255,.12);
+            --blue-glow:   rgba(0,102,255,.25);
+            --bg:          #0b0d12;
+            --bg2:         #111318;
+            --bg3:         #16181f;
+            --surface:     #1c1f2a;
+            --surface2:    #222536;
+            --border:      rgba(255,255,255,.07);
+            --border2:     rgba(255,255,255,.12);
+            --text:        #e8eaf0;
+            --text2:       #9aa0b4;
+            --text3:       #5a6070;
+            --green:       #00c96e;
+            --green-pale:  rgba(0,201,110,.12);
+            --amber:       #f59e0b;
+            --amber-pale:  rgba(245,158,11,.12);
+            --red:         #f43f5e;
+            --red-pale:    rgba(244,63,94,.12);
+            --radius:      10px;
+            --shadow:      0 4px 20px rgba(0,0,0,.4);
+            --shadow-lg:   0 12px 40px rgba(0,0,0,.6);
+            --font:        'DM Sans', sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg2); }
+        ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            position: sticky; top: 0; z-index: 200;
+            background: rgba(11,13,18,.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 18px; font-weight: 700; color: var(--text);
+            text-decoration: none;
+        }
+        .brand-mark {
+            width: 32px; height: 32px;
+            background: var(--blue);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 800; color: white;
+            flex-shrink: 0;
+        }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        .badge-live {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--green-pale);
+            border: 1px solid rgba(0,201,110,.2);
+            color: var(--green);
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 600;
+        }
+        .badge-live::before {
+            content: '';
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+        .btn-logout {
+            padding: 7px 16px; border-radius: 8px;
+            font-size: 12px; font-weight: 600;
+            cursor: pointer; border: 1px solid var(--border2);
+            background: transparent; color: var(--text2);
+            font-family: var(--font); transition: all .18s;
+        }
+        .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+        /* ── LOGIN ── */
+        .login-wrap {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px 16px;
+            background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,102,255,.08), transparent);
+        }
+        .login-box {
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 14px;
+            padding: 32px 28px;
+            width: 100%; max-width: 332px;
+            box-shadow: var(--shadow-lg);
+        }
+        .login-icon {
+            width: 44px; height: 44px;
+            background: var(--blue-pale);
+            border: 1px solid var(--blue-glow);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 19px; margin-bottom: 16px;
+        }
+        .login-box h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .login-box p  { color: var(--text2); font-size: 12px; margin-bottom: 20px; }
+        .field { margin-bottom: 16px; }
+        .field label {
+            display: block; font-size: 11px; font-weight: 700;
+            color: var(--text2); margin-bottom: 6px;
+            text-transform: uppercase; letter-spacing: .6px;
+        }
+        .field input {
+            width: 100%; padding: 11px 14px;
+            background: var(--bg2);
+            border: 1px solid var(--border2);
+            border-radius: 8px; color: var(--text);
+            font-size: 14px; font-family: var(--font);
+            transition: all .18s;
+        }
+        .field input:focus {
+            outline: none; border-color: var(--blue);
+            box-shadow: 0 0 0 3px var(--blue-glow);
+        }
+        .btn-login {
+            width: 100%; padding: 13px;
+            background: var(--blue); color: white;
+            border: none; border-radius: 8px;
+            font-size: 15px; font-weight: 700;
+            cursor: pointer; font-family: var(--font);
+            transition: background .18s;
+        }
+        .btn-login:hover { background: var(--blue-dim); }
+        .login-err {
+            background: var(--red-pale); color: var(--red);
+            border: 1px solid rgba(244,63,94,.2);
+            padding: 10px 14px; border-radius: 8px;
+            font-size: 13px; margin-bottom: 16px; display: none;
+        }
+        .login-err.show { display: block; }
+
+        /* ── MAIN ── */
+        .main { display: none; }
+        .main.show { display: block; }
+        .wrap { max-width: 1260px; margin: 0 auto; padding: 32px 24px; }
+
+        /* ── PAGE HEAD ── */
+        .page-head {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px; flex-wrap: wrap; gap: 14px;
+        }
+        .page-title { font-size: 26px; font-weight: 700; }
+        .page-title span { color: var(--text3); font-size: 14px; font-weight: 400; margin-left: 8px; }
+
+        .head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-head {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: var(--surface); color: var(--text);
+            border: 1px solid var(--border2);
+            border-radius: 9px; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: var(--font); transition: all .18s;
+        }
+        .btn-head:hover { border-color: var(--blue); color: var(--blue); }
+        .btn-head svg { width:15px; height:15px; flex-shrink:0; }
+
+        /* ── STATUS TABS (Pendientes / Aprobados) ── */
+        .status-tabs {
+            display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .stab {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 20px; border-radius: 9px;
+            font-size: 13px; font-weight: 700;
+            cursor: pointer; border: 1px solid var(--border2);
+            background: var(--surface); color: var(--text2);
+            font-family: var(--font); transition: all .18s;
+        }
+        .stab.active.pend { border-color: var(--amber); color: var(--amber); background: var(--amber-pale); }
+        .stab.active.apro { border-color: var(--green); color: var(--green); background: var(--green-pale); }
+        .stab .cnt {
+            min-width: 20px; height: 20px; padding: 0 6px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--surface2); border-radius: 20px;
+            font-size: 11px; font-weight: 800; color: var(--text3);
+        }
+        .stab.active.pend .cnt { background: var(--amber); color: #0b0d12; }
+        .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
+
+        /* ── NICHO TABS ── */
+        .tabs-bar {
+            display: flex; gap: 2px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 28px; overflow-x: auto;
+        }
+        .tab-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 22px;
+            background: none; border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            font-size: 13px; font-weight: 600;
+            color: var(--text2); cursor: pointer;
+            font-family: var(--font); transition: all .18s; white-space: nowrap;
+        }
+        .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+        .tab-btn:hover:not(.active) { color: var(--text); }
+        .pill {
+            background: var(--surface2); color: var(--text3);
+            font-size: 11px; font-weight: 700;
+            padding: 2px 8px; border-radius: 20px;
+        }
+        .pill.on { background: var(--blue); color: white; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── STATS ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 16px 18px;
+        }
+        .stat-lbl {
+            font-size: 10px; font-weight: 700; color: var(--text3);
+            text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
+        }
+        .stat-val { font-size: 26px; font-weight: 700; color: var(--blue); }
+        .stat-val.g { color: var(--green); }
+        .stat-val.a { color: var(--amber); }
+
+        /* ── VENDOR BLOCK ── */
+        .vendor-block { margin-bottom: 32px; }
+        .vendor-head {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 16px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--blue);
+            border-radius: 0 var(--radius) var(--radius) 0;
+            margin-bottom: 12px; flex-wrap: wrap; gap: 10px;
+        }
+        .vendor-icon{width:24px;height:24px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:var(--blue-pale);border:1px solid var(--blue-glow);color:var(--blue);flex-shrink:0}
+        .vendor-icon svg{width:14px;height:14px}
+        .vendor-name { font-size: 14px; font-weight: 700; color:var(--text); }
+        .vendor-code {
+            background: var(--blue); color: white;
+            font-size: 11px; font-weight: 700;
+            padding: 3px 10px; border-radius: 20px;
+        }
+        .vendor-qty { margin-left: auto; font-size: 12px; color: var(--text3); }
+
+        /* ── ORDER CARD ── */
+        .order-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 14px; overflow: hidden;
+            transition: border-color .18s, box-shadow .18s;
+            animation: fadeIn .25s ease;
+        }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+        .order-card:hover { border-color: var(--border2); box-shadow: var(--shadow); }
+        .order-card.deleting { opacity:.4; pointer-events:none; transition: opacity .3s; }
+
+        .order-head {
+            display: flex; align-items: flex-start;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+            flex-wrap: wrap; gap: 12px;
+        }
+        .order-num-wrap { display: flex; flex-direction: column; gap: 3px; }
+        .order-num { font-size: 13px; font-weight: 700; color: var(--text); }
+        .order-date { font-size: 11px; color: var(--text3); }
+
+        .ship-block { display: flex; flex-direction: column; gap: 3px; }
+        .ship-row { font-size: 12px; color: var(--text2); display: flex; gap: 6px; align-items: baseline; }
+        .ship-row strong { color: var(--text); font-weight: 600; }
+
+        .status-chip {
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 11px; font-weight: 700; align-self: flex-start; white-space: nowrap;
+        }
+        .s-pendiente { background: var(--amber-pale); color: var(--amber); }
+        .s-pagado    { background: var(--green-pale);  color: var(--green); }
+        .s-cancelado { background: var(--red-pale);    color: var(--red); }
+
+        /* ── PRODUCTS TABLE ── */
+        .prod-table { width: 100%; border-collapse: collapse; }
+        .prod-table th {
+            padding: 10px 20px; text-align: left;
+            font-size: 10px; font-weight: 700;
+            color: var(--text3); text-transform: uppercase; letter-spacing: .6px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg3);
+        }
+        .prod-table th:last-child { text-align: center; width: 80px; }
+        .prod-table td {
+            padding: 11px 20px; font-size: 13px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .prod-table tr:last-child td { border-bottom: none; }
+        .prod-table tr:hover td { background: rgba(255,255,255,.02); }
+        .prod-name { font-weight: 500; color: var(--text); line-height: 1.35; }
+        .qty-num { text-align: center; font-size: 15px; font-weight: 700; color: var(--blue); }
+
+        /* ── ORDER FOOTER ── */
+        .order-foot {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 13px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--bg3);
+            flex-wrap: wrap; gap: 10px;
+        }
+        .foot-meta { font-size: 12px; color: var(--text3); }
+        .foot-meta strong { color: var(--text2); }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-act {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 15px; border-radius: 8px;
+            font-size: 12px; font-weight: 700;
+            cursor: pointer; border: none;
+            font-family: var(--font); transition: all .18s; white-space: nowrap;
+        }
+        .btn-act svg { width:13px; height:13px; flex-shrink:0; }
+
+        .btn-copy {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            color: var(--text2);
+        }
+        .btn-copy:hover { border-color: var(--blue); color: var(--blue); }
+        .btn-copy.ok { background: var(--green-pale); border-color: var(--green); color: var(--green); }
+
+        .btn-wa   { background: #1db954; color: white; }
+        .btn-wa:hover { background: #16a147; }
+
+        .btn-pdf  { background: var(--blue); color: white; }
+        .btn-pdf:hover { background: var(--blue-dim); }
+
+        .btn-del {
+            background: transparent;
+            border: 1px solid rgba(244,63,94,.25);
+            color: var(--red);
+        }
+        .btn-del:hover { background: var(--red-pale); border-color: var(--red); }
+
+        /* ── MODAL CONFIRM ── */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 9000;
+            background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .2s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: all; }
+        .modal-box {
+            background: var(--surface); border: 1px solid var(--border2);
+            border-radius: 14px; padding: 32px 28px; max-width: 360px; width: 100%;
+            box-shadow: var(--shadow-lg);
+            transform: scale(.95); transition: transform .2s;
+        }
+        .modal-overlay.show .modal-box { transform: scale(1); }
+        .modal-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            background: var(--red-pale); border: 1px solid rgba(244,63,94,.2);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+        }
+        .modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+        .modal-box p  { color: var(--text2); font-size: 13px; margin-bottom: 24px; line-height: 1.5; }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-cancel {
+            flex: 1; padding: 11px; border-radius: 8px;
+            background: var(--surface2); border: 1px solid var(--border2);
+            color: var(--text2); font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: var(--font); transition: all .18s;
+        }
+        .modal-cancel:hover { border-color: var(--border2); color: var(--text); }
+        .modal-confirm-btn {
+            flex: 1; padding: 11px; border-radius: 8px;
+            background: var(--red); border: none; color: white;
+            font-size: 14px; font-weight: 700;
+            cursor: pointer; font-family: var(--font); transition: background .18s;
+        }
+        .modal-confirm-btn:hover { background: #e0304a; }
+
+        /* ── EMPTY / LOADER ── */
+        .empty { text-align: center; padding: 64px 20px; color: var(--text3); }
+        .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: .5; }
+        .empty h3 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+        .loader { text-align: center; padding: 64px 20px; color: var(--text3); }
+        .spin {
+            width: 32px; height: 32px;
+            border: 2px solid var(--surface2);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin .65s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to{transform:rotate(360deg)} }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--surface2); color: var(--text);
+            border: 1px solid var(--border2);
+            padding: 12px 20px; border-radius: 10px;
+            font-size: 13px; font-weight: 600;
+            z-index: 9999; opacity: 0;
+            transform: translateY(8px); transition: all .25s; pointer-events: none;
+            box-shadow: var(--shadow);
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.ok   { background: var(--green-pale); color: var(--green); border-color: rgba(0,201,110,.3); }
+        .toast.err  { background: var(--red-pale);   color: var(--red);   border-color: rgba(244,63,94,.3); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 640px) {
+            .topbar { padding: 0 16px; height:54px; }
+            .brand{font-size:15px}.brand-mark{width:28px;height:28px;font-size:12px}.badge-live{display:none}
+            .wrap { padding: 18px 12px; }
+            .page-head{margin-bottom:18px}.page-title{font-size:20px}.head-actions{width:100%}.btn-head{flex:1;padding:9px 10px;font-size:11px}
+            .prod-table th, .prod-table td { padding: 9px 12px; }
+            .order-head, .order-foot { padding: 12px 14px; }
+            .login-wrap { padding: 18px 12px; }
+            .login-box { max-width: 290px; padding: 24px 18px; border-radius: 12px; }
+            .login-icon { width: 38px; height: 38px; font-size: 16px; margin-bottom: 12px; }
+            .login-box h1 { font-size: 18px; }
+            .login-box p { font-size: 11px; margin-bottom: 16px; }
+            .field { margin-bottom: 12px; }
+            .field input { padding: 10px 12px; font-size: 13px; }
+            .btn-login { padding: 11px; font-size: 14px; }
+            .stab span:not(.cnt) { display: none; }
+            .menu-nav{gap:0;margin-bottom:16px;flex-wrap:nowrap}.menu-btn{padding:10px 12px;font-size:12px}.tabs-bar{margin-bottom:18px}.tab-btn{padding:10px 14px;font-size:12px}
+            .stats-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:12px}.stat-card{padding:7px 8px}.stat-lbl{font-size:8px;margin-bottom:2px}.stat-val{font-size:15px}
+            /* ── Vendor strip: una sola línea, compacta ── */
+            .vendor-head{padding:7px 10px;gap:6px;flex-wrap:nowrap;overflow:hidden}
+            .vendor-icon{width:18px;height:18px;border-radius:5px}.vendor-icon svg{width:10px;height:10px}
+            .vendor-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+            .vendor-code{font-size:9px;padding:2px 6px;flex-shrink:0}
+            .vendor-qty{margin-left:auto;font-size:10px;width:auto;white-space:nowrap;flex-shrink:0}
+            .vendor-block .lv-chip{font-size:9px;padding:2px 6px;gap:3px;flex-shrink:0}
+            .vendor-block .lv-chip .lv-stars{display:none}
+            /* ── Cintas de pedido ── */
+            .ribbon-head{padding:11px 12px;gap:8px}.ribbon-main{gap:8px}.r-name{font-size:13px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.r-code{font-size:10px;padding:2px 8px}.ribbon-meta{width:100%;justify-content:space-between;margin-left:0}.actions{width:100%}.btn-act{flex:1;justify-content:center;padding:8px 9px;font-size:11px}.toast{left:12px;right:12px;bottom:14px;text-align:center}
+            /* ── Mini cintas de estadísticas / ganancias: 1 línea ── */
+            .mini-head{padding:8px 10px;gap:6px;flex-wrap:nowrap}
+            .mini-title{font-size:11px;gap:5px;min-width:0;flex:1;overflow:hidden}
+            .mini-title svg{width:11px;height:11px}
+            .mini-title>div{min-width:0;overflow:hidden}
+            .mini-title>div>div:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .mini-sub{font-size:9px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .mini-value{font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0}
+            .mini-caret{width:11px;height:11px}
+            .mini-content{padding:8px 10px 10px;gap:5px}
+            .mini-row{font-size:11px}
+            /* ── Tarjetas de vendedor (vista Vendedores) en 1 línea ── */
+            .v-card{padding:9px 11px;gap:8px;flex-wrap:nowrap;align-items:center}
+            .v-info{min-width:0;flex:1}
+            .v-name{font-size:12px;gap:5px;flex-wrap:nowrap;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            .v-name .lv-chip{font-size:9px;padding:2px 6px;flex-shrink:0}
+            .v-name .lv-chip .lv-stars{display:none}
+            .v-sub{font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .v-progress{flex:0 0 90px;min-width:0}
+            .v-progress .v-sub{display:none}
+            .v-bar{height:4px;margin-top:0}
+            .btn-notify{padding:6px 10px;font-size:10px;flex-shrink:0}
+            /* ── Ranking en 1 línea ── */
+            .rank-row{padding:9px 11px;gap:8px;flex-wrap:nowrap}
+            .rank-pos{font-size:14px;width:28px}
+            .rank-name{font-size:12px;gap:5px;flex-wrap:nowrap;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            .rank-name .lv-chip{font-size:9px;padding:2px 5px;flex-shrink:0}
+            .rank-name .lv-stars{display:none}
+            .rank-val{font-size:12px;flex-shrink:0}
+        }
+        /* ── MENU NAV ── */
+        .menu-nav{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border);flex-wrap:wrap;overflow-x:auto}
+        .menu-btn{display:flex;align-items:center;gap:8px;padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;font-family:var(--font);transition:.18s;white-space:nowrap}
+        .menu-btn:hover:not(.active){color:var(--text)}
+        .menu-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+        .view{display:none}
+        .view.active{display:block}
+
+        /* ── RIBBON (CINTA) ── */
+        .ribbon{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .18s;animation:fadeIn .25s ease}
+        .ribbon:hover{border-color:var(--border2)}
+        .ribbon.deleting{opacity:.4;pointer-events:none;transition:opacity .3s}
+        .ribbon-head{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;cursor:pointer;gap:14px;flex-wrap:wrap;user-select:none}
+        .ribbon-head:hover{background:var(--bg2)}
+        .ribbon-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+        .r-name{font-weight:700;font-size:14px;color:var(--text);min-width:0}
+        .r-code{background:var(--blue-pale);color:var(--blue);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid var(--blue-glow)}
+        .ribbon-meta{display:flex;align-items:center;gap:12px;margin-left:auto;flex-wrap:wrap}
+        .r-date{font-size:11px;color:var(--text3)}
+        .r-caret{width:16px;height:16px;color:var(--text3);transition:transform .25s;flex-shrink:0}
+        .ribbon.expanded .r-caret{transform:rotate(180deg)}
+        .ribbon-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
+        .ribbon.expanded .ribbon-body{max-height:5000px}
+
+        /* ── LEVEL / STARS ── */
+        .lv-stars{display:inline-flex;gap:2px;color:#f5b400;vertical-align:middle}
+        .lv-star{width:14px;height:14px}
+        .lv-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text2)}
+        .lv-chip.lv-2{background:#3a2d10;color:#f5b400}
+        .lv-chip.lv-3{background:#10331f;color:#22d381}
+        .lv-chip.lv-4{background:#1a2444;color:#6ea4ff}
+        .lv-chip.lv-5{background:linear-gradient(135deg,#5a2e8b,#b026ff);color:#fff;box-shadow:0 0 12px rgba(176,38,255,.4)}
+
+        /* ── VENDOR CARDS ── */
+        .v-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+        .v-info{flex:1;min-width:220px}
+        .v-name{font-size:15px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+        .v-sub{font-size:12px;color:var(--text3);margin-top:4px}
+        .v-progress{flex:0 0 220px}
+        .v-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
+        .v-bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),#6ea4ff);border-radius:3px;transition:width .4s}
+        .btn-notify{padding:9px 16px;border-radius:8px;background:var(--green);color:#0b0d12;font-weight:700;font-size:12px;border:none;cursor:pointer;font-family:var(--font);transition:.18s}
+        .btn-notify:hover:not(:disabled){background:#00e07c;transform:translateY(-1px)}
+        .btn-notify:disabled{background:var(--surface2);color:var(--text3);cursor:not-allowed}
+
+        /* ── STATS KPI ── */
+        .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:18px}
+        .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+        .kpi-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+        .kpi-val{font-size:22px;font-weight:700;color:var(--text);margin-top:3px}
+        .kpi-delta{font-size:11px;font-weight:700;margin-top:4px;color:var(--text3)}
+        .kpi-delta.up{color:var(--green)}.kpi-delta.dn{color:var(--red)}
+        .section-title{font-size:15px;font-weight:700;margin:0 0 12px;color:var(--text)}
+        .mini-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+        .mini-ribbon{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .18s}
+        .mini-ribbon:hover{border-color:var(--border2)}
+        .mini-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;background:var(--bg2)}
+        .mini-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;min-width:0}
+        .mini-title svg{width:14px;height:14px;color:var(--blue);flex-shrink:0}
+        .mini-value{font-size:16px;font-weight:800;color:var(--text);white-space:nowrap}
+        .mini-value.green{color:var(--green)}.mini-value.blue{color:var(--blue)}.mini-value.amber{color:var(--amber)}
+        .mini-sub{font-size:11px;color:var(--text3);margin-top:2px}
+        .mini-caret{width:14px;height:14px;color:var(--text3);transition:transform .25s;flex-shrink:0}
+        .mini-ribbon.expanded .mini-caret{transform:rotate(180deg)}
+        .mini-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+        .mini-ribbon.expanded .mini-body{max-height:900px}
+        .mini-content{padding:10px 14px 13px;border-top:1px solid var(--border);display:grid;gap:7px}
+        .mini-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--text2)}
+        .mini-row strong{color:var(--text);font-weight:700;text-align:right}
+
+        /* ── RANKING ── */
+        .rank-row{display:flex;align-items:center;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;gap:14px}
+        .rank-pos{font-size:18px;font-weight:800;color:var(--blue);width:42px;text-align:center;flex-shrink:0}
+        .rank-row:nth-child(2) .rank-pos{color:#f5b400}
+        .rank-row:nth-child(3) .rank-pos{color:#c0c0c0}
+        .rank-row:nth-child(4) .rank-pos{color:#cd7f32}
+        .rank-body{flex:1;min-width:0}
+        .rank-name{font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .rank-val{font-weight:800;color:var(--green);font-size:15px;margin-left:auto;white-space:nowrap}
+    </style>
+</head>
+<body>
+
+<!-- ══ TOPBAR ══ -->
+<header class="topbar" id="topbar" style="display:none">
+    <div class="brand">
+        <div class="brand-mark">RW</div>
+        Revende Ways
+    </div>
+    <div class="topbar-right">
+        <button class="btn-vendor-icon" id="btn-vendor-icon" onclick="openVendorWorkerPanel()" title="Estadísticas de vendedores (worker)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        <span class="badge-live">Panel activo</span>
+        <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+</header>
+
+<!-- ══ LOGIN ══ -->
+<div class="login-wrap" id="login-wrap">
+    <div class="login-box">
+        <div class="login-icon">&#128272;</div>
+        <h1>Panel de Pedidos</h1>
+        <p>Ingresá la clave para acceder a todos los pedidos</p>
+        <div class="login-err" id="login-err"></div>
+        <div class="field">
+            <label>Clave de acceso</label>
+            <input type="password" id="pin" placeholder="••••••••"
+                onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
+        </div>
+        <div id="recap-login" style="margin:12px 0 4px;display:flex;justify-content:center;min-height:78px"></div>
+        <button class="btn-login" onclick="doLogin()">Ingresar</button>
+    </div>
+</div>
+
+<!-- ══ MAIN PANEL ══ -->
+<div class="main" id="main">
+    <div class="wrap">
+
+        <div class="page-head">
+            <div>
+                <div class="page-title">Gestión de Pedidos <span id="count-lbl"></span></div>
+            </div>
+            <div class="head-actions">
+                <button class="btn-head" onclick="downloadTotalPDF('pendiente')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    Facturas pendientes
+                </button>
+                <button class="btn-head" onclick="downloadTotalPDF('pagado')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="16 13 10 13 8 13"/><polyline points="16 17 10 17 8 17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    Facturas aprobadas
+                </button>
+                <button class="btn-head" onclick="load()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    Actualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- MENU PRINCIPAL -->
+        <div class="menu-nav">
+            <button class="menu-btn active" data-view="pedidos" onclick="switchView('pedidos')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Pedidos
+            </button>
+            <button class="menu-btn" data-view="vendedores" onclick="switchView('vendedores')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                Vendedores
+            </button>
+            <button class="menu-btn" data-view="stats" onclick="switchView('stats')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Estadísticas
+            </button>
+            <button class="menu-btn" data-view="ganancias" onclick="switchView('ganancias')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Ganancia por revendedor
+            </button>
+            <button class="menu-btn" data-view="ranking" onclick="switchView('ranking')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                Ranking
+            </button>
+        </div>
+
+        <!-- VIEW: PEDIDOS -->
+        <div class="view active" id="view-pedidos">
+            <!-- STATUS TABS: Pendientes / Aprobados -->
+            <div class="status-tabs">
+                <button class="stab pend active" id="stab-pendiente" onclick="switchStatus('pendiente')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span>Pedidos pendientes</span>
+                    <span class="cnt" id="scnt-pendiente">0</span>
+                </button>
+                <button class="stab apro" id="stab-pagado" onclick="switchStatus('pagado')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Pedidos aprobados</span>
+                    <span class="cnt" id="scnt-pagado">0</span>
+                </button>
+            </div>
+
+            <!-- NICHO TABS -->
+            <div class="tabs-bar">
+                <button class="tab-btn active" id="tbtn-perfumes" onclick="switchTab('perfumes')">
+                    Perfumes Arabes <span class="pill on" id="pill-perfumes">0</span>
+                </button>
+                <button class="tab-btn" id="tbtn-multishop" onclick="switchTab('multishop')">
+                    Multishop <span class="pill" id="pill-multishop">0</span>
+                </button>
+                <button class="tab-btn" id="tbtn-calzados" onclick="switchTab('calzados')">
+                    Calzados <span class="pill" id="pill-calzados">0</span>
+                </button>
+            </div>
+
+            <div class="tab-pane active" id="pane-perfumes">
+                <div class="stats-row" id="stats-perfumes"></div>
+                <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-multishop">
+                <div class="stats-row" id="stats-multishop"></div>
+                <div id="list-multishop"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-calzados">
+                <div class="stats-row" id="stats-calzados"></div>
+                <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+        </div>
+
+        <!-- VIEW: VENDEDORES -->
+        <div class="view" id="view-vendedores">
+            <h2 class="section-title">Vendedores y niveles</h2>
+            <div id="vendedores-list"></div>
+        </div>
+
+        <!-- VIEW: ESTADÍSTICAS -->
+        <div class="view" id="view-stats">
+            <div id="stats-content"></div>
+        </div>
+
+        <!-- VIEW: GANANCIAS -->
+        <div class="view" id="view-ganancias">
+            <h2 class="section-title">Ganancia por revendedor</h2>
+            <div id="ganancias-list"></div>
+        </div>
+
+        <!-- VIEW: RANKING -->
+        <div class="view" id="view-ranking">
+            <h2 class="section-title">Ranking de vendedores por ganancia</h2>
+            <div id="ranking-list"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ══ MODAL CONFIRMAR ELIMINACIÓN ══ -->
+<div class="modal-overlay" id="del-modal">
+    <div class="modal-box">
+        <div class="modal-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        </div>
+        <h3>Eliminar pedido</h3>
+        <p>Esta acción eliminará el pedido de Firestore. No se puede deshacer.</p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+            <button class="modal-confirm-btn" id="del-confirm-btn" onclick="confirmDelete()">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.0/firebase-app-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.7.0/firebase-firestore-compat.min.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const FB = {
+    apiKey:            "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
+    authDomain:        "revende-weys.firebaseapp.com",
+    projectId:         "revende-weys",
+    storageBucket:     "revende-weys.firebasestorage.app",
+    messagingSenderId: "606182275212",
+    appId:             "1:606182275212:web:69089eb56f10b8a02063a9",
+    measurementId:     "G-MBX4GSRCBL"
+};
+if (!firebase.apps.length) firebase.initializeApp(FB);
+const db = firebase.firestore();
+
+const WORKER    = 'https://workerpagos.tuweb.workers.dev';
+const WA_NUMBER = '5491126805111';
+const KEY       = '38916201nnnn';
+const S_KEY     = 'rw_dark_v1';
+const D_KEY     = 'rw_deleted_orders_v1';
+
+let pedidos     = [];         // todos
+let activeTab   = 'perfumes';
+let activeStatus = 'pendiente'; // 'pendiente' | 'pagado'
+let deleteTarget = null;        // { id, uid } del pedido a eliminar
+
+// ═══════════════════════════════════════════════════════════
+// HORA BUENOS AIRES
+// ═══════════════════════════════════════════════════════════
+function ba(date) {
+    if (!date) date = new Date();
+    return date.toLocaleString('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        day:'2-digit', month:'2-digit', year:'numeric',
+        hour:'2-digit', minute:'2-digit'
+    });
+}
+function baNow() {
+    return new Date().toLocaleString('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        day:'2-digit', month:'2-digit', year:'numeric',
+        hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+}
+function isFirstDayOfMonthBA() {
+    const d = new Date().toLocaleString('en-US', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        day: 'numeric'
+    });
+    return Number(d) === 1;
+}
+function baMonthLabel(date) {
+    if (!date) date = new Date();
+    return date.toLocaleString('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        month: 'long', year: 'numeric'
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// CÁLCULO DE GANANCIA (REGLAS OFICIALES)
+//
+// PERFUMES / MULTISHOP:
+//   Se reconstruye el costo original a partir del bracket aplicado:
+//     costo_original = precio_venta / (1 + pct/100)
+//     ganancia       = precio_venta − costo_original
+//   Brackets sobre el PRECIO DE VENTA publicado:
+//     < $5.000 → 150% · $5-10k → 90% · $10-15k → 80% · $15-20k → 70%
+//     $20-25k → 60% · $25-30k → 55% · $30-35k → 40% · $35-40k → 35% · ≥ $40k → 30%
+//
+// CALZADOS:
+//   Costo fijo: $30.500. Sin porcentajes. Sin tope.
+//     ganancia = precio_venta − 30.500   (0 si el precio es menor)
+// ═══════════════════════════════════════════════════════════
+function bracketPct(price) {
+    if (price < 5000)  return 150;
+    if (price < 10000) return 90;
+    if (price < 15000) return 80;
+    if (price < 20000) return 70;
+    if (price < 25000) return 60;
+    if (price < 30000) return 55;
+    if (price < 35000) return 40;
+    if (price < 40000) return 35;
+    return 30;
+}
+function platformGainForItem(item, nicho) {
+    const price = Number(item.precio || 0);
+    const qty   = Number(item.cantidad || 1);
+    if (!price || price <= 0) return 0;
+
+    if (nicho === 'calzados') {
+        const COST = 30500;
+        const g = price > COST ? price - COST : 0;
+        return g * qty;
+    }
+
+    // perfumes / multishop
+    const pct  = bracketPct(price);
+    const cost = price / (1 + pct / 100);
+    return (price - cost) * qty;
+}
+function platformGainOf(p) {
+    const nicho = cat(p);
+    return (p.items || []).reduce((s, i) => s + platformGainForItem(i, nicho), 0);
+}
+function platformInvestmentOf(p) {
+    // costo total (lo que paga la plataforma a sus proveedores)
+    const nicho = cat(p);
+    return (p.items || []).reduce((s, item) => {
+        const price = Number(item.precio || 0);
+        const qty   = Number(item.cantidad || 1);
+        if (!price) return s;
+        if (nicho === 'calzados') return s + 30500 * qty;
+        const pct = bracketPct(price);
+        return s + (price / (1 + pct / 100)) * qty;
+    }, 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// FACTURACIÓN REAL DEL PEDIDO (lo que el revendedor le paga
+// efectivamente a la plataforma).
+//
+// IMPORTANTE: NO usar p.total / p.totalFinal del Worker, porque
+// esos campos vienen con la ganancia del revendedor sumada
+// (totalFinal = totalInversion + ganancia del revendedor).
+// La plataforma SOLO recibe la suma de (precio mayorista × cantidad).
+// ═══════════════════════════════════════════════════════════
+function realRevenue(p) {
+    const items = p.items || [];
+    return items.reduce((s,i)=> s + (Number(i.precio)||0) * (Number(i.cantidad)||1), 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SESIÓN
+// ═══════════════════════════════════════════════════════════
+function init() {
+    if (sessionStorage.getItem(S_KEY) === 'ok') { showMain(); load(); }
+    else showLogin();
+}
+function doLogin() {
+    const input = document.getElementById('pin');
+    const v = input.value.trim();
+    if (!v) { loginErr('Ingresá la clave'); return; }
+    const rcap = (window.grecaptcha && _recapLoginId !== null) ? grecaptcha.getResponse(_recapLoginId) : '';
+    if (!rcap) { loginErr('Completá el reCAPTCHA'); return; }
+    if (v === KEY) {
+        sessionStorage.setItem(S_KEY,'ok');
+        loginErr('');
+        try { grecaptcha.reset(_recapLoginId); } catch(_){}
+        showMain();
+        load();
+        requestAnimationFrame(() => {
+            const main = document.getElementById('main');
+            if (main) main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+    else {
+        loginErr('Clave incorrecta');
+        input.value='';
+        input.focus();
+        try { grecaptcha.reset(_recapLoginId); } catch(_){}
+    }
+}
+function loginErr(m) {
+    const e = document.getElementById('login-err');
+    e.textContent = m;
+    if (m) e.classList.add('show');
+    else e.classList.remove('show');
+}
+function logout() { sessionStorage.removeItem(S_KEY); location.reload(); }
+function showLogin() {
+    document.getElementById('login-wrap').style.display = 'flex';
+    document.getElementById('topbar').style.display = 'none';
+    document.getElementById('main').classList.remove('show');
+}
+function showMain() {
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('topbar').style.display = 'flex';
+    document.getElementById('main').classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CARGA PEDIDOS
+// — Fuente 1: Worker  → colección raíz  pedidos/{pedidoId}
+//             campos: pedidoId, estadoPago, cliente, productos, total,
+//                     codigoVendedor, uid, fecha
+// — Fuente 2: Firestore SDK → usuarios/{uid}/pedidos/{id}
+//             campos: estado, items, cliente/envio, fechaCreacion,
+//                     codigoVendedor, totalFinal, etc.
+// ═══════════════════════════════════════════════════════════
+async function load() {
+    ['perfumes','multishop','calzados'].forEach(k => {
+        document.getElementById('list-'+k).innerHTML =
+            '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+    });
+
+    try {
+        pedidos = [];
+        // Mapa para deduplicar: clave = pedidoId normalizado
+        const seen = new Set();
+
+        // ── FUENTE 1: Worker /api/pedidos (colección raíz Firestore) ──
+        // Esta es la fuente PRINCIPAL porque el Worker es quien crea
+        // el pedido cuando el usuario aprieta "Comprar".
+        try {
+            const wRes = await fetch(WORKER + '/api/pedidos');
+            if (wRes.ok) {
+                const wData = await wRes.json();
+                (wData.pedidos || []).forEach(p => {
+                    const id = p.pedidoId || p.id;
+                    if (!id || seen.has(id)) return;
+                    seen.add(id);
+
+                    // estadoPago: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
+                    // lo normalizamos a estado: 'pendiente' | 'pagado' | 'cancelado'
+                    const ep = (p.estadoPago || '').toUpperCase();
+                    const estado = ep === 'APROBADO' ? 'pagado'
+                                 : ep === 'RECHAZADO' ? 'cancelado'
+                                 : 'pendiente';
+
+                    // Nombre visible del revendedor: nombre + apellido, sin repetir el código
+                    const vName = fullName(p.cliente) || p.nombreVendedor || p.vendedorNombre || 'Cliente web';
+
+                    pedidos.push({
+                        _src:   'worker',
+                        id,
+                        _uid:   p.uid || id,          // para eliminar
+                        _vName: vName,
+                        _vCode: p.codigoVendedor || '',
+                        codigoVendedor: p.codigoVendedor || '',
+                        estado,
+                        items: (p.productos || []).map(pr => ({
+                            nombre:   pr.nombre || pr.title  || '—',
+                            cantidad: Number(pr.cantidad || pr.quantity || 1),
+                            precio:   Number(pr.precio   || pr.unit_price || 0)
+                        })),
+                        totalFinal:     Number(p.total || 0),
+                        totalInversion: Number(p.total || 0),
+                        // fechaCreacion compatible con el resto del código
+                        fechaCreacion: { seconds: Math.floor(Number(p.fecha || Date.now()) / 1000) },
+                        // datos de envío: el Worker guarda en "cliente"
+                        cliente: p.cliente || null,
+                        envio:   p.cliente || null,
+                        nicho:   p.nicho   || null,
+                    });
+                });
+            }
+        } catch(we) {
+            console.warn('Worker /api/pedidos no disponible:', we.message);
+        }
+
+        // ── FUENTE 2: Firestore SDK → usuarios/{uid}/pedidos ──
+        // Pedidos guardados directamente desde el index (sin pasar por Worker).
+        // Solo agregamos los que NO vinieron ya del Worker.
+        try {
+            const usersSnap = await db.collection('usuarios').get();
+            const jobs = [];
+            usersSnap.forEach(uDoc => {
+                const ud = uDoc.data();
+                const sellerName = fullName(ud) || ud.nombreCompleto || ud.displayName || ud.email || uDoc.id;
+                pedidos.forEach(p => {
+                    if (p._uid === uDoc.id) {
+                        p._vName = sellerName;
+                        if (!p._vCode && ud.codigoVendedor) p._vCode = ud.codigoVendedor;
+                    }
+                });
+                jobs.push(
+                    db.collection('usuarios').doc(uDoc.id)
+                      .collection('pedidos').orderBy('fechaCreacion','desc').get()
+                      .then(snap => {
+                          snap.forEach(pDoc => {
+                              const id = pDoc.id;
+                              if (seen.has(id)) return; // ya vino del Worker
+                              seen.add(id);
+
+                              const data = pDoc.data();
+                              // estado puede ser 'pendiente'/'pagado'/'cancelado' (minúscula)
+                              // o en algunos casos undefined → asumir pendiente
+                              const estado = (data.estado || 'pendiente').toLowerCase();
+
+                              pedidos.push({
+                                  _src:   'fb',
+                                  id,
+                                  _uid:   uDoc.id,
+                                  _vName: sellerName,
+                                  _vCode: ud.codigoVendedor || '',
+                                  ...data,
+                                  estado,
+                              });
+                          });
+                      }).catch(()=>{})
+                );
+            });
+            await Promise.all(jobs);
+        } catch(fe) {
+            console.warn('Firestore SDK error:', fe.message);
+        }
+
+        pedidos = pedidos.filter(p => !isLocallyDeleted(p.id));
+        pedidos.sort((a,b)=>(b.fechaCreacion?.seconds||0)-(a.fechaCreacion?.seconds||0));
+
+        const tot  = pedidos.length;
+        const pend = pedidos.filter(p=>p.estado==='pendiente').length;
+        const apro = pedidos.filter(p=>p.estado==='pagado').length;
+
+        document.getElementById('count-lbl').textContent =
+            tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
+        document.getElementById('scnt-pendiente').textContent = pend;
+        document.getElementById('scnt-pagado').textContent    = apro;
+
+        renderAll();
+
+    } catch(e) {
+        console.error(e);
+        ['perfumes','multishop','calzados'].forEach(k => {
+            document.getElementById('list-'+k).innerHTML =
+                `<div class="empty"><div class="empty-icon">&#9888;</div><h3>Error al cargar</h3><p>${e.message}</p></div>`;
+        });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLASIFICAR NICHO
+// ═══════════════════════════════════════════════════════════
+function cat(p) {
+    // 1) Nicho explícito del pedido (es el identificador principal).
+    //    Calzados se identifica por: "calzados", "adultos" o "niños".
+    //    Perfumes se identifica por: "perfumes árabes".
+    if (p.nicho) {
+        const n = p.nicho.toLowerCase();
+        if (n.includes('calzad') || n.includes('adult') ||
+            n.includes('niñ') || n.includes('nino')) return 'calzados';
+        if (n.includes('perfum') || n.includes('árabe') || n.includes('arabe')) return 'perfumes';
+        if (n.includes('multishop')) return 'multishop';
+    }
+    // 2) Detección por nombre de producto (solo términos que aparecen
+    //    EXCLUSIVAMENTE en una categoría, sin solapamiento).
+    const items = p.items || [];
+    const nm = i => (i.nombre || '').toUpperCase();
+
+    // Perfumes: la palabra "PERFUME", "ARABE" o "BODY SPLASH" sólo aparece
+    // en el catálogo de perfumes árabes. También nombres exclusivos de perfumes.
+    const KP = ['PERFUME','ARABE','ÁRABE','BODY SPLASH','LATTAFA','AFNAN','ARMAF',
+                'YARA','ASAD','HALAMAN','CLUB DE NUIT','CLUBE DE NUIT','PRIDE OF',
+                'ODYSSEY','OUD','ATTAR'];
+    if (items.some(i => KP.some(k => nm(i).includes(k)))) return 'perfumes';
+
+    // Calzados: nombres de modelos exclusivos del catálogo de zapatillas.
+    const KZ = ['DUNK','NIKE','ADIDAS','JORDAN','AIR FORCE','CAMPUS','FORUM',
+                'SAMBA','SUPERSTAR','BOSTON','NEW BALANCE','ADIZERO','DURAMO',
+                'ADIFORUM','BOTITA','ZAPATILLA'];
+    if (items.some(i => KZ.some(k => nm(i).includes(k)))) return 'calzados';
+
+    // 3) Si Multishop no tiene catálogo cargado, lo desconocido va a perfumes
+    //    (categoría activa) en lugar de a Multishop.
+    return 'perfumes';
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER COMPLETO (aplica filtro status + nicho)
+// ═══════════════════════════════════════════════════════════
+function renderAll() {
+    const filtered = pedidos.filter(p => (p.estado||'pendiente') === activeStatus);
+
+    const cats = { perfumes:[], multishop:[], calzados:[] };
+    filtered.forEach(p => cats[cat(p)].push(p));
+
+    ['perfumes','multishop','calzados'].forEach(k => {
+        setPill(k, cats[k].length);
+        renderStats(cats[k], k);
+        renderList(cats[k], k);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════
+function renderStats(ps, k) {
+    const el = document.getElementById('stats-'+k);
+    if (!ps.length) { el.innerHTML=''; return; }
+    const vendors = new Set(ps.map(p=>p._uid)).size;
+    const units   = ps.reduce((s,p)=>s+(p.items||[]).reduce((a,i)=>a+(i.cantidad||1),0),0);
+    const isPend  = activeStatus === 'pendiente';
+    el.innerHTML = `
+        <div class="stat-card"><div class="stat-lbl">Pedidos</div>
+            <div class="stat-val ${isPend?'a':'g'}">${ps.length}</div></div>
+        <div class="stat-card"><div class="stat-lbl">Vendedores</div>
+            <div class="stat-val">${vendors}</div></div>
+        <div class="stat-card"><div class="stat-lbl">Unidades</div>
+            <div class="stat-val g">${units}</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER LISTA POR VENDEDOR
+// ═══════════════════════════════════════════════════════════
+function renderList(ps, k) {
+    const el = document.getElementById('list-'+k);
+    if (!ps.length) {
+        const msg = activeStatus === 'pendiente'
+            ? 'No hay pedidos pendientes en este nicho.'
+            : 'No hay pedidos aprobados en este nicho.';
+        el.innerHTML = `<div class="empty"><div class="empty-icon">&#128235;</div><h3>Sin pedidos</h3><p>${msg}</p></div>`;
+        return;
+    }
+    const byV = {};
+    ps.forEach(p => {
+        const key = p._vCode || p._uid;
+        if (!byV[key]) byV[key] = { name:p._vName, code:p._vCode, peds:[] };
+        byV[key].peds.push(p);
+    });
+    // Total de pedidos por vendedor (sobre TODO el array, para nivel)
+    const totalByVendor = {};
+    pedidos.forEach(p => {
+        const key = p._vCode || p._uid;
+        totalByVendor[key] = (totalByVendor[key]||0) + 1;
+    });
+    let html = '';
+    Object.entries(byV).forEach(([key, v]) => {
+        const tot = totalByVendor[key] || v.peds.length;
+        const lv = levelOf(tot);
+        html += `<div class="vendor-block">
+            <div class="vendor-head">
+                <span class="vendor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9 13h6"/></svg></span>
+                <span class="vendor-name">${esc(v.name)}</span>
+                <span class="vendor-code">Cod: ${esc(v.code||'—')}</span>
+                <span class="lv-chip lv-${lv.nivel}">Nivel ${lv.nivel} <span class="lv-stars">${starsSVG(lv.nivel)}</span></span>
+                <span class="vendor-qty">${v.peds.length} pedido${v.peds.length!==1?'s':''}</span>
+            </div>`;
+        v.peds.forEach(p => { html += card(p); });
+        html += '</div>';
+    });
+    el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CARD DE PEDIDO (CINTA DESPLEGABLE)
+// ═══════════════════════════════════════════════════════════
+function card(p) {
+    const fRaw = p.fechaCreacion?.toDate
+        ? p.fechaCreacion.toDate()
+        : new Date((p.fechaCreacion?.seconds||0)*1000);
+    const fecha  = ba(fRaw);
+    const items  = p.items || [];
+    const estado = p.estado || 'pendiente';
+    const totalU = items.reduce((s,i)=>s+(i.cantidad||1),0);
+    const totalFin = realRevenue(p);
+
+    const env = p.cliente || p.envio || {};
+    const envNombre = [env.nombre, env.apellido].filter(Boolean).join(' ');
+    const hasEnvio  = envNombre || env.telefono || env.direccion || env.ciudad;
+
+    // En la cinta colapsada: nombre + apellido del revendedor + código
+    const ribbonName = p._vName || envNombre || '—';
+    const ribbonCode = p.codigoVendedor || p._vCode || '—';
+
+    const rows = items.map(it=>`
+        <tr>
+            <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
+            <td class="qty-num">${it.cantidad||1}</td>
+        </tr>`).join('');
+
+    const envioBlock = hasEnvio ? `
+        <div class="ship-block">
+            ${envNombre ? `<div class="ship-row"><strong>${esc(envNombre)}</strong></div>` : ''}
+            ${env.telefono  ? `<div class="ship-row">&#128222; ${esc(env.telefono)}</div>` : ''}
+            ${env.email     ? `<div class="ship-row">&#9993; ${esc(env.email)}</div>` : ''}
+            ${(env.direccion||env.ciudad) ? `<div class="ship-row">&#128205; ${[env.direccion,env.ciudad,env.provincia,env.cp].filter(Boolean).join(', ')}</div>` : ''}
+            ${env.observaciones ? `<div class="ship-row">&#128203; ${esc(env.observaciones)}</div>` : ''}
+        </div>` : '<span style="font-size:12px;color:var(--text3)">Sin datos de envio</span>';
+
+    const stop = 'event.stopPropagation();';
+
+    return `
+    <div class="ribbon" id="oc-${p.id}">
+        <div class="ribbon-head" onclick="toggleRibbon('${p.id}')">
+            <div class="ribbon-main">
+                <span class="r-name">${esc(ribbonName)}</span>
+                <span class="r-code">Cod: ${esc(ribbonCode)}</span>
+            </div>
+            <div class="ribbon-meta">
+                <span class="status-chip s-${estado}">${estado==='pagado'?'Aprobado':'Pendiente'}</span>
+                <span class="r-date">${fecha}</span>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+        <div class="ribbon-body">
+            <div class="order-head">
+                <div class="order-num-wrap">
+                    <div class="order-num">Pedido #${p.id.slice(-8).toUpperCase()}</div>
+                    <div class="order-date">&#128197; ${fecha}</div>
+                </div>
+                ${envioBlock}
+            </div>
+            <table class="prod-table">
+                <thead><tr><th>Producto</th><th>Cant.</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="order-foot">
+                <div class="foot-meta">
+                    <strong>${items.length}</strong> prod. · <strong>${totalU}</strong> unid.${totalFin>0?` · <strong>$${Math.round(totalFin).toLocaleString()}</strong>`:''}
+                </div>
+                <div class="actions">
+                    <button class="btn-act btn-copy" onclick="${stop}doCopy('${p.id}',this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Copiar
+                    </button>
+                    <button class="btn-act btn-wa" onclick="${stop}doWA('${p.id}')">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+                        Enviar WhatsApp
+                    </button>
+                    <button class="btn-act btn-pdf" onclick="${stop}openBoletaModal('${p.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        Boleta
+                    </button>
+                    <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}','${p._uid}','${p._src||''}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function toggleRibbon(id){
+    document.getElementById('oc-'+id)?.classList.toggle('expanded');
+}
+
+function toggleMini(id){
+    document.getElementById(id)?.classList.toggle('expanded');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// TEXTO PEDIDO (copiar / WhatsApp)
+// ═══════════════════════════════════════════════════════════
+function txt(p) {
+    const fRaw = p.fechaCreacion?.toDate ? p.fechaCreacion.toDate() : new Date((p.fechaCreacion?.seconds||0)*1000);
+    const items  = p.items || [];
+    const nicho  = cat(p);
+    const nichoL = nicho==='perfumes'?'Perfumes Arabes':nicho==='multishop'?'Multishop':'Calzados';
+    const code   = p.codigoVendedor || p._vCode || '—';
+    const vname  = p._vName || '—';
+    const env    = p.cliente || p.envio || {};
+    const totalU = items.reduce((s,i)=>s+(i.cantidad||1),0);
+
+    let t = '';
+    t += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    t += `REVENDE WAYS — PEDIDO\n`;
+    t += `${nichoL}\n`;
+    t += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    t += `N° #${p.id.slice(-8).toUpperCase()}\n`;
+    t += `Fecha: ${ba(fRaw)}\n`;
+    t += `Estado: ${(p.estado||'pendiente')==='pagado'?'APROBADO':'PENDIENTE'}\n\n`;
+    t += `─── VENDEDOR ───────────────\n`;
+    t += `Nombre: ${vname}\n`;
+    t += `Codigo: ${code}\n\n`;
+
+    const nombre = [env.nombre,env.apellido].filter(Boolean).join(' ');
+    if (nombre||env.telefono||env.direccion||env.ciudad) {
+        t += `─── ENVIO ──────────────────\n`;
+        if (nombre)            t += `Destinatario: ${nombre}\n`;
+        if (env.telefono)      t += `Tel: ${env.telefono}\n`;
+        if (env.email)         t += `Email: ${env.email}\n`;
+        if (env.direccion)     t += `Direccion: ${env.direccion}\n`;
+        if (env.ciudad)        t += `Localidad: ${env.ciudad}${env.provincia?', '+env.provincia:''}${env.cp?' ('+env.cp+')':''}\n`;
+        if (env.observaciones) t += `Obs: ${env.observaciones}\n`;
+        t += '\n';
+    }
+
+    t += `─── PRODUCTOS ──────────────\n`;
+    items.forEach((it,i) => {
+        t += `${i+1}. ${it.nombre}\n`;
+        t += `   Cantidad: ${it.cantidad||1}\n`;
+    });
+    t += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    t += `Total: ${totalU} unidades\n`;
+    t += `━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+    return t;
+}
+
+function doCopy(id, btn) {
+    const p = pedidos.find(x=>x.id===id); if(!p) return;
+    navigator.clipboard.writeText(txt(p)).then(()=>{
+        const o = btn.innerHTML;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copiado`;
+        btn.classList.add('ok');
+        setTimeout(()=>{ btn.innerHTML=o; btn.classList.remove('ok'); }, 2200);
+        toast('Copiado al portapapeles', true);
+    }).catch(()=>toast('No se pudo copiar','err'));
+}
+
+function doWA(id) {
+    const p = pedidos.find(x=>x.id===id); if(!p) return;
+    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(txt(p))}`, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ELIMINAR PEDIDO
+// ═══════════════════════════════════════════════════════════
+function askDelete(id, uid, src) {
+    // Si no se pasa src, intentar deducirlo del array local
+    if (!src) {
+        const p = pedidos.find(x => x.id === id);
+        src = p ? (p._src || '') : '';
+    }
+    deleteTarget = { id, uid, src };
+    document.getElementById('del-modal').classList.add('show');
+}
+function closeModal() {
+    document.getElementById('del-modal').classList.remove('show');
+    deleteTarget = null;
+}
+async function tryDeleteDoc(path) {
+    try {
+        await db.doc(path).delete();
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, err: e, perm: /permission|insufficient/i.test(e.message || '') || e.code === 'permission-denied' };
+    }
+}
+async function tryDeleteViaWorker(id) {
+    // Fallback al Worker para evitar el error de permisos de Firestore
+    // cuando las reglas no permiten delete desde el cliente.
+    const candidates = [
+        { url: `${WORKER}/api/pedidos/${encodeURIComponent(id)}`, method: 'DELETE' },
+        { url: `${WORKER}/api/pedidos/delete`,                   method: 'POST', body: JSON.stringify({ id }) },
+        { url: `${WORKER}/api/pedidos?id=${encodeURIComponent(id)}`, method: 'DELETE' }
+    ];
+    for (const c of candidates) {
+        try {
+            const r = await fetch(c.url, {
+                method: c.method,
+                headers: c.body ? { 'Content-Type': 'application/json' } : undefined,
+                body: c.body
+            });
+            if (r.ok) return true;
+        } catch (_) {}
+    }
+    return false;
+}
+async function confirmDelete() {
+    if (!deleteTarget) return;
+    const { id, uid, src } = deleteTarget;
+    const btn = document.getElementById('del-confirm-btn');
+    btn.textContent = 'Eliminando...'; btn.disabled = true;
+
+    const cardEl = document.getElementById('oc-' + id);
+    if (cardEl) cardEl.classList.add('deleting');
+
+    let deletedSomewhere = false;
+    let permissionBlocked = false;
+
+    // Intentos directos a Firestore (pendientes y aprobados deben funcionar igual)
+    const targets = [];
+    targets.push(`pedidos/${id}`);                         // colección raíz
+    if (uid && uid !== id && uid !== 'worker') {
+        targets.push(`usuarios/${uid}/pedidos/${id}`);     // subcolección de usuario
+    }
+
+    for (const path of targets) {
+        const r = await tryDeleteDoc(path);
+        if (r.ok) deletedSomewhere = true;
+        else if (r.perm) permissionBlocked = true;
+    }
+
+    // Si Firestore bloqueó por permisos, intentar Worker (que sí tiene credenciales admin)
+    if (!deletedSomewhere && permissionBlocked) {
+        const okW = await tryDeleteViaWorker(id);
+        if (okW) deletedSomewhere = true;
+    }
+
+    // Como último recurso: marcar borrado localmente para que no reaparezca al refrescar
+    if (!deletedSomewhere) rememberLocalDelete(id);
+
+    // Quitar del array local y refrescar
+    pedidos = pedidos.filter(p => p.id !== id);
+    const pend = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
+    const apro = pedidos.filter(p => (p.estado || 'pendiente') === 'pagado').length;
+    document.getElementById('scnt-pendiente').textContent = pend;
+    document.getElementById('scnt-pagado').textContent    = apro;
+    const tot = pedidos.length;
+    document.getElementById('count-lbl').textContent =
+        tot ? `(${tot} pedido${tot !== 1 ? 's' : ''})` : '';
+
+    closeModal();
+    renderAll();
+    btn.textContent = 'Eliminar'; btn.disabled = false;
+    toast(
+        deletedSomewhere ? 'Pedido eliminado' :
+        (permissionBlocked ? 'Pedido ocultado (Firestore bloqueó por permisos)' : 'Pedido eliminado'),
+        true
+    );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// PDF BOLETA INDIVIDUAL
+// ═══════════════════════════════════════════════════════════
+function doPDF(id) {
+    const p = pedidos.find(x=>x.id===id); if(!p) return;
+    const {jsPDF} = window.jspdf;
+    const doc = new jsPDF({format:'a4', unit:'mm'});
+    const LM=20, PW=170;
+    let y=14;
+
+    doc.setFillColor(0,30,60); doc.rect(0,0,210,16,'F');
+    doc.setFillColor(0,102,255); doc.rect(0,0,5,16,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('REVENDE WAYS', LM+2, 10);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text('Plataforma mayorista de revendedores', LM+2, 14.5);
+
+    y=26;
+    const fRaw = p.fechaCreacion?.toDate ? p.fechaCreacion.toDate() : new Date((p.fechaCreacion?.seconds||0)*1000);
+    const nicho = cat(p);
+    const nichoL = nicho==='perfumes'?'Perfumes Arabes':nicho==='multishop'?'Multishop':'Calzados';
+    const code   = p.codigoVendedor||p._vCode||'—';
+    const vname  = p._vName||'—';
+    const items  = p.items||[];
+    const env    = p.cliente||p.envio||{};
+    const totalFin = realRevenue(p);
+
+    doc.setTextColor(0,0,0);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('BOLETA DE PEDIDO', LM, y); y+=7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(100,100,100);
+    doc.text(nichoL.toUpperCase(), LM, y); y+=7;
+    doc.setDrawColor(0,102,255); doc.setLineWidth(.5); doc.line(LM,y,LM+PW,y); y+=8;
+
+    doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Pedido N: ${p.id.slice(-8).toUpperCase()}`, LM, y);
+    doc.text(`Fecha: ${ba(fRaw)}`, LM+90, y); y+=5.5;
+    doc.text(`Generado: ${baNow()} (hora Bs.As.)`, LM, y);
+    doc.text(`Estado: ${(p.estado||'pendiente')==='pagado'?'APROBADO':'PENDIENTE'}`, LM+90, y); y+=10;
+
+    doc.setFillColor(0,102,255); doc.rect(LM,y,PW,7,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('VENDEDOR', LM+2, y+5); y+=9;
+    doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); doc.setFontSize(9);
+    doc.text(`Nombre: ${vname}`, LM, y); y+=5;
+    doc.text(`Codigo de revendedor: ${code}`, LM, y); y+=10;
+
+    const envNombre = [env.nombre,env.apellido].filter(Boolean).join(' ');
+    if (envNombre||env.telefono||env.email||env.direccion||env.ciudad) {
+        doc.setFillColor(240,245,255); doc.rect(LM,y-2,PW,7,'F');
+        doc.setFont('helvetica','bold'); doc.setTextColor(0,60,180); doc.setFontSize(9);
+        doc.text('DATOS DE ENVIO', LM+2, y+3.5); y+=9;
+        doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0);
+        if (envNombre)    { doc.text(`Destinatario: ${envNombre}`, LM, y); y+=5; }
+        if (env.telefono) { doc.text(`Telefono: ${env.telefono}`, LM, y); y+=5; }
+        if (env.email)    { doc.text(`Email: ${env.email}`, LM, y); y+=5; }
+        if (env.direccion){ doc.text(`Direccion: ${env.direccion}`, LM, y); y+=5; }
+        const loc = [env.ciudad,env.provincia,env.cp].filter(Boolean).join(', ');
+        if (loc) { doc.text(`Localidad: ${loc}`, LM, y); y+=5; }
+        if (env.observaciones) { doc.text(`Obs: ${env.observaciones}`, LM, y); y+=5; }
+        y+=5;
+    }
+
+    doc.setFillColor(0,102,255); doc.rect(LM,y,PW,7,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('PRODUCTO', LM+2, y+5);
+    doc.text('CANT.', LM+PW-30, y+5);
+    doc.text('PRECIO UNIT.', LM+PW-2, y+5, {align:'right'});
+    y+=9;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+    items.forEach((it,i)=>{
+        if (y>260){ doc.addPage(); y=20; }
+        if (i%2===0){ doc.setFillColor(248,250,255); doc.rect(LM,y-1,PW,7,'F'); }
+        const nom = (it.nombre||'').length>78 ? (it.nombre||'').slice(0,76)+'...' : (it.nombre||'—');
+        doc.text(nom, LM+2, y+4);
+        doc.setFont('helvetica','bold');
+        doc.text(String(it.cantidad||1), LM+PW-28, y+4);
+        doc.setFont('helvetica','normal');
+        const precio = it.precio||0;
+        doc.text(precio>0?`$${precio.toLocaleString()}`:'—', LM+PW-2, y+4, {align:'right'});
+        y+=7;
+    });
+    y+=8;
+
+    doc.setFillColor(0,30,60); doc.rect(LM+90,y,80,24,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text('Total de la boleta:', LM+93, y+8);
+    doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text(totalFin>0?`$${Math.round(totalFin).toLocaleString()}`:`${items.reduce((s,i)=>s+(i.cantidad||1),0)} unid.`, LM+90+78, y+18, {align:'right'});
+
+    const totalU = items.reduce((s,i)=>s+(i.cantidad||1),0);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(100,100,100);
+    doc.text(`Unidades: ${totalU}`, LM, y+14);
+    y+=34;
+
+    doc.setDrawColor(200,200,200); doc.line(LM,y,LM+PW,y);
+    doc.setFontSize(7.5); doc.setTextColor(160,160,160);
+    doc.text('Revende Ways · Plataforma mayorista de revendedores', LM, y+5);
+    doc.text(`Generado el ${baNow()}`, LM+PW, y+5, {align:'right'});
+
+    doc.save(`boleta-RW-${p.id.slice(-8).toUpperCase()}.pdf`);
+    toast('Boleta descargada', true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PDF FACTURAS AGRUPADAS (pendientes o aprobadas)
+// ═══════════════════════════════════════════════════════════
+function downloadTotalPDF(statusFilter) {
+    const ps = pedidos.filter(p=>(p.estado||'pendiente')===statusFilter);
+    const label = statusFilter==='pendiente' ? 'PENDIENTES' : 'APROBADOS';
+    if (!ps.length) { toast(`No hay pedidos ${label.toLowerCase()} aún`,'err'); return; }
+
+    const {jsPDF} = window.jspdf;
+    const doc = new jsPDF({format:'a4', unit:'mm'});
+    const LM=20, PW=170;
+    const ahora = baNow();
+    let y=14;
+
+    doc.setFillColor(0,30,60); doc.rect(0,0,210,16,'F');
+    doc.setFillColor(0,102,255); doc.rect(0,0,5,16,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('REVENDE WAYS', LM+2, 10);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(`Facturas ${label}`, LM+2, 14.5);
+    y=26;
+
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text(`FACTURAS ${label}`, LM, y); y+=7;
+    doc.setDrawColor(0,102,255); doc.setLineWidth(.5); doc.line(LM,y,LM+PW,y); y+=8;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Generado: ${ahora} (hora Buenos Aires)`, LM, y); y+=5;
+    doc.text(`Total de pedidos: ${ps.length}`, LM, y); y+=12;
+
+    const secs = [
+        {k:'perfumes', l:'PERFUMES ARABES'},
+        {k:'multishop',   l:'MULTISHOP'},
+        {k:'calzados', l:'CALZADOS'}
+    ];
+    secs.forEach(sec => {
+        const sp = ps.filter(p=>cat(p)===sec.k);
+        if (!sp.length) return;
+        if (y>240){ doc.addPage(); y=20; }
+
+        doc.setFillColor(0,102,255); doc.rect(LM,y,PW,8,'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+        doc.text(sec.l, LM+3, y+5.5);
+        doc.text(`${sp.length} ped.`, LM+PW-2, y+5.5, {align:'right'});
+        y+=10;
+
+        const byV = {};
+        sp.forEach(p=>{
+            if (!byV[p._uid]) byV[p._uid]={name:p._vName,code:p._vCode,peds:[]};
+            byV[p._uid].peds.push(p);
+        });
+
+        Object.values(byV).forEach(v=>{
+            if (y>255){ doc.addPage(); y=20; }
+            doc.setFillColor(235,240,255); doc.rect(LM,y-1,PW,7,'F');
+            doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,50,180);
+            doc.text(`${v.name}  ·  Cod: ${v.code||'—'}`, LM+2, y+4);
+            doc.text(`${v.peds.length} ped.`, LM+PW-2, y+4, {align:'right'});
+            y+=8;
+
+            v.peds.forEach(p=>{
+                if (y>262){ doc.addPage(); y=20; }
+                const fRaw = p.fechaCreacion?.toDate?p.fechaCreacion.toDate():new Date((p.fechaCreacion?.seconds||0)*1000);
+                const items = p.items||[];
+                const totalU = items.reduce((s,i)=>s+(i.cantidad||1),0);
+                const totalFin = realRevenue(p);
+
+                doc.setFillColor(249,250,251); doc.rect(LM,y-1,PW,6,'F');
+                doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+                doc.text(`#${p.id.slice(-8).toUpperCase()} — ${ba(fRaw)}`, LM+2, y+3.5);
+                doc.setTextColor(0,102,255);
+                doc.text(totalFin>0?`$${Math.round(totalFin).toLocaleString()}`:`${totalU} unid.`, LM+PW-2, y+3.5, {align:'right'});
+                y+=7;
+
+                doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(50,50,50);
+                items.forEach(it=>{
+                    if (y>272){ doc.addPage(); y=20; }
+                    const nom = (it.nombre||'').length>90?(it.nombre||'').slice(0,88)+'...':(it.nombre||'');
+                    doc.text(`  · ${nom}`, LM+4, y+3);
+                    doc.setFont('helvetica','bold');
+                    doc.text(`x${it.cantidad||1}`, LM+PW-2, y+3, {align:'right'});
+                    doc.setFont('helvetica','normal');
+                    y+=5;
+                });
+                y+=3;
+            });
+            y+=4;
+        });
+        y+=6;
+    });
+
+    if (y>272){ doc.addPage(); y=20; }
+    doc.setDrawColor(200,200,200); doc.line(LM,y,LM+PW,y);
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
+    doc.text('Revende Ways · Plataforma mayorista de revendedores', LM, y+5);
+    doc.text(`Generado el ${ahora}`, LM+PW, y+5, {align:'right'});
+    doc.save(`facturas-${label.toLowerCase()}-RW-${new Date().toISOString().slice(0,10)}.pdf`);
+    toast(`Facturas ${label.toLowerCase()} descargadas`, true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function switchStatus(s) {
+    activeStatus = s;
+    document.getElementById('stab-pendiente').className = 'stab pend' + (s==='pendiente'?' active':'');
+    document.getElementById('stab-pagado').className    = 'stab apro' + (s==='pagado'   ?' active':'');
+    renderAll();
+}
+
+function switchTab(k) {
+    activeTab = k;
+    document.querySelectorAll('.tab-pane').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.pill').forEach(e=>e.classList.remove('on'));
+    document.getElementById('pane-'+k).classList.add('active');
+    document.getElementById('tbtn-'+k).classList.add('active');
+    document.getElementById('pill-'+k).classList.add('on');
+}
+
+function setPill(k,n) {
+    const e = document.getElementById('pill-'+k);
+    if (e) e.textContent = n;
+}
+
+function toast(m, type) {
+    const e = document.getElementById('toast');
+    e.textContent = m;
+    e.className = 'toast show' + (type===true||type==='ok'?' ok':type==='err'?' err':'');
+    clearTimeout(window._t);
+    window._t = setTimeout(()=>{ e.className='toast'; }, 3000);
+}
+
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fullName(o) {
+    if (!o) return '';
+    return [o.nombre, o.apellido].filter(Boolean).join(' ').trim();
+}
+
+function localDeletedIds() {
+    try { return JSON.parse(localStorage.getItem(D_KEY) || '[]'); }
+    catch(_) { return []; }
+}
+
+function isLocallyDeleted(id) {
+    return localDeletedIds().includes(id);
+}
+
+function rememberLocalDelete(id) {
+    const ids = localDeletedIds();
+    if (!ids.includes(id)) {
+        ids.push(id);
+        localStorage.setItem(D_KEY, JSON.stringify(ids.slice(-500)));
+    }
+}
+
+// Cerrar modal al click fuera
+document.getElementById('del-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+// ═══════════════════════════════════════════════════════════
+// SISTEMA DE NIVELES (1 a 5 estrellas)
+// Nivel 1: inicial · Nivel 2: 50 pedidos · Nivel 3: 100 · Nivel 4: 150 · Nivel 5: 250 (duplica con +100)
+// Descuentos: 0% / 3% / 5% / 9% / 15%
+// ═══════════════════════════════════════════════════════════
+function levelOf(count) {
+    if (count >= 250) return { nivel:5, descuento:15, prox:null,  prev:150 };
+    if (count >= 150) return { nivel:4, descuento:9,  prox:250,   prev:100 };
+    if (count >= 100) return { nivel:3, descuento:5,  prox:150,   prev:50  };
+    if (count >= 50)  return { nivel:2, descuento:3,  prox:100,   prev:0   };
+    return                   { nivel:1, descuento:0,  prox:50,    prev:0   };
+}
+function starsSVG(n) {
+    let s = '';
+    for (let i = 0; i < n; i++) {
+        s += `<svg class="lv-star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>`;
+    }
+    return s;
+}
+
+// ═══════════════════════════════════════════════════════════
+// AGREGAR VENDEDORES (con nivel, ganancia, fecha primera venta)
+// ═══════════════════════════════════════════════════════════
+function vendorKey(p) { return p._vCode || p._uid; }
+function computeVendors() {
+    const map = {};
+    pedidos.forEach(p => {
+        const k = vendorKey(p);
+        if (!k) return;
+        if (!map[k]) map[k] = {
+            key: k,
+            name: p._vName || 'Vendedor',
+            code: p._vCode || '',
+            uid:  (p._src === 'fb') ? p._uid : null,
+            peds: [],
+            ganancia: 0,    // ganancia de la PLATAFORMA (no del cliente)
+            inversion: 0,   // costo de la plataforma
+            primera: Infinity
+        };
+        map[k].peds.push(p);
+        map[k].ganancia  += platformGainOf(p);
+        map[k].inversion += platformInvestmentOf(p);
+        const ts = p.fechaCreacion?.seconds || 0;
+        if (ts && ts < map[k].primera) map[k].primera = ts;
+    });
+    return Object.values(map).map(v => Object.assign(v, levelOf(v.peds.length)));
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMBIO DE VISTA (menú principal)
+// ═══════════════════════════════════════════════════════════
+function switchView(v) {
+    document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+    const tgt = document.getElementById('view-' + v);
+    if (tgt) tgt.classList.add('active');
+    document.querySelectorAll('.menu-btn').forEach(e => {
+        e.classList.toggle('active', e.dataset.view === v);
+    });
+    if (v === 'vendedores') renderVendedores();
+    if (v === 'stats')      renderStatsView();
+    if (v === 'ganancias')  renderGanancias();
+    if (v === 'ranking')    renderRanking();
+}
+
+function refreshActiveView() {
+    const a = document.querySelector('.menu-btn.active');
+    if (a && a.dataset.view !== 'pedidos') switchView(a.dataset.view);
+}
+
+// Wrap renderAll para refrescar la vista activa automáticamente
+const _origRenderAll = renderAll;
+renderAll = function() {
+    _origRenderAll();
+    refreshActiveView();
+};
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: VENDEDORES
+// ═══════════════════════════════════════════════════════════
+function renderVendedores() {
+    const vs = computeVendors().sort((a,b)=>b.peds.length-a.peds.length);
+    const el = document.getElementById('vendedores-list');
+    if (!vs.length) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">&#11088;</div><h3>Sin vendedores</h3><p>Aún no hay vendedores con pedidos.</p></div>';
+        return;
+    }
+    el.innerHTML = vs.map(v => {
+        const prox = v.prox ? `${v.peds.length} / ${v.prox} pedidos` : 'Nivel máximo alcanzado';
+        const pct  = v.prox
+            ? Math.min(100, ((v.peds.length - v.prev) / (v.prox - v.prev)) * 100)
+            : 100;
+        const canNotify = !!v.uid;
+        const disabledAttr = canNotify ? '' : 'disabled title="Notificación solo para vendedores con UID Firestore"';
+        const descLbl = v.descuento > 0
+            ? `${v.descuento}% de descuento en inversión`
+            : 'Sin descuento (Nivel 1)';
+        return `<div class="v-card">
+            <div class="v-info">
+                <div class="v-name">${esc(v.name)}
+                    <span class="lv-chip lv-${v.nivel}">Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span></span>
+                </div>
+                <div class="v-sub">Cod: <strong>${esc(v.code||'—')}</strong> · ${v.peds.length} pedido${v.peds.length!==1?'s':''} · ${descLbl}</div>
+            </div>
+            <div class="v-progress">
+                <div class="v-sub">${v.prox ? 'Progreso al siguiente nivel' : 'Top vendedor'}: ${prox}</div>
+                <div class="v-bar"><span style="width:${pct}%"></span></div>
+            </div>
+            <button class="btn-notify" ${disabledAttr}
+                onclick="notifyLevel('${v.uid||''}','${esc(v.name)}',${v.nivel},${v.descuento})">
+                Notificar
+            </button>
+        </div>`;
+    }).join('');
+}
+
+async function notifyLevel(uid, name, nivel, descuento) {
+    if (!uid) { toast('Este vendedor no tiene UID Firestore válido','err'); return; }
+    try {
+        await db.collection('usuarios').doc(uid).collection('notificaciones').add({
+            tipo:      'levelUp',
+            nivel:     nivel,
+            descuento: descuento,
+            titulo:    `¡Felicitaciones! Subiste al Nivel ${nivel}`,
+            mensaje:   `Conseguiste ${descuento}% de descuento de bonificación en tu inversión. Tus precios bajaron automáticamente en tu web de reventas.`,
+            fecha:     firebase.firestore.FieldValue.serverTimestamp(),
+            leida:     false
+        });
+        // Marcar también el nivel actual y descuento en el doc del usuario
+        try {
+            await db.collection('usuarios').doc(uid).set({
+                nivel: nivel,
+                descuentoNivel: descuento
+            }, { merge: true });
+        } catch(_) {}
+        toast(`Notificación enviada a ${name} (Nivel ${nivel})`, true);
+    } catch(e) {
+        toast('Error al notificar: ' + e.message, 'err');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: ESTADÍSTICAS
+// ═══════════════════════════════════════════════════════════
+function inWindow(secs, days) {
+    if (!secs) return false;
+    const now = Date.now() / 1000;
+    return secs >= now - days * 86400;
+}
+function inPrevWindow(secs, days) {
+    if (!secs) return false;
+    const now = Date.now() / 1000;
+    return secs >= now - days * 2 * 86400 && secs < now - days * 86400;
+}
+
+function miniRibbon(id, title, value, sub, rows, cls) {
+    return `<div class="mini-ribbon" id="${id}">
+        <div class="mini-head" onclick="toggleMini('${id}')">
+            <div class="mini-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16V9"/><path d="M13 16V6"/><path d="M18 16v-4"/></svg>
+                <div><div>${title}</div>${sub?`<div class="mini-sub">${sub}</div>`:''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                <div class="mini-value ${cls||''}">${value}</div>
+                <svg class="mini-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+        <div class="mini-body"><div class="mini-content">${rows.map(r=>`<div class="mini-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`).join('')}</div></div>
+    </div>`;
+}
+
+function renderStatsView() {
+    const el = document.getElementById('stats-content');
+    const vendors = computeVendors();
+    const periods = [
+        { l:'Semana',    d:7   },
+        { l:'Quincena',  d:15  },
+        { l:'Mes',       d:30  },
+        { l:'Año',       d:365 }
+    ];
+
+    // ── Botón de descarga mensual (solo activo el día 1, hora BA) ──
+    const firstOfMonth = isFirstDayOfMonthBA();
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <h2 class="section-title" style="margin:0">Estadísticas de la plataforma</h2>
+        <button class="btn-head" onclick="downloadMonthlyStatsPDF()" ${firstOfMonth ? '' : 'disabled title="Disponible solo el día 1 de cada mes (hora Buenos Aires)"'} style="${firstOfMonth ? '' : 'opacity:.45;cursor:not-allowed'}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar estadísticas del mes (PDF)
+        </button>
+    </div>
+    <div class="mini-sub" style="margin-bottom:14px">Todas las ganancias mostradas son ganancias de la <strong>plataforma</strong> (sin la ganancia del cliente).</div>`;
+
+    html += '<h2 class="section-title">Crecimiento de pedidos</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const delta = prev ? ((cur - prev) / prev) * 100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-growth-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+            ['Pedidos del período', cur],
+            ['Período anterior', prev],
+            ['Variación', `${sign}${delta.toFixed(1)}%`]
+        ], delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    html += '<h2 class="section-title">Ganancia de la plataforma por período</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d))
+                            .reduce((s,p)=>s+platformGainOf(p), 0);
+        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d))
+                            .reduce((s,p)=>s+platformGainOf(p), 0);
+        const delta = prev ? ((cur - prev) / prev) * 100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
+            `$${Math.round(cur).toLocaleString()}`,
+            `${sign}${delta.toFixed(1)}% vs período anterior`,
+            [
+                ['Ganancia del período', `$${Math.round(cur).toLocaleString()}`],
+                ['Período anterior',     `$${Math.round(prev).toLocaleString()}`],
+                ['Variación',            `${sign}${delta.toFixed(1)}%`]
+            ],
+            delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    html += '<h2 class="section-title">Vendedores nuevos por período</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const nuevos = vendors.filter(v => inWindow(v.primera, pr.d)).length;
+        const prevN  = vendors.filter(v => inPrevWindow(v.primera, pr.d)).length;
+        const delta  = prevN ? ((nuevos - prevN) / prevN) * 100 : (nuevos ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-new-${i}`, `Nuevos en ${pr.l.toLowerCase()}`, nuevos, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+            ['Vendedores nuevos', nuevos],
+            ['Período anterior', prevN],
+            ['Variación', `${sign}${delta.toFixed(1)}%`]
+        ], delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    const totalGan = pedidos.reduce((s,p)=>s+platformGainOf(p), 0);
+    const totalInv = pedidos.reduce((s,p)=>s+platformInvestmentOf(p), 0);
+    const niveles = [1,2,3,4,5].map(n => vendors.filter(v=>v.nivel===n).length);
+    html += `<h2 class="section-title">Totales generales</h2><div class="mini-list">
+        ${miniRibbon('stat-total-orders', 'Pedidos totales', pedidos.length, 'Resumen general', [
+            ['Pendientes', pedidos.filter(p=>(p.estado||'pendiente')==='pendiente').length],
+            ['Aprobados',  pedidos.filter(p=>(p.estado||'pendiente')==='pagado').length],
+            ['Vendedores activos', vendors.length]
+        ], 'blue')}
+        ${miniRibbon('stat-total-money', 'Ganancia acumulada', `$${Math.round(totalGan).toLocaleString()}`, 'Ganancia neta de la plataforma', [
+            ['Ganancia acumulada (plataforma)', `$${Math.round(totalGan).toLocaleString()}`],
+            ['Inversión acumulada (costo)',     `$${Math.round(totalInv).toLocaleString()}`],
+            ['Vendedores activos', vendors.length]
+        ], 'green')}
+    </div>`;
+
+    html += `<h2 class="section-title">Distribución por nivel</h2><div class="mini-list">
+        ${[1,2,3,4,5].map(n=>miniRibbon(`stat-level-${n}`, `Nivel ${n}`, niveles[n-1], `<span class="lv-stars">${starsSVG(n)}</span>`, [
+            ['Vendedores en este nivel', niveles[n-1]],
+            ['Estrellas', `<span class="lv-stars">${starsSVG(n)}</span>`]
+        ], n >= 3 ? 'green' : 'blue')).join('')}
+    </div>`;
+
+    el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PDF: ESTADÍSTICAS DEL MES (solo el día 1 BA)
+// ═══════════════════════════════════════════════════════════
+function downloadMonthlyStatsPDF() {
+    if (!isFirstDayOfMonthBA()) {
+        toast('Solo disponible el día 1 de cada mes (hora Bs. As.)', 'err');
+        return;
+    }
+    // Pedidos del mes anterior (en hora BA): rango [primer día mes anterior, primer día este mes)
+    const nowBA = new Date(new Date().toLocaleString('en-US', { timeZone:'America/Argentina/Buenos_Aires' }));
+    const endMs   = new Date(nowBA.getFullYear(), nowBA.getMonth(), 1, 0, 0, 0).getTime();
+    const startMs = new Date(nowBA.getFullYear(), nowBA.getMonth() - 1, 1, 0, 0, 0).getTime();
+    const monthLabel = new Date(startMs).toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
+
+    const inMonth = pedidos.filter(p => {
+        const s = (p.fechaCreacion?.seconds || 0) * 1000;
+        return s >= startMs && s < endMs;
+    });
+
+    const totalGan = inMonth.reduce((s,p)=>s+platformGainOf(p), 0);
+    const totalInv = inMonth.reduce((s,p)=>s+platformInvestmentOf(p), 0);
+    const totalFac = inMonth.reduce((s,p)=>s + realRevenue(p), 0);
+    const pend     = inMonth.filter(p=>(p.estado||'pendiente')==='pendiente').length;
+    const apro     = inMonth.filter(p=>(p.estado||'pendiente')==='pagado').length;
+    const byNicho  = { perfumes:[], multishop:[], calzados:[] };
+    inMonth.forEach(p => byNicho[cat(p)].push(p));
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format:'a4', unit:'mm' });
+    const LM = 20, PW = 170;
+    let y = 14;
+
+    doc.setFillColor(0,30,60); doc.rect(0,0,210,16,'F');
+    doc.setFillColor(0,102,255); doc.rect(0,0,5,16,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('REVENDE WAYS', LM+2, 10);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text('Estadísticas mensuales de la plataforma', LM+2, 14.5);
+
+    y = 28;
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text(`ESTADÍSTICAS — ${monthLabel}`, LM, y); y += 7;
+    doc.setDrawColor(0,102,255); doc.setLineWidth(.5); doc.line(LM,y,LM+PW,y); y += 8;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Generado: ${baNow()} (hora Buenos Aires)`, LM, y); y += 5;
+    doc.text(`Pedidos del mes: ${inMonth.length}  ·  Pendientes: ${pend}  ·  Aprobados: ${apro}`, LM, y); y += 10;
+
+    const rows = [
+        ['Facturación total (precio al cliente)', `$${Math.round(totalFac).toLocaleString()}`],
+        ['Ganancia de la plataforma',             `$${Math.round(totalGan).toLocaleString()}`],
+        ['Inversión / costo de la plataforma',    `$${Math.round(totalInv).toLocaleString()}`],
+        ['Pedidos de Perfumes Árabes',            byNicho.perfumes.length],
+        ['Pedidos de Multishop',                    byNicho.multishop.length],
+        ['Pedidos de Calzados',                   byNicho.calzados.length],
+    ];
+    doc.setFillColor(0,102,255); doc.rect(LM,y,PW,8,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text('CONCEPTO', LM+3, y+5.5);
+    doc.text('VALOR', LM+PW-3, y+5.5, { align:'right' });
+    y += 10;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+    rows.forEach((r, i) => {
+        if (i % 2 === 0) { doc.setFillColor(248,250,255); doc.rect(LM, y-1, PW, 7, 'F'); }
+        doc.text(String(r[0]), LM+3, y+4);
+        doc.setFont('helvetica','bold');
+        doc.text(String(r[1]), LM+PW-3, y+4, { align:'right' });
+        doc.setFont('helvetica','normal');
+        y += 7;
+    });
+
+    y += 10;
+    doc.setDrawColor(200,200,200); doc.line(LM,y,LM+PW,y);
+    doc.setFontSize(7.5); doc.setTextColor(160,160,160);
+    doc.text('Revende Ways · Reporte mensual', LM, y+5);
+    doc.text(`Generado el ${baNow()}`, LM+PW, y+5, { align:'right' });
+
+    doc.save(`estadisticas-RW-${monthLabel.replace(/\s+/g,'-')}.pdf`);
+    toast('Estadísticas del mes descargadas', true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: GANANCIA DE VENDEDORES
+// ═══════════════════════════════════════════════════════════
+function renderGanancias() {
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    const el = document.getElementById('ganancias-list');
+    if (!vs.length) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">&#128176;</div><h3>Sin datos</h3></div>';
+        return;
+    }
+    el.innerHTML = `<div class="mini-list">${vs.map((v, i) => {
+        return miniRibbon(`gain-${i}`, esc(v.name),
+            `$${Math.round(v.ganancia).toLocaleString()}`,
+            `Cod: ${esc(v.code||'—')} · ${v.peds.length} pedido${v.peds.length!==1?'s':''}`,
+            [
+                ['Nivel', `Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span>`],
+                ['Ganancia plataforma', `$${Math.round(v.ganancia).toLocaleString()}`],
+                ['Inversión plataforma', `$${Math.round(v.inversion).toLocaleString()}`],
+                ['Pedidos', v.peds.length]
+            ], 'green');
+    }).join('')}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: RANKING (por ganancia)
+// ═══════════════════════════════════════════════════════════
+function renderRanking() {
+    const _allPeds = pedidos;
+    pedidos = _allPeds.filter(p => (p.estado||'pendiente') === 'pagado');
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    pedidos = _allPeds;
+    const el = document.getElementById('ranking-list');
+    if (!vs.length) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">&#127942;</div><h3>Sin ranking</h3></div>';
+        return;
+    }
+    el.innerHTML = vs.map((v,i) => `<div class="rank-row">
+        <div class="rank-pos">#${i+1}</div>
+        <div class="rank-body">
+            <div class="rank-name">${esc(v.name)} <span class="lv-chip lv-${v.nivel}">Nivel ${v.nivel}</span> <span class="lv-stars">${starsSVG(v.nivel)}</span></div>
+            <div class="v-sub">${v.peds.length} pedido${v.peds.length!==1?'s':''} · Cod: ${esc(v.code||'—')}</div>
+        </div>
+        <div class="rank-val">$${Math.round(v.ganancia).toLocaleString()}</div>
+    </div>`).join('');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// ── INYECCIÓN CSS PARA NUEVAS FUNCIONES ──
+// ═══════════════════════════════════════════════════════════
+(function injectExtraCSS(){
+    const css = `
+    .btn-vendor-icon{
+        width:34px;height:34px;border-radius:8px;border:1px solid var(--border2);
+        background:transparent;color:var(--text2);display:inline-flex;align-items:center;
+        justify-content:center;cursor:pointer;transition:.2s;margin-right:6px;
+    }
+    .btn-vendor-icon:hover{color:var(--blue);border-color:var(--blue);background:var(--blue-pale)}
+    .btn-vendor-icon svg{width:16px;height:16px}
+    @media(max-width:600px){
+        .btn-vendor-icon{width:28px;height:28px;margin-right:2px}
+        .btn-vendor-icon svg{width:13px;height:13px}
+        .badge-live{display:none}
+    }
+    /* status sub-tabs dentro de Estadísticas / Ganancia / Ranking */
+    .view-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;background:var(--bg2);
+        border:1px solid var(--border);border-radius:10px;padding:4px}
+    .view-tabs button{flex:1;min-width:120px;padding:8px 12px;border:0;border-radius:7px;
+        background:transparent;color:var(--text2);font:600 12px var(--font);cursor:pointer;
+        transition:.18s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+    .view-tabs button.active{background:var(--blue);color:#fff;box-shadow:0 4px 12px var(--blue-glow)}
+    .view-tabs button:hover:not(.active){background:var(--surface2);color:var(--text)}
+    .view-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .view-actions .btn-head{flex:0 0 auto}
+    /* modal boleta */
+    .bm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
+        z-index:9000;display:none;align-items:center;justify-content:center;padding:16px}
+    .bm-overlay.show{display:flex}
+    .bm-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+        width:100%;max-width:480px;padding:22px;box-shadow:var(--shadow-lg)}
+    .bm-box h3{margin:0 0 6px;font-size:17px}
+    .bm-box p{margin:0 0 16px;color:var(--text2);font-size:13px}
+    .bm-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .bm-actions button{flex:1;min-width:130px;padding:11px 14px;border:0;border-radius:8px;
+        font:600 13px var(--font);cursor:pointer;display:inline-flex;align-items:center;
+        justify-content:center;gap:8px;transition:.18s}
+    .bm-btn-view{background:var(--surface2);color:var(--text)}
+    .bm-btn-view:hover{background:var(--surface)}
+    .bm-btn-dl{background:var(--blue);color:#fff}
+    .bm-btn-dl:hover{background:var(--blue-dim)}
+    .bm-btn-x{background:transparent;color:var(--text3);flex:0 0 auto;min-width:0;padding:11px 14px}
+    /* visor de boleta */
+    .bv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+        z-index:9100;display:none;align-items:flex-start;justify-content:center;padding:24px;
+        overflow:auto}
+    .bv-overlay.show{display:flex}
+    .bv-paper{background:#fff;color:#000;width:100%;max-width:780px;border-radius:10px;
+        padding:32px;font-family:'DM Sans',sans-serif;position:relative;box-shadow:var(--shadow-lg);
+        margin:auto}
+    .bv-close{position:absolute;top:10px;right:10px;background:#000;color:#fff;border:0;
+        width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1}
+    .bv-paper h1{margin:0 0 4px;font-size:22px;color:#0066ff}
+    .bv-paper h2{margin:18px 0 6px;font-size:14px;color:#0066ff;text-transform:uppercase;
+        border-bottom:1px solid #ddd;padding-bottom:4px}
+    .bv-paper table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px}
+    .bv-paper th{text-align:left;padding:6px;background:#0066ff;color:#fff}
+    .bv-paper td{padding:6px;border-bottom:1px solid #eee}
+    .bv-paper .bv-row{display:flex;justify-content:space-between;font-size:12px;margin:3px 0}
+    .bv-paper .bv-tot{font-size:15px;font-weight:700;color:#0066ff;margin-top:10px}
+    /* worker panel */
+    .wp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+        z-index:9000;display:none;align-items:flex-start;justify-content:center;padding:24px;
+        overflow:auto}
+    .wp-overlay.show{display:flex}
+    .wp-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+        width:100%;max-width:880px;padding:22px;box-shadow:var(--shadow-lg);margin:auto}
+    .wp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;
+        flex-wrap:wrap;gap:10px}
+    .wp-head h3{margin:0;font-size:17px}
+    .wp-head .wp-x{background:transparent;border:1px solid var(--border2);color:var(--text2);
+        padding:7px 12px;border-radius:7px;cursor:pointer;font:600 12px var(--font)}
+    .wp-loading{padding:30px;text-align:center;color:var(--text2)}
+    /* sub-mini para totales por revendedor en stats */
+    .sub-section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;
+        letter-spacing:.5px;margin:18px 0 8px}
+    /* pwd modal */
+    .pwd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+        z-index:9500;display:none;align-items:center;justify-content:center;padding:16px}
+    .pwd-overlay.show{display:flex}
+    .pwd-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+        width:100%;max-width:380px;padding:24px;box-shadow:var(--shadow-lg);text-align:center}
+    .pwd-box h3{margin:0 0 6px;font-size:17px}
+    .pwd-box p{margin:0 0 14px;color:var(--text2);font-size:13px}
+    .pwd-box input{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border2);
+        border-radius:8px;color:var(--text);font:500 14px var(--font);margin-bottom:10px;outline:none}
+    .pwd-box input:focus{border-color:var(--blue)}
+    .pwd-err{color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px}
+    .pwd-actions{display:flex;gap:8px}
+    .pwd-actions button{flex:1;padding:10px;border:0;border-radius:8px;font:600 13px var(--font);
+        cursor:pointer}
+    .pwd-cancel{background:var(--surface2);color:var(--text)}
+    .pwd-ok{background:var(--blue);color:#fff}
+    `;
+    const s = document.createElement('style');
+    s.textContent = css;
+    document.head.appendChild(s);
+})();
+
+// ═══════════════════════════════════════════════════════════
+// ── INYECCIÓN HTML: modales nuevos ──
+// ═══════════════════════════════════════════════════════════
+document.body.insertAdjacentHTML('beforeend', `
+<div class="bm-overlay" id="bm-modal">
+    <div class="bm-box">
+        <h3>Boleta del pedido</h3>
+        <p>¿Qué querés hacer con esta boleta?</p>
+        <div class="bm-actions">
+            <button class="bm-btn-view" onclick="bmAction('view')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Ver
+            </button>
+            <button class="bm-btn-dl" onclick="bmAction('download')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Descargar PDF
+            </button>
+            <button class="bm-btn-x" onclick="closeBoletaModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+<div class="bv-overlay" id="bv-modal">
+    <div class="bv-paper" id="bv-paper">
+        <button class="bv-close" onclick="closeBoletaViewer()">×</button>
+        <div id="bv-content"></div>
+    </div>
+</div>
+<div class="wp-overlay" id="wp-modal">
+    <div class="wp-box">
+        <div class="wp-head">
+            <h3>Estadísticas de vendedores (worker)</h3>
+            <button class="wp-x" onclick="closeVendorWorkerPanel()">Cerrar</button>
+        </div>
+        <div id="wp-list" class="wp-loading">Cargando…</div>
+    </div>
+</div>
+<div class="pwd-overlay" id="pwd-modal">
+    <div class="pwd-box">
+        <div style="font-size:28px;margin-bottom:6px">🔒</div>
+        <h3>Acceso restringido</h3>
+        <p id="pwd-msg">Ingresá la contraseña para ver esta sección</p>
+        <input type="password" id="pwd-input" placeholder="Contraseña"
+            onkeydown="if(event.key==='Enter')pwdSubmit()" autocomplete="off"/>
+        <div id="recap-pwd" style="margin:10px 0 4px;display:flex;justify-content:center;min-height:78px"></div>
+        <div class="pwd-err" id="pwd-err"></div>
+        <div class="pwd-actions">
+            <button class="pwd-cancel" onclick="pwdCancel()">Cancelar</button>
+            <button class="pwd-ok" onclick="pwdSubmit()">Entrar</button>
+        </div>
+    </div>
+</div>
+`);
+
+// ═══════════════════════════════════════════════════════════
+// ── PASSWORD GATE (Firebase /config/auth) para Estadísticas y Ganancia ──
+// ═══════════════════════════════════════════════════════════
+const PROTECTED_VIEWS = ['stats','ganancias'];
+const PWD_SESS_KEY = 'rw_protected_ok_v1';
+const PWD_FALLBACK = 'gustavonicolas24051995nnnn';
+let _pwdResolve = null;
+let _pwdTargetView = null;
+
+// ── reCAPTCHA v2 (login + password gate) ──
+const RECAPTCHA_SITEKEY = '6LeNuM0sAAAAAJ8_Jdv1DhVqhJMsmDZl7KokfCw_';
+let _recapLoginId = null, _recapPwdId = null;
+window.onRecaptchaLoad = function() {
+    try {
+        const l = document.getElementById('recap-login');
+        if (l && _recapLoginId === null) {
+            _recapLoginId = grecaptcha.render(l, { sitekey: RECAPTCHA_SITEKEY, theme: 'dark' });
+        }
+    } catch(e) { console.warn('recap login render', e); }
+};
+function _ensurePwdRecaptcha() {
+    if (!window.grecaptcha || typeof grecaptcha.render !== 'function') return;
+    const el = document.getElementById('recap-pwd');
+    if (el && _recapPwdId === null) {
+        try { _recapPwdId = grecaptcha.render(el, { sitekey: RECAPTCHA_SITEKEY, theme: 'dark' }); }
+        catch(e) { console.warn('recap pwd render', e); }
+    } else if (_recapPwdId !== null) {
+        try { grecaptcha.reset(_recapPwdId); } catch(_){}
+    }
+}
+
+async function ensurePwdSeed() {
+    // Asegura que /config/auth tenga panelPwd guardado en Firestore.
+    try {
+        const ref = db.collection('config').doc('auth');
+        const snap = await ref.get();
+        if (!snap.exists || !snap.data().panelPwd) {
+            await ref.set({ panelPwd: PWD_FALLBACK }, { merge: true });
+        }
+    } catch(e) { console.warn('seed pwd', e); }
+}
+ensurePwdSeed();
+
+async function checkProtectedAccess(view) {
+    if (sessionStorage.getItem(PWD_SESS_KEY) === '1') return true;
+    return new Promise(resolve => {
+        _pwdResolve = resolve;
+        _pwdTargetView = view;
+        document.getElementById('pwd-msg').textContent =
+            view === 'stats'
+              ? 'Las Estadísticas contienen ganancias de la plataforma. Ingresá la contraseña.'
+              : 'Ganancia por revendedor contiene ganancias de la plataforma. Ingresá la contraseña.';
+        document.getElementById('pwd-input').value = '';
+        document.getElementById('pwd-err').textContent = '';
+        document.getElementById('pwd-modal').classList.add('show');
+        setTimeout(()=>{ document.getElementById('pwd-input').focus(); _ensurePwdRecaptcha(); }, 50);
+    });
+}
+async function pwdSubmit() {
+    const val = document.getElementById('pwd-input').value;
+    const errEl = document.getElementById('pwd-err');
+    errEl.textContent = '';
+    const rcap = (window.grecaptcha && _recapPwdId !== null) ? grecaptcha.getResponse(_recapPwdId) : '';
+    if (!rcap) { errEl.textContent = 'Completá el reCAPTCHA'; return; }
+    let real = PWD_FALLBACK;
+    try {
+        const snap = await db.collection('config').doc('auth').get();
+        if (snap.exists && snap.data().panelPwd) real = snap.data().panelPwd;
+    } catch(_) {}
+    if (val === real) {
+        sessionStorage.setItem(PWD_SESS_KEY, '1');
+        document.getElementById('pwd-modal').classList.remove('show');
+        try { grecaptcha.reset(_recapPwdId); } catch(_){}
+        if (_pwdResolve) _pwdResolve(true);
+        _pwdResolve = null;
+    } else {
+        errEl.textContent = 'Contraseña incorrecta';
+        try { grecaptcha.reset(_recapPwdId); } catch(_){}
+    }
+}
+function pwdCancel() {
+    document.getElementById('pwd-modal').classList.remove('show');
+    try { grecaptcha.reset(_recapPwdId); } catch(_){}
+    if (_pwdResolve) _pwdResolve(false);
+    _pwdResolve = null;
+    // Volver a Pedidos
+    if (typeof _origSwitchView === 'function') _origSwitchView('pedidos');
+}
+
+// Sobrescribir switchView para añadir gate
+const _origSwitchView = switchView;
+switchView = async function(v) {
+    if (PROTECTED_VIEWS.includes(v)) {
+        const ok = await checkProtectedAccess(v);
+        if (!ok) return;
+    }
+    _origSwitchView(v);
+};
+
+// ═══════════════════════════════════════════════════════════
+// ── MIRROR DE PENDIENTES A FIRESTORE (colección pedidos_pendientes) ──
+// Al aprobarse → se borran definitivamente.
+// ═══════════════════════════════════════════════════════════
+let _pendSyncBusy = false;
+async function syncPendientesCollection() {
+    if (_pendSyncBusy) return;
+    _pendSyncBusy = true;
+    try {
+        const col = db.collection('pedidos_pendientes');
+        const snap = await col.get();
+        const existing = new Set(); snap.forEach(d => existing.add(d.id));
+        const localById = {};
+        pedidos.forEach(p => { if (p && p.id) localById[p.id] = p; });
+
+        const batch = db.batch();
+        let ops = 0;
+        // 1) upsert pendientes
+        pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').forEach(p => {
+            const ref = col.doc(p.id);
+            batch.set(ref, {
+                pedidoId:        p.id,
+                estado:          'pendiente',
+                vendedorNombre:  p._vName || '',
+                codigoVendedor:  p._vCode || '',
+                uid:             p._uid || null,
+                src:             p._src || '',
+                nicho:           cat(p),
+                items:           p.items || [],
+                cliente:         p.cliente || p.envio || {},
+                totalFinal:      Number(realRevenue(p)) || 0,
+                fechaCreacion:   p.fechaCreacion || null,
+                mirroredAt:      firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            ops++;
+        });
+        // 2) borrar mirrors aprobados o desaparecidos
+        existing.forEach(id => {
+            const local = localById[id];
+            if (!local || (local.estado || 'pendiente') === 'pagado') {
+                batch.delete(col.doc(id));
+                ops++;
+            }
+        });
+        if (ops) await batch.commit();
+    } catch(e) {
+        console.warn('syncPendientesCollection', e);
+    } finally {
+        _pendSyncBusy = false;
+    }
+}
+// Disparar luego de cada renderAll
+const _prevRenderAll = renderAll;
+renderAll = function() {
+    _prevRenderAll();
+    syncPendientesCollection();
+};
+
+// ═══════════════════════════════════════════════════════════
+// ── MODAL BOLETA: Ver / Descargar ──
+// ═══════════════════════════════════════════════════════════
+let _bmCurrentId = null;
+function openBoletaModal(id) {
+    _bmCurrentId = id;
+    document.getElementById('bm-modal').classList.add('show');
+}
+function closeBoletaModal() {
+    document.getElementById('bm-modal').classList.remove('show');
+    _bmCurrentId = null;
+}
+function bmAction(act) {
+    const id = _bmCurrentId;
+    closeBoletaModal();
+    if (!id) return;
+    if (act === 'download') {
+        if (typeof doPDF === 'function') doPDF(id);
+    } else {
+        viewBoleta(id);
+    }
+}
+document.getElementById('bm-modal').addEventListener('click', function(e){
+    if (e.target === this) closeBoletaModal();
+});
+
+function viewBoleta(id) {
+    const p = pedidos.find(x => x.id === id);
+    if (!p) { toast('Pedido no encontrado', 'err'); return; }
+    const fRaw = p.fechaCreacion?.toDate ? p.fechaCreacion.toDate() : new Date((p.fechaCreacion?.seconds||0)*1000);
+    const items = p.items || [];
+    const env = p.cliente || p.envio || {};
+    const totalU = items.reduce((s,i)=>s+(Number(i.cantidad)||1),0);
+    const totalFin = Number(realRevenue(p)) || 0;
+    const nicho = cat(p);
+    const nichoL = nicho==='perfumes'?'Perfumes Árabes':nicho==='multishop'?'Multishop':'Calzados';
+    const estado = (p.estado || 'pendiente') === 'pagado' ? 'APROBADO' : 'PENDIENTE';
+
+    const rows = items.map(it => `
+        <tr><td>${esc(it.nombre||'—')}</td>
+        <td style="text-align:center">${it.cantidad||1}</td>
+        ${it.precio?`<td style="text-align:right">$${Number(it.precio).toLocaleString()}</td>`:'<td></td>'}</tr>`).join('');
+
+    const envBlock = (env.nombre || env.telefono || env.direccion) ? `
+        <h2>Envío</h2>
+        ${env.nombre?`<div class="bv-row"><span>Nombre</span><strong>${esc([env.nombre,env.apellido].filter(Boolean).join(' '))}</strong></div>`:''}
+        ${env.telefono?`<div class="bv-row"><span>Teléfono</span><strong>${esc(env.telefono)}</strong></div>`:''}
+        ${env.email?`<div class="bv-row"><span>Email</span><strong>${esc(env.email)}</strong></div>`:''}
+        ${env.direccion?`<div class="bv-row"><span>Dirección</span><strong>${esc([env.direccion,env.ciudad,env.provincia,env.cp].filter(Boolean).join(', '))}</strong></div>`:''}
+    ` : '';
+
+    document.getElementById('bv-content').innerHTML = `
+        <h1>REVENDE WAYS</h1>
+        <div style="font-size:11px;color:#666;margin-bottom:14px">Plataforma mayorista de revendedores</div>
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12px">
+            <div><strong>Boleta #${p.id.slice(-8).toUpperCase()}</strong><br>${nichoL}</div>
+            <div style="text-align:right">${ba(fRaw)}<br><span style="color:${estado==='APROBADO'?'#00c96e':'#f59e0b'};font-weight:700">${estado}</span></div>
+        </div>
+        <h2>Vendedor</h2>
+        <div class="bv-row"><span>Nombre</span><strong>${esc(p._vName||'—')}</strong></div>
+        <div class="bv-row"><span>Código</span><strong>${esc(p._vCode||'—')}</strong></div>
+        ${envBlock}
+        <h2>Productos</h2>
+        <table><thead><tr><th>Producto</th><th style="text-align:center;width:60px">Cant.</th><th style="text-align:right;width:90px">Precio</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+        <div class="bv-row" style="margin-top:14px"><span>Unidades</span><strong>${totalU}</strong></div>
+        ${totalFin>0?`<div class="bv-row bv-tot"><span>Total de la boleta</span><strong>$${Math.round(totalFin).toLocaleString()}</strong></div>`:''}
+        <div style="margin-top:24px;font-size:10px;color:#999;text-align:center">Generado el ${baNow()}</div>
+    `;
+    document.getElementById('bv-modal').classList.add('show');
+}
+function closeBoletaViewer() {
+    document.getElementById('bv-modal').classList.remove('show');
+}
+document.getElementById('bv-modal').addEventListener('click', function(e){
+    if (e.target === this) closeBoletaViewer();
+});
+
+// ═══════════════════════════════════════════════════════════
+// ── HELPERS PARA SUB-TABS POR ESTADO ──
+// ═══════════════════════════════════════════════════════════
+const _viewTabState = { stats: 'pagado', ganancias: 'pagado', ranking: 'pagado' };
+function _setViewTab(view, status) {
+    _viewTabState[view] = status;
+    if (view === 'stats') renderStatsView();
+    if (view === 'ganancias') renderGanancias();
+    if (view === 'ranking') renderRanking();
+}
+function _filterByStatus(arr, status) {
+    return arr.filter(p => (p.estado || 'pendiente') === status);
+}
+function _viewTabsHTML(view, opts) {
+    const cur = _viewTabState[view];
+    const labelAp = opts?.labels?.[0] || 'Aprobados';
+    const labelPe = opts?.labels?.[1] || 'Pendientes';
+    return `<div class="view-tabs">
+        <button class="${cur==='pagado'?'active':''}" onclick="_setViewTab('${view}','pagado')">${labelAp}</button>
+        <button class="${cur==='pendiente'?'active':''}" onclick="_setViewTab('${view}','pendiente')">${labelPe}</button>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── RENDERS SOBRESCRITOS: stats / ganancias / ranking ──
+// ═══════════════════════════════════════════════════════════
+const _origRenderStatsView = renderStatsView;
+renderStatsView = function() {
+    const status = _viewTabState.stats;
+    const filtered = _filterByStatus(pedidos, status);
+    const vendorsAll = computeVendors();
+    // Vendedores recalculados sobre filtered
+    const _orig = pedidos;
+    pedidos = filtered;
+    const vendorsFiltered = computeVendors();
+    pedidos = _orig;
+
+    const periods = [
+        { l:'Semana', d:7 }, { l:'Quincena', d:15 },
+        { l:'Mes',    d:30 }, { l:'Año',     d:365 }
+    ];
+    const lbl = status === 'pagado' ? 'aprobados' : 'pendientes';
+    let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+        <h2 class="section-title" style="margin:0">Estadísticas de la plataforma</h2>
+    </div>
+    ${_viewTabsHTML('stats')}
+    <div class="view-actions">
+        <button class="btn-head" onclick="downloadStatsPDF('${status}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar estadísticas ${lbl} (PDF)
+        </button>
+        <button class="btn-head" onclick="downloadMonthlyStatsPDF()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Mensual
+        </button>
+    </div>
+    <div class="mini-sub" style="margin-bottom:14px">Mostrando pedidos <strong>${lbl}</strong>. Las ganancias son de la <strong>plataforma</strong> (sin la ganancia del revendedor).</div>`;
+
+    html += '<h2 class="section-title">Crecimiento de pedidos</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const cur  = filtered.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const prev = filtered.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const delta = prev ? ((cur - prev) / prev) * 100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-growth-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+            ['Pedidos del período', cur], ['Período anterior', prev],
+            ['Variación', `${sign}${delta.toFixed(1)}%`]
+        ], delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    html += '<h2 class="section-title">Ganancia de la plataforma por período</h2><div class="mini-list">';
+    periods.forEach((pr, i) => {
+        const cur  = filtered.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p)=>s+platformGainOf(p),0);
+        const prev = filtered.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p)=>s+platformGainOf(p),0);
+        const delta = prev ? ((cur - prev) / prev) * 100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`stat-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
+            `$${Math.round(cur).toLocaleString()}`, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+                ['Ganancia del período', `$${Math.round(cur).toLocaleString()}`],
+                ['Período anterior',     `$${Math.round(prev).toLocaleString()}`],
+                ['Variación',            `${sign}${delta.toFixed(1)}%`]
+            ], delta >= 0 ? 'green' : 'amber');
+    });
+    html += '</div>';
+
+    // Estadísticas totales por revendedor
+    const vs = vendorsFiltered.sort((a,b)=>b.ganancia-a.ganancia);
+    html += '<h2 class="section-title">Estadísticas totales por revendedor</h2><div class="mini-list">';
+    if (!vs.length) {
+        html += '<div class="empty"><div class="empty-icon">📊</div><h3>Sin datos para este filtro</h3></div>';
+    } else {
+        vs.forEach((v, i) => {
+            html += miniRibbon(`stat-byv-${i}`, esc(v.name),
+                `${v.peds.length} ped.`,
+                `Cod: ${esc(v.code||'—')} · Nivel ${v.nivel}`,
+                [
+                    ['Pedidos', v.peds.length],
+                    ['Ganancia plataforma', `$${Math.round(v.ganancia).toLocaleString()}`],
+                    ['Inversión plataforma', `$${Math.round(v.inversion).toLocaleString()}`],
+                    ['Nivel', `Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span>`]
+                ], 'blue');
+        });
+    }
+    html += '</div>';
+
+    const totalGan = filtered.reduce((s,p)=>s+platformGainOf(p), 0);
+    const totalInv = filtered.reduce((s,p)=>s+platformInvestmentOf(p), 0);
+    const niveles = [1,2,3,4,5].map(n => vendorsAll.filter(v=>v.nivel===n).length);
+    html += `<h2 class="section-title">Totales generales (${lbl})</h2><div class="mini-list">
+        ${miniRibbon('stat-total-orders', `Pedidos ${lbl}`, filtered.length, 'Resumen general', [
+            ['Pedidos en este filtro', filtered.length],
+            ['Vendedores con pedidos', vs.length],
+            ['Vendedores activos (total)', vendorsAll.length]
+        ], 'blue')}
+        ${miniRibbon('stat-total-money', `Ganancia ${lbl}`, `$${Math.round(totalGan).toLocaleString()}`, 'Ganancia neta de la plataforma', [
+            ['Ganancia (plataforma)', `$${Math.round(totalGan).toLocaleString()}`],
+            ['Inversión (costo)',     `$${Math.round(totalInv).toLocaleString()}`]
+        ], 'green')}
+    </div>`;
+
+    html += `<h2 class="section-title">Distribución por nivel (todos)</h2><div class="mini-list">
+        ${[1,2,3,4,5].map(n=>miniRibbon(`stat-level-${n}`, `Nivel ${n}`, niveles[n-1], `<span class="lv-stars">${starsSVG(n)}</span>`, [
+            ['Vendedores en este nivel', niveles[n-1]],
+            ['Estrellas', `<span class="lv-stars">${starsSVG(n)}</span>`]
+        ], n >= 3 ? 'green' : 'blue')).join('')}
+    </div>`;
+
+    document.getElementById('stats-content').innerHTML = html;
+};
+
+const _origRenderGanancias = renderGanancias;
+renderGanancias = function() {
+    const status = _viewTabState.ganancias;
+    const filtered = _filterByStatus(pedidos, status);
+    const _orig = pedidos; pedidos = filtered;
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    pedidos = _orig;
+    const lbl = status === 'pagado' ? 'aprobados' : 'pendientes';
+    const el = document.getElementById('view-ganancias');
+    let html = `
+    <h2 class="section-title">Ganancia por revendedor</h2>
+    ${_viewTabsHTML('ganancias')}
+    <div class="view-actions">
+        <button class="btn-head" onclick="downloadGananciasPDF('${status}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar ganancia ${lbl} (PDF)
+        </button>
+    </div>
+    <div class="mini-sub" style="margin-bottom:14px">Ganancia de la <strong>plataforma</strong> sobre pedidos ${lbl}.</div>`;
+    if (!vs.length) {
+        html += '<div class="empty"><div class="empty-icon">💰</div><h3>Sin datos</h3></div>';
+    } else {
+        const totalGan = vs.reduce((s,v)=>s+v.ganancia,0);
+        const totalInv = vs.reduce((s,v)=>s+v.inversion,0);
+        const totalPed = vs.reduce((s,v)=>s+v.peds.length,0);
+        html += `<div class="mini-list" style="margin-bottom:14px">
+            ${miniRibbon('gan-tot', 'Totales generales', `$${Math.round(totalGan).toLocaleString()}`,
+                `${vs.length} revendedor${vs.length!==1?'es':''} · ${totalPed} pedido${totalPed!==1?'s':''}`, [
+                ['Ganancia total plataforma', `$${Math.round(totalGan).toLocaleString()}`],
+                ['Inversión total plataforma', `$${Math.round(totalInv).toLocaleString()}`],
+                ['Revendedores', vs.length],
+                ['Pedidos', totalPed]
+            ], 'green')}
+        </div>`;
+        html += '<div class="sub-section-title">Estadísticas totales por revendedor</div>';
+        html += `<div class="mini-list">${vs.map((v,i)=>miniRibbon(`gain-${i}`, esc(v.name),
+            `$${Math.round(v.ganancia).toLocaleString()}`,
+            `Cod: ${esc(v.code||'—')} · ${v.peds.length} pedido${v.peds.length!==1?'s':''}`, [
+                ['Nivel', `Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span>`],
+                ['Ganancia plataforma', `$${Math.round(v.ganancia).toLocaleString()}`],
+                ['Inversión plataforma', `$${Math.round(v.inversion).toLocaleString()}`],
+                ['Pedidos', v.peds.length]
+            ], 'green')).join('')}</div>`;
+    }
+    el.innerHTML = html;
+};
+
+const _origRenderRanking = renderRanking;
+renderRanking = function() {
+    const status = _viewTabState.ranking;
+    const filtered = _filterByStatus(pedidos, status);
+    const _orig = pedidos; pedidos = filtered;
+    const vs = computeVendors().sort((a,b)=>b.peds.length - a.peds.length || b.ganancia - a.ganancia);
+    pedidos = _orig;
+    const lbl = status === 'pagado' ? 'aprobados' : 'pendientes';
+    const el = document.getElementById('view-ranking');
+    let html = `
+    <h2 class="section-title">Rating de vendedores</h2>
+    ${_viewTabsHTML('ranking')}
+    <div class="view-actions">
+        <button class="btn-head" onclick="downloadRatingPDF('${status}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar rating ${lbl} (PDF)
+        </button>
+    </div>
+    <div class="mini-sub" style="margin-bottom:14px">Ranking por cantidad de pedidos ${lbl} (sin mostrar ganancia de la plataforma).</div>`;
+    if (!vs.length) {
+        html += '<div class="empty"><div class="empty-icon">🏆</div><h3>Sin ranking</h3></div>';
+    } else {
+        html += vs.map((v,i)=>`<div class="rank-row">
+            <div class="rank-pos">#${i+1}</div>
+            <div class="rank-body">
+                <div class="rank-name">${esc(v.name)} <span class="lv-chip lv-${v.nivel}">Nivel ${v.nivel}</span> <span class="lv-stars">${starsSVG(v.nivel)}</span></div>
+                <div class="v-sub">${v.peds.length} pedido${v.peds.length!==1?'s':''} · Cod: ${esc(v.code||'—')}</div>
+            </div>
+            <div class="rank-val">${v.peds.length} ped.</div>
+        </div>`).join('');
+        // Sección de totales por revendedor
+        html += '<div class="sub-section-title" style="margin-top:24px">Estadísticas totales por revendedor</div>';
+        html += `<div class="mini-list">${vs.map((v,i)=>miniRibbon(`rk-${i}`, esc(v.name),
+            `${v.peds.length} ped.`,
+            `Cod: ${esc(v.code||'—')} · Nivel ${v.nivel}`, [
+                ['Pedidos', v.peds.length],
+                ['Nivel', `Nivel ${v.nivel} <span class="lv-stars">${starsSVG(v.nivel)}</span>`],
+                ['Código', esc(v.code||'—')]
+            ], v.nivel >= 3 ? 'green' : 'blue')).join('')}</div>`;
+    }
+    el.innerHTML = html;
+};
+
+// ═══════════════════════════════════════════════════════════
+// ── PDFs: Estadísticas / Ganancia / Rating (por estado) ──
+// ═══════════════════════════════════════════════════════════
+function _pdfHeader(doc, title, sub) {
+    const LM=20, PW=170;
+    doc.setFillColor(0,30,60); doc.rect(0,0,210,16,'F');
+    doc.setFillColor(0,102,255); doc.rect(0,0,5,16,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('REVENDE WAYS', LM+2, 10);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(sub, LM+2, 14.5);
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text(title, LM, 28);
+    doc.setDrawColor(0,102,255); doc.setLineWidth(.5); doc.line(LM, 31, LM+PW, 31);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Generado: ${baNow()} (hora Buenos Aires)`, LM, 37);
+    return 45;
+}
+function _pdfFooter(doc, y) {
+    const LM=20, PW=170;
+    if (y > 270) { doc.addPage(); y = 20; }
+    doc.setDrawColor(200,200,200); doc.line(LM, y, LM+PW, y);
+    doc.setFontSize(7.5); doc.setTextColor(160,160,160);
+    doc.text('Revende Ways · Plataforma mayorista', LM, y+5);
+    doc.text(`Generado el ${baNow()}`, LM+PW, y+5, {align:'right'});
+}
+function _pdfTable(doc, y, headers, rows) {
+    const LM=20, PW=170;
+    const cw = PW / headers.length;
+    doc.setFillColor(0,102,255); doc.rect(LM, y, PW, 8, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    headers.forEach((h, i) => doc.text(String(h), LM + 3 + i*cw, y + 5.5));
+    y += 10;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+    rows.forEach((r, idx) => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        if (idx % 2 === 0) { doc.setFillColor(248,250,255); doc.rect(LM, y-1, PW, 7, 'F'); }
+        r.forEach((c, i) => doc.text(String(c), LM + 3 + i*cw, y + 4));
+        y += 7;
+    });
+    return y;
+}
+
+function downloadStatsPDF(status) {
+    const filtered = _filterByStatus(pedidos, status);
+    const lbl = status === 'pagado' ? 'APROBADAS' : 'PENDIENTES';
+    if (!filtered.length) { toast(`Sin pedidos ${lbl.toLowerCase()}`, 'err'); return; }
+    const _orig = pedidos; pedidos = filtered;
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    pedidos = _orig;
+    const totalGan = filtered.reduce((s,p)=>s+platformGainOf(p),0);
+    const totalInv = filtered.reduce((s,p)=>s+platformInvestmentOf(p),0);
+    const totalFac = filtered.reduce((s,p)=>s+realRevenue(p),0);
+    const byN = { perfumes:0, multishop:0, calzados:0 };
+    filtered.forEach(p => { byN[cat(p)]++; });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format:'a4', unit:'mm' });
+    let y = _pdfHeader(doc, `ESTADÍSTICAS ${lbl}`, `Estadísticas ${lbl.toLowerCase()}`);
+    doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Total de pedidos: ${filtered.length}`, 20, y); y += 8;
+    y = _pdfTable(doc, y, ['Concepto','Valor'], [
+        ['Facturación total', `$${Math.round(totalFac).toLocaleString()}`],
+        ['Ganancia de plataforma', `$${Math.round(totalGan).toLocaleString()}`],
+        ['Inversión de plataforma', `$${Math.round(totalInv).toLocaleString()}`],
+        ['Perfumes Árabes', byN.perfumes],
+        ['Multishop', byN.multishop],
+        ['Calzados', byN.calzados]
+    ]);
+    y += 8;
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(0,0,0);
+    doc.text('Por revendedor', 20, y); y += 6;
+    y = _pdfTable(doc, y, ['Revendedor','Código','Ped.','Nivel','Ganancia plat.'],
+        vs.map(v => [
+            (v.name||'').slice(0,22),
+            (v.code||'—').slice(0,12),
+            v.peds.length,
+            v.nivel,
+            `$${Math.round(v.ganancia).toLocaleString()}`
+        ]));
+    _pdfFooter(doc, y + 6);
+    doc.save(`estadisticas-${lbl.toLowerCase()}-RW-${new Date().toISOString().slice(0,10)}.pdf`);
+    toast(`Estadísticas ${lbl.toLowerCase()} descargadas`, true);
+}
+
+function downloadGananciasPDF(status) {
+    const filtered = _filterByStatus(pedidos, status);
+    const lbl = status === 'pagado' ? 'APROBADAS' : 'PENDIENTES';
+    if (!filtered.length) { toast(`Sin pedidos ${lbl.toLowerCase()}`, 'err'); return; }
+    const _orig = pedidos; pedidos = filtered;
+    const vs = computeVendors().sort((a,b)=>b.ganancia-a.ganancia);
+    pedidos = _orig;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format:'a4', unit:'mm' });
+    let y = _pdfHeader(doc, `GANANCIA POR REVENDEDOR (${lbl})`, `Ganancia ${lbl.toLowerCase()}`);
+    const totalGan = vs.reduce((s,v)=>s+v.ganancia,0);
+    const totalInv = vs.reduce((s,v)=>s+v.inversion,0);
+    doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Revendedores: ${vs.length} · Ganancia total: $${Math.round(totalGan).toLocaleString()} · Inversión: $${Math.round(totalInv).toLocaleString()}`, 20, y);
+    y += 10;
+    y = _pdfTable(doc, y, ['#','Revendedor','Código','Ped.','Nivel','Ganancia','Inversión'],
+        vs.map((v,i)=>[
+            i+1,
+            (v.name||'').slice(0,18),
+            (v.code||'—').slice(0,10),
+            v.peds.length,
+            v.nivel,
+            `$${Math.round(v.ganancia).toLocaleString()}`,
+            `$${Math.round(v.inversion).toLocaleString()}`
+        ]));
+    _pdfFooter(doc, y + 6);
+    doc.save(`ganancia-revendedor-${lbl.toLowerCase()}-RW-${new Date().toISOString().slice(0,10)}.pdf`);
+    toast(`Ganancia ${lbl.toLowerCase()} descargada`, true);
+}
+
+function downloadRatingPDF(status) {
+    const filtered = _filterByStatus(pedidos, status);
+    const lbl = status === 'pagado' ? 'APROBADAS' : 'PENDIENTES';
+    if (!filtered.length) { toast(`Sin pedidos ${lbl.toLowerCase()}`, 'err'); return; }
+    const _orig = pedidos; pedidos = filtered;
+    const vs = computeVendors().sort((a,b)=>b.peds.length-a.peds.length);
+    pedidos = _orig;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format:'a4', unit:'mm' });
+    let y = _pdfHeader(doc, `RATING DE VENDEDORES (${lbl})`, `Rating ${lbl.toLowerCase()}`);
+    doc.setFontSize(9); doc.setTextColor(80,80,80);
+    doc.text(`Revendedores: ${vs.length}`, 20, y); y += 10;
+    y = _pdfTable(doc, y, ['Pos.','Revendedor','Código','Pedidos','Nivel'],
+        vs.map((v,i)=>[
+            `#${i+1}`,
+            (v.name||'').slice(0,22),
+            (v.code||'—').slice(0,12),
+            v.peds.length,
+            v.nivel
+        ]));
+    _pdfFooter(doc, y + 6);
+    doc.save(`rating-${lbl.toLowerCase()}-RW-${new Date().toISOString().slice(0,10)}.pdf`);
+    toast(`Rating ${lbl.toLowerCase()} descargado`, true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── PANEL DE VENDEDORES (worker datosderevendedor) ──
+// ═══════════════════════════════════════════════════════════
+const VENDORS_WORKER = 'https://datosderevendedor.tuweb.workers.dev/';
+let _workerData = [];
+async function openVendorWorkerPanel() {
+    const ov = document.getElementById('wp-modal');
+    const list = document.getElementById('wp-list');
+    ov.classList.add('show');
+    list.className = 'wp-loading';
+    list.textContent = 'Cargando…';
+    try {
+        const res = await fetch(VENDORS_WORKER);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        _workerData = (data?.ranking || []).slice().sort((a,b)=>(b.cantidadPedidos||0)-(a.cantidadPedidos||0));
+        renderWorkerPanel();
+    } catch(e) {
+        list.className = 'wp-loading';
+        list.innerHTML = `<div style="color:var(--red)">Error al cargar: ${esc(e.message)}</div>`;
+    }
+}
+function closeVendorWorkerPanel() {
+    document.getElementById('wp-modal').classList.remove('show');
+}
+document.getElementById('wp-modal').addEventListener('click', function(e){
+    if (e.target === this) closeVendorWorkerPanel();
+});
+
+function _nameByCode(code) {
+    if (!code) return null;
+    const p = pedidos.find(x => (x._vCode||'').toUpperCase() === String(code).toUpperCase());
+    return p?._vName || null;
+}
+
+function renderWorkerPanel() {
+    const list = document.getElementById('wp-list');
+    if (!_workerData.length) {
+        list.className = 'wp-loading';
+        list.innerHTML = '<div>Sin vendedores en el worker.</div>';
+        return;
+    }
+    list.className = '';
+    const html = `<div class="mini-list">${_workerData.map((v, i) => {
+        const name = _nameByCode(v.codigoVendedor) || v.nombreVendedor || v.codigoVendedor || 'Vendedor';
+        const upd = v.actualizado ? new Date(v.actualizado).toLocaleString('es-AR') : '—';
+        const niv = v.nivel || '—';
+        // estrellas según nivel string→número aproximado
+        const nivelMap = { 'Bronce':1, 'Plata':2, 'Oro':3, 'Platino':4, 'Diamante':5 };
+        const nivelNum = typeof niv === 'number' ? niv : (nivelMap[niv] || 1);
+        return miniRibbon(`wv-${i}`, esc(name),
+            `${v.cantidadPedidos||0} ped.`,
+            `Cod: ${esc(v.codigoVendedor||'—')} · Nivel ${niv}`,
+            [
+                ['Cantidad de pedidos', v.cantidadPedidos || 0],
+                ['Cantidad de ventas',  v.cantidadVentas  || 0],
+                ['Ganancias del vendedor', `$${Math.round(v.totalGananciasVendedor||0).toLocaleString()}`],
+                ['Nivel', `${niv} <span class="lv-stars">${starsSVG(nivelNum)}</span>`],
+                ['Última actualización', upd]
+            ], nivelNum >= 3 ? 'green' : 'blue');
+    }).join('')}</div>`;
+    list.innerHTML = html;
+}
+
+window.addEventListener('load', init);
+
+</script>
+</body>
+</html>
