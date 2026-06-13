@@ -53,7 +53,10 @@
             padding: 0 32px; height: 60px;
             display: flex; align-items: center; justify-content: space-between;
         }
-        .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+        .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .brand-info { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-title { font-size: 17px; font-weight: 700; color: var(--text); white-space: nowrap; }
+        .brand-code { font-size: 11px; font-weight: 600; color: var(--blue); letter-spacing: .3px; }
         .brand-mark { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid var(--blue-glow); box-shadow: 0 0 0 2px var(--blue-pale); display: flex; align-items: center; justify-content: center; }
         .brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .topbar-right { display: flex; align-items: center; gap: 10px; }
@@ -140,8 +143,8 @@
         .btn-send-all:hover { background: var(--green); color: #0b0d12; border-color: var(--green); }
 
         /* ── MENU NAV ── */
-        .menu-nav { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; }
-        .menu-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; }
+        .menu-nav { display: flex; gap: 4px; margin-bottom: 24px; flex-wrap: nowrap; overflow-x: auto; }
+        .menu-btn { display: flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
         .menu-btn.active { background: var(--blue-pale); border-color: var(--blue); color: var(--blue); }
         .menu-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); background: var(--surface2); }
 
@@ -150,8 +153,8 @@
         .view.active { display: block; }
 
         /* ── STATUS TABS ── */
-        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-        .stab { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; }
+        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: nowrap; overflow-x: auto; }
+        .stab { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
         .stab.active.pend { border-color: var(--amber); color: var(--amber); background: var(--amber-pale); }
         .stab.active.apro { border-color: var(--green); color: var(--green); background: var(--green-pale); }
         .stab .cnt { min-width: 20px; height: 20px; padding: 0 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border-radius: 20px; font-size: 11px; font-weight: 800; color: var(--text3); }
@@ -159,8 +162,8 @@
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
 
         /* ── NICHO TABS ── */
-        .tabs-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; }
-        .tab-btn { display: flex; align-items: center; gap: 8px; padding: 12px 22px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 13px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; }
+        .tabs-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; flex-wrap: nowrap; }
+        .tab-btn { display: flex; align-items: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
         .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
         .tab-btn:hover:not(.active) { color: var(--text); }
         .pill { background: var(--surface2); color: var(--text3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
@@ -264,78 +267,44 @@
         .toast.err { border-color: var(--red); color: var(--red); }
 
         /* ── STATS VIEW ── */
-        .stats-dashboard { width: 100%; box-sizing: border-box; }
-        .stats-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
-        .stats-header-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.3px; }
-        .stats-header-title span { display: block; font-size: 12px; font-weight: 500; color: var(--text3); margin-top: 2px; letter-spacing: 0; }
-        .stats-live-badge { display: flex; align-items: center; gap: 6px; background: var(--green-pale); border: 1px solid rgba(0,201,110,.25); color: var(--green); padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-        .stats-live-badge::before { content:''; width:6px; height:6px; background:var(--green); border-radius:50%; animation: pulse 2s infinite; }
-
-        /* KPI grid */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
-        .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; position: relative; overflow: hidden; transition: border-color .2s, transform .2s; }
-        .kpi:hover { border-color: var(--border2); transform: translateY(-1px); }
-        .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: var(--blue); opacity:.6; border-radius:12px 12px 0 0; }
-        .kpi.green::before { background: var(--green); }
-        .kpi.amber::before { background: var(--amber); }
-        .kpi-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
-        .kpi-val { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1; }
-        .kpi-val.green { color: var(--green); }
-        .kpi-val.amber { color: var(--amber); }
-        .kpi-val.blue { color: var(--blue); }
-        .kpi-delta { font-size: 11px; font-weight: 700; margin-top: 6px; color: var(--text3); }
+        .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px; }
+        .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
+        .kpi-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .4px; }
+        .kpi-val { font-size: 20px; font-weight: 700; color: var(--text); margin-top: 2px; }
+        .kpi-delta { font-size: 11px; font-weight: 700; margin-top: 4px; color: var(--text3); }
         .kpi-delta.up { color: var(--green); }
         .kpi-delta.dn { color: var(--red); }
-        .kpi-icon { position:absolute; bottom:12px; right:14px; opacity:.07; font-size:28px; line-height:1; }
+        .section-title { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: var(--text); }
+        .section-block { margin-bottom: 28px; }
 
-        /* section */
-        .section-title { font-size: 13px; font-weight: 800; margin: 0 0 12px; color: var(--text2); text-transform: uppercase; letter-spacing: .8px; display: flex; align-items: center; gap: 8px; }
-        .section-title::before { content:''; display:inline-block; width:3px; height:14px; background:var(--blue); border-radius:2px; flex-shrink:0; }
-        .section-block { margin-bottom: 32px; }
-
-        /* period ribbon grid — 2 col en desktop */
-        .period-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 18px; }
-        @media (max-width: 600px) { .period-grid { grid-template-columns: 1fr; } }
+        /* charts */
+        .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+        .chart-card h4 { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 14px; }
+        .chart-wrap { position: relative; height: 200px; }
+        .chart-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: nowrap; overflow-x: auto; align-items: center; }
+        .chart-tab { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--text3); font-family: var(--font); transition: all .15s; white-space: nowrap; flex-shrink: 0; }
+        .chart-tab.active { background: var(--blue); border-color: var(--blue); color: white; }
 
         /* mini ribbon */
-        .mini-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
-        .mini-ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .18s, box-shadow .18s; }
-        .mini-ribbon:hover { border-color: var(--border2); box-shadow: 0 4px 16px rgba(0,0,0,.25); }
-        .mini-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; cursor: pointer; user-select: none; }
-        .mini-title { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
-        .mini-title-text { font-size: 12px; font-weight: 700; color: var(--text); }
-        .mini-sub { font-size: 10px; color: var(--text3); }
-        .mini-right { display: flex; align-items: center; gap: 10px; }
-        .mini-value { font-size: 17px; font-weight: 800; color: var(--text); white-space: nowrap; }
+        .mini-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+        .mini-ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color .18s; }
+        .mini-ribbon:hover { border-color: var(--border2); }
+        .mini-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; background: var(--bg2); }
+        .mini-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; min-width: 0; }
+        .mini-value { font-size: 16px; font-weight: 800; color: var(--text); white-space: nowrap; }
         .mini-value.green { color: var(--green); }
         .mini-value.blue { color: var(--blue); }
         .mini-value.amber { color: var(--amber); }
+        .mini-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
         .mini-caret { width: 14px; height: 14px; color: var(--text3); transition: transform .25s; flex-shrink: 0; }
         .mini-ribbon.expanded .mini-caret { transform: rotate(180deg); }
         .mini-body { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
         .mini-ribbon.expanded .mini-body { max-height: 600px; }
-        .mini-content { padding: 12px 16px 14px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+        .mini-content { padding: 10px 14px 13px; border-top: 1px solid var(--border); display: grid; gap: 7px; }
         .mini-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--text2); }
         .mini-row strong { color: var(--text); font-weight: 700; text-align: right; }
-        .mini-chart-btn { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--blue-glow); background: var(--blue-pale); color: var(--blue); cursor: pointer; font-family: var(--font); transition: all .15s; white-space: nowrap; }
+        .mini-chart-btn { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--blue-glow); background: var(--blue-pale); color: var(--blue); cursor: pointer; font-family: var(--font); transition: all .15s; margin-left: 6px; }
         .mini-chart-btn:hover { background: var(--blue); color: white; }
-
-        /* category donut-like pills */
-        .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        @media (max-width: 480px) { .cat-grid { grid-template-columns: 1fr; } }
-        .cat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
-        .cat-icon { font-size: 22px; margin-bottom: 6px; }
-        .cat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text3); margin-bottom: 4px; }
-        .cat-val { font-size: 26px; font-weight: 800; color: var(--text); }
-
-        /* charts */
-        .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-        .chart-card h4 { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 14px; }
-        .chart-wrap { position: relative; height: 200px; }
-        .chart-tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
-        .chart-tab { padding: 6px 14px; border-radius: 7px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--text3); font-family: var(--font); transition: all .15s; }
-        .chart-tab.active { background: var(--blue); border-color: var(--blue); color: white; }
-        .chart-divider { width: 1px; background: var(--border); margin: 0 4px; }
 
         /* ── RANKING ── */
         .rank-row { display: flex; align-items: center; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; gap: 14px; }
@@ -377,6 +346,19 @@
         .btn-google-g svg { width: 18px; height: 18px; display: block; }
         .login-box { position: relative; }
 
+        /* ── REVENDEDORES ── */
+        .btn-revendedores { background: rgba(139,92,246,.1); border-color: rgba(139,92,246,.3); color: #a78bfa; }
+        .btn-revendedores:hover { background: rgba(139,92,246,.2); color: #c4b5fd; border-color: rgba(139,92,246,.5); }
+        .rv-list { display: flex; flex-direction: column; gap: 8px; }
+        .rv-ribbon { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all .18s; }
+        .rv-ribbon:hover { border-color: var(--blue); background: var(--surface2); }
+        .rv-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--blue-pale); border: 1px solid var(--blue-glow); color: var(--blue); font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .rv-avatar-lg { width: 48px; height: 48px; font-size: 20px; }
+        .rv-info { flex: 1; min-width: 0; }
+        .rv-name { font-size: 14px; font-weight: 700; color: var(--text); }
+        .rv-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+        .rv-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
         @media (max-width: 640px) {
             .topbar { padding: 0 16px; }
             .wrap { padding: 20px 14px; }
@@ -393,10 +375,12 @@
 <header class="topbar" id="topbar" style="display:none">
     <div class="brand">
         <div class="brand-mark"><img src="logo.png" alt="Logo"/></div>
-        Mi Panel
+        <div class="brand-info">
+            <span class="brand-title">Mi Panel</span>
+            <span class="brand-code" id="badge-code"></span>
+        </div>
     </div>
     <div class="topbar-right">
-        <span class="badge-code" id="badge-code"></span>
         <span class="badge-live">Activo</span>
         <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
@@ -468,9 +452,13 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     Enviar todos
                 </button>
-                <button class="btn-head" onclick="loadData()">
+                <button class="btn-head" onclick="this.blur();loadData()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Actualizar
+                </button>
+                <button class="btn-head btn-revendedores" onclick="this.blur();switchView('revendedores')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Revendedores
                 </button>
             </div>
         </div>
@@ -491,7 +479,7 @@
             </button>
             <button class="menu-btn" data-view="ranking" onclick="switchView('ranking')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                Ranking Clientes
+                Clientes
             </button>
         </div>
 
@@ -511,22 +499,22 @@
             </div>
 
             <div class="tabs-bar">
-                <button class="tab-btn active" id="tbtn-perfumes" onclick="switchTab('perfumes')">Perfumes Arabes <span class="pill on" id="pill-perfumes">0</span></button>
+                <button class="tab-btn active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados <span class="pill on" id="pill-calzados">0</span></button>
+                <button class="tab-btn" id="tbtn-perfumes" onclick="switchTab('perfumes')">Perfumes Árabes <span class="pill" id="pill-perfumes">0</span></button>
                 <button class="tab-btn" id="tbtn-multishop" onclick="switchTab('multishop')">Multishop <span class="pill" id="pill-multishop">0</span></button>
-                <button class="tab-btn" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados <span class="pill" id="pill-calzados">0</span></button>
             </div>
 
-            <div class="tab-pane active" id="pane-perfumes">
+            <div class="tab-pane active" id="pane-calzados">
+                <div class="stats-row" id="stats-calzados"></div>
+                <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-perfumes">
                 <div class="stats-row" id="stats-perfumes"></div>
                 <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
             </div>
             <div class="tab-pane" id="pane-multishop">
                 <div class="stats-row" id="stats-multishop"></div>
                 <div id="list-multishop"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-calzados">
-                <div class="stats-row" id="stats-calzados"></div>
-                <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
             </div>
         </div>
 
@@ -545,11 +533,30 @@
             <div id="ranking-content"></div>
         </div>
 
+        <!-- VIEW: REVENDEDORES -->
+        <div class="view" id="view-revendedores">
+            <div id="revendedores-content"></div>
+        </div>
+
     </div>
 </div>
 
-<!-- ══ MODAL ELIMINAR ══ -->
-<div class="modal-overlay" id="del-modal">
+<!-- ══ MODAL ENVIAR TODOS ══ -->
+<div class="modal-overlay" id="send-all-modal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--green-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </div>
+        <h3>Confirmar envío</h3>
+        <p>¿Querés enviar todos los pedidos pendientes? Esta acción notificará a los destinatarios.</p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="document.getElementById('send-all-modal').classList.remove('show')">Cancelar</button>
+            <button class="modal-confirm-btn" style="background:var(--green)" onclick="confirmSendAll()">Enviar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL ELIMINAR ══ --><div class="modal-overlay" id="del-modal">
     <div class="modal-box">
         <div class="modal-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -587,7 +594,7 @@ const S_KEY         = 'rw_reseller_v1';
 const D_KEY         = 'rw_reseller_del_v1';
 
 let pedidos         = [];
-let activeTab       = 'perfumes';
+let activeTab       = 'calzados';
 let activeStatus    = 'pendiente';
 let deleteTarget    = null;
 let currentCode     = '';
@@ -873,7 +880,7 @@ function showMain() {
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('topbar').style.display = 'flex';
     document.getElementById('main').classList.add('show');
-    document.getElementById('badge-code').textContent = 'Cod: ' + currentCode;
+    document.getElementById('badge-code').textContent = 'Cód: ' + currentCode;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -890,7 +897,11 @@ async function loadData() {
 
         // 1. Intentar GET /ranking o raíz del worker → buscar pedidos del revendedor
         const res = await fetch(WORKER_DATA);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok) {
+            // Worker no disponible: mostrar estado vacío sin error
+            renderAll();
+            return;
+        }
         const data = await res.json();
 
         // El worker puede devolver { ranking, pedidos, ... }
@@ -1177,6 +1188,14 @@ async function sendPedido(id, btn) {
 async function sendAllPedidos() {
     const toSend = pedidos.filter(p => p.estado === 'pendiente');
     if (!toSend.length) { toast('No hay pedidos pendientes para enviar', 'err'); return; }
+    // Abrir modal de confirmación
+    document.getElementById('send-all-modal').classList.add('show');
+}
+
+async function confirmSendAll() {
+    document.getElementById('send-all-modal').classList.remove('show');
+    const toSend = pedidos.filter(p => p.estado === 'pendiente');
+    if (!toSend.length) return;
 
     const btn = document.querySelector('.btn-send-all');
     btn.textContent = `Enviando ${toSend.length}...`; btn.disabled = true;
@@ -1224,6 +1243,7 @@ async function confirmDelete() {
     toast('Pedido eliminado', true);
 }
 
+document.getElementById('send-all-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 document.getElementById('chart-modal').addEventListener('click', function(e) { if (e.target === this) closeChartModal(); });
 
@@ -1249,9 +1269,10 @@ function switchView(v) {
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
     document.getElementById('view-'+v)?.classList.add('active');
     document.querySelectorAll('.menu-btn').forEach(e => e.classList.toggle('active', e.dataset.view === v));
-    if (v === 'stats')     renderStatsView();
-    if (v === 'ganancias') renderGananciasView();
-    if (v === 'ranking')   renderRankingView();
+    if (v === 'stats')        renderStatsView();
+    if (v === 'ganancias')    renderGananciasView();
+    if (v === 'ranking')      renderRankingView();
+    if (v === 'revendedores') renderRevendedoresView();
 }
 function refreshActiveView() {
     const a = document.querySelector('.menu-btn.active');
@@ -1278,21 +1299,18 @@ function miniRibbon(id, title, value, sub, rows, cls, chartKey) {
     const chartBtn = chartKey
         ? `<button class="mini-chart-btn" onclick="event.stopPropagation();openChart('${chartKey}','${title}')">Ver gráfico</button>`
         : '';
-    const isUp = sub && sub.startsWith('+');
-    const isDn = sub && sub.startsWith('-');
-    const deltaColor = isUp ? 'var(--green)' : isDn ? 'var(--red)' : 'var(--text3)';
     return `<div class="mini-ribbon" id="${id}">
         <div class="mini-head" onclick="toggleMini('${id}')">
             <div class="mini-title">
-                <div class="mini-title-text">${title}${chartBtn}</div>
-                ${sub ? `<div class="mini-sub" style="color:${deltaColor}">${isUp?'▲':isDn?'▼':''} ${sub}</div>` : ''}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16V9"/><path d="M13 16V6"/><path d="M18 16v-4"/></svg>
+                <div><div>${title}</div>${sub ? `<div class="mini-sub">${sub}</div>` : ''}</div>
             </div>
-            <div class="mini-right">
+            <div style="display:flex;align-items:center;gap:10px">
                 <div class="mini-value ${cls||''}">${value}</div>
                 <svg class="mini-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
         </div>
-        <div class="mini-body"><div class="mini-content">${rows.map(r => `<div class="mini-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`).join('')}</div></div>
+        <div class="mini-body"><div class="mini-content">${rows.map(r => `<div class="mini-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`).join('')}${chartBtn ? `<div style="margin-top:8px">${chartBtn}</div>` : ''}</div></div>
     </div>`;
 }
 function toggleMini(id) { document.getElementById(id)?.classList.toggle('expanded'); }
@@ -1513,10 +1531,10 @@ function renderStatsView() {
     const byNicho = { perfumes: 0, multishop: 0, calzados: 0 };
     pedidos.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
     html += `<div class="section-block"><h2 class="section-title">Por categoría</h2>
-        <div class="kpi-grid">
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados}</div></div>
             <div class="kpi"><div class="kpi-lbl">Perfumes Árabes</div><div class="kpi-val">${byNicho.perfumes}</div></div>
             <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${byNicho.multishop}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados}</div></div>
         </div>
     </div>`;
 
@@ -1752,6 +1770,134 @@ function renderRankingView() {
             </div>
         </div>`;
     }).join('');
+
+    el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════
+// VISTA: REVENDEDORES
+// ═══════════════════════════════════════════════════════════
+let activeRevendedor = null;
+
+async function renderRevendedoresView() {
+    const el = document.getElementById('revendedores-content');
+    el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando revendedores...</p></div>`;
+
+    let revendedores = [];
+    try {
+        const res = await fetch(WORKER_DATA);
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.ranking)) {
+                revendedores = data.ranking;
+            } else if (Array.isArray(data.vendedores)) {
+                revendedores = data.vendedores;
+            }
+        }
+    } catch(_) {}
+
+    if (!revendedores.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><h3>Sin revendedores</h3><p>No se encontraron datos de revendedores.</p></div>`;
+        return;
+    }
+
+    // Si hay un revendedor activo seleccionado, mostrar detalle
+    if (activeRevendedor) {
+        const rv = revendedores.find(r => (r.codigoVendedor||r.codigo||'').toUpperCase() === activeRevendedor);
+        if (rv) {
+            renderRevendedorDetalle(el, rv, revendedores);
+            return;
+        }
+    }
+
+    renderRevendedoresLista(el, revendedores);
+}
+
+function renderRevendedoresLista(el, revendedores) {
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h2 class="section-title" style="margin:0">Revendedores</h2>
+        <span style="font-size:12px;color:var(--text3)">${revendedores.length} en total</span>
+    </div>
+    <div class="rv-list">`;
+
+    revendedores.forEach((rv, i) => {
+        const nombre = [rv.nombre, rv.apellido].filter(Boolean).join(' ') || rv.codigoVendedor || rv.codigo || 'Revendedor';
+        const codigo = rv.codigoVendedor || rv.codigo || '';
+        const pedidosCount = Array.isArray(rv.pedidos) ? rv.pedidos.length :
+                             (rv.totalPedidos || rv.pedidos_count || 0);
+        const aprobados = Array.isArray(rv.pedidos)
+            ? rv.pedidos.filter(p => (p.estadoPago||p.estado||'').toUpperCase().includes('APROBAD') || (p.estadoPago||p.estado||'').toUpperCase().includes('PAGADO')).length
+            : (rv.aprobados || 0);
+        const ganancia = rv.gananciaTotal || rv.ganancia || 0;
+
+        html += `<div class="rv-ribbon" onclick="selectRevendedor('${codigo}')">
+            <div class="rv-avatar">${nombre.charAt(0).toUpperCase()}</div>
+            <div class="rv-info">
+                <div class="rv-name">${esc(nombre)}</div>
+                <div class="rv-meta">
+                    ${codigo ? `<span class="r-code">${esc(codigo)}</span>` : ''}
+                    <span style="font-size:11px;color:var(--text3)">${pedidosCount} pedido${pedidosCount!==1?'s':''}</span>
+                    ${aprobados ? `<span style="font-size:11px;color:var(--green)">✓ ${aprobados} aprobado${aprobados!==1?'s':''}</span>` : ''}
+                </div>
+            </div>
+            <div class="rv-right">
+                ${ganancia ? `<div style="font-size:14px;font-weight:800;color:var(--green)">$${Math.round(ganancia).toLocaleString()}</div>` : ''}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--text3)"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+    el.innerHTML = html;
+}
+
+function selectRevendedor(codigo) {
+    activeRevendedor = codigo;
+    renderRevendedoresView();
+}
+
+function renderRevendedorDetalle(el, rv, todos) {
+    const nombre = [rv.nombre, rv.apellido].filter(Boolean).join(' ') || rv.codigoVendedor || 'Revendedor';
+    const codigo = rv.codigoVendedor || rv.codigo || '';
+    const peds = Array.isArray(rv.pedidos) ? rv.pedidos : [];
+    const aprobados = peds.filter(p => (p.estadoPago||p.estado||'').toUpperCase().includes('APROBAD') || (p.estadoPago||p.estado||'').toUpperCase().includes('PAGADO')).length;
+    const pendientes = peds.length - aprobados;
+    const ganancia = rv.gananciaTotal || rv.ganancia || 0;
+    const facturacion = rv.facturacionTotal || rv.facturacion || 0;
+
+    let html = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn-head" style="flex-shrink:0" onclick="activeRevendedor=null;renderRevendedoresView()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+        </button>
+        <div class="rv-avatar rv-avatar-lg">${nombre.charAt(0).toUpperCase()}</div>
+        <div>
+            <div style="font-size:17px;font-weight:700">${esc(nombre)}</div>
+            ${codigo ? `<div style="font-size:12px;color:var(--blue);font-weight:600">Cód: ${esc(codigo)}</div>` : ''}
+        </div>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:20px">
+        <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${peds.length}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Aprobados</div><div class="kpi-val" style="color:var(--green)">${aprobados}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" style="color:var(--amber)">${pendientes}</div></div>
+        ${ganancia ? `<div class="kpi"><div class="kpi-lbl">Ganancia</div><div class="kpi-val" style="color:var(--green)">$${Math.round(ganancia).toLocaleString()}</div></div>` : ''}
+        ${facturacion ? `<div class="kpi"><div class="kpi-lbl">Facturación</div><div class="kpi-val">$${Math.round(facturacion).toLocaleString()}</div></div>` : ''}
+        ${rv.email ? `<div class="kpi"><div class="kpi-lbl">Email</div><div class="kpi-val" style="font-size:12px;word-break:break-all">${esc(rv.email)}</div></div>` : ''}
+    </div>`;
+
+    // Nichos
+    const nichos = { perfumes:0, multishop:0, calzados:0 };
+    peds.forEach(p => { const c = cat(p); if (nichos[c] !== undefined) nichos[c]++; });
+    const totalNicho = peds.length || 1;
+    if (peds.length) {
+        html += `<div class="section-block"><h2 class="section-title">Distribución por categoría</h2>
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${nichos.calzados}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Perfumes Árabes</div><div class="kpi-val">${nichos.perfumes}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${nichos.multishop}</div></div>
+        </div></div>`;
+    }
 
     el.innerHTML = html;
 }
