@@ -366,6 +366,24 @@
             .page-title { font-size: 20px; }
             .badge-live { display: none; }
         }
+
+        /* ── GUÍA ── */
+        .btn-guide-icon { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--blue-pale);border:1.5px solid var(--blue-glow);color:var(--blue-glow);cursor:pointer;transition:background .18s,transform .18s;flex-shrink:0; }
+        .btn-guide-icon:hover { background:var(--blue-glow);color:#fff;transform:scale(1.1); }
+        #guide-modal { align-items:flex-start !important;justify-content:flex-start !important;padding:0 !important; }
+        #guide-box { transform-origin:top left;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;transform:scale(0);opacity:0;border-radius:0 0 16px 16px !important;position:fixed;top:0;left:0; }
+        #guide-modal.show #guide-box { transform:scale(1);opacity:1; }
+        .guide-ribbon { background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .2s; }
+        .guide-ribbon:hover { border-color:var(--blue-glow); }
+        .guide-head { display:flex;align-items:center;gap:10px;padding:13px 14px; }
+        .guide-icon { font-size:17px;flex-shrink:0; }
+        .guide-title { flex:1;font-size:13px;font-weight:700;color:var(--text); }
+        .guide-caret { width:15px;height:15px;color:var(--text3);flex-shrink:0;transition:transform .25s; }
+        .guide-body { max-height:0;overflow:hidden;transition:max-height .35s ease;padding:0 14px; }
+        .guide-body p { font-size:12.5px;color:var(--text2);line-height:1.6;margin:0 0 8px; }
+        .guide-body p:last-child { margin-bottom:12px; }
+        .guide-ribbon.open .guide-caret { transform:rotate(180deg); }
+        .guide-ribbon.open .guide-body { max-height:260px; }
     </style>
 </head>
 <body>
@@ -427,8 +445,11 @@
     <div class="wrap">
 
         <div class="page-head">
-            <div>
+            <div style="display:flex;align-items:center;gap:12px">
                 <div class="page-title">Mis Pedidos <span id="count-lbl"></span></div>
+                <button id="btn-guide" class="btn-guide-icon" onclick="openGuide()" title="Guía del panel" aria-label="Abrir guía">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </button>
             </div>
             <div class="head-actions">
                 <button class="btn-head btn-send-all" onclick="sendAllPedidos()">
@@ -790,75 +811,90 @@ async function loadData() {
 
     try {
         pedidos = [];
-        const seen = new Set();
 
-        function normalizar(rawList) {
-            rawList.forEach(p => {
-                const id = p.pedidoId || p.docId || p.id || p._id;
-                if (!id || seen.has(id)) return;
-                seen.add(id);
-                if (isLocallyDeleted(id)) return;
+        // 1. Intentar GET /ranking o raíz del worker → buscar pedidos del revendedor
+        const res = await fetch(WORKER_DATA);
+        if (!res.ok) {
+            // Worker no disponible: mostrar estado vacío sin error
+            renderAll();
+            return;
+        }
+        const data = await res.json();
 
-                const ep = (p.estadoPago || p.estadoAprobacion || p.estado || '').toUpperCase();
-                const estado = (ep === 'APROBADO' || ep === 'PAGADO' || ep === 'APROBADO') ? 'pagado'
-                             : (ep === 'RECHAZADO' || ep === 'CANCELADO') ? 'cancelado'
-                             : 'pendiente';
+        // El worker puede devolver { ranking, pedidos, ... }
+        // Buscar los pedidos que correspondan al código actual
+        let rawPedidos = [];
 
-                // Productos: soporta tanto /api/pedidos como /api/panel-gestion
-                const rawItems = p.productos || p.items || [];
-                const items = rawItems.map(pr => ({
-                    nombre:   pr.nombre   || pr.title || '—',
-                    cantidad: Number(pr.cantidad || pr.quantity || 1),
-                    precio:   Number(pr.precio || pr.precioMayorista || pr.unit_price || pr.precioBase || 0)
-                }));
-
-                pedidos.push({
-                    id,
-                    estado,
-                    items,
-                    cliente:        p.cliente || null,
-                    envio:          p.envio   || p.cliente || null,
-                    nicho:          p.nicho   || p.categoria || null,
-                    codigoVendedor: p.codigoVendedor || '',
-                    _vCode:         p.codigoVendedor || '',
-                    _clienteName:   (typeof p.cliente === 'string' ? p.cliente : '') ||
-                                    fullName(p.cliente) || p.nombreCliente || '',
-                    fechaCreacion:  { seconds: Math.floor(Number(p.fecha || p.fechaRegistro || p.fechaCreacion || Date.now()) / 1000) },
-                    _raw: p
-                });
-            });
+        if (Array.isArray(data.pedidos)) {
+            rawPedidos = data.pedidos.filter(p =>
+                (p.codigoVendedor||'').toUpperCase() === currentCode ||
+                (p.codigo||'').toUpperCase() === currentCode
+            );
         }
 
-        // ── FUENTE 1: /api/pedidos (web mayorista) ───────────────────────
-        try {
-            const r1 = await fetch(WORKER_PAGOS + '/api/pedidos');
-            if (r1.ok) {
-                const d1 = await r1.json();
-                normalizar(Array.isArray(d1.pedidos) ? d1.pedidos : []);
+        if (!rawPedidos.length && Array.isArray(data.ranking)) {
+            // El worker devuelve ranking con info agregada, buscar los pedidos del vendedor
+            const vendorEntry = data.ranking.find(v => (v.codigoVendedor||'').toUpperCase() === currentCode);
+            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
+                rawPedidos = vendorEntry.pedidos;
             }
-        } catch(_) {}
+        }
 
-        // ── FUENTE 2: /api/panel-gestion (pedidos aprobados revendedor) ──
-        try {
-            const r2 = await fetch(WORKER_PAGOS + '/api/panel-gestion');
-            if (r2.ok) {
-                const d2 = await r2.json();
-                normalizar(Array.isArray(d2.panelGestion) ? d2.panelGestion : []);
-            }
-        } catch(_) {}
+        // Si el worker tiene un endpoint específico por código
+        if (!rawPedidos.length) {
+            try {
+                const r2 = await fetch(`${WORKER_DATA}?codigo=${encodeURIComponent(currentCode)}`);
+                if (r2.ok) {
+                    const d2 = await r2.json();
+                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
+                    else if (Array.isArray(d2)) rawPedidos = d2;
+                    // También actualizar config si viene
+                    if (d2.vendedor && d2.vendedor.configTiendaAll) {
+                        configTienda = d2.vendedor.configTiendaAll;
+                        const stored = sessionStorage.getItem(S_KEY);
+                        if (stored) {
+                            const s = JSON.parse(stored);
+                            s.config = configTienda;
+                            sessionStorage.setItem(S_KEY, JSON.stringify(s));
+                        }
+                    }
+                }
+            } catch(_) {}
+        }
 
-        // ── FUENTE 3: datosderevendedor (pedidos aprobados desde panel revendedor) ──
-        try {
-            const r3 = await fetch('https://datosderevendedor.tuweb.workers.dev');
-            if (r3.ok) {
-                const d3 = await r3.json();
-                const lista = Array.isArray(d3) ? d3
-                            : Array.isArray(d3.pedidos) ? d3.pedidos
-                            : Array.isArray(d3.registros) ? d3.registros
-                            : [];
-                normalizar(lista);
-            }
-        } catch(_) {}
+        // Normalizar pedidos
+        const seen = new Set();
+        rawPedidos.forEach(p => {
+            const id = p.pedidoId || p.id || p._id;
+            if (!id || seen.has(id)) return;
+            seen.add(id);
+            if (isLocallyDeleted(id)) return;
+
+            const ep = (p.estadoPago || p.estado || '').toUpperCase();
+            const estado = ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
+                         : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
+                         : 'pendiente';
+
+            const clienteNombre = fullName(p.cliente) || p.nombreCliente || '';
+
+            pedidos.push({
+                id,
+                estado,
+                items: (p.productos || p.items || []).map(pr => ({
+                    nombre:   pr.nombre || pr.title || '—',
+                    cantidad: Number(pr.cantidad || pr.quantity || 1),
+                    precio:   Number(pr.precio || pr.unit_price || pr.precioBase || 0)
+                })),
+                cliente: p.cliente || null,
+                envio: p.envio || p.cliente || null,
+                nicho: p.nicho || null,
+                codigoVendedor: p.codigoVendedor || currentCode,
+                _vCode: p.codigoVendedor || currentCode,
+                _clienteName: clienteNombre,
+                fechaCreacion: { seconds: Math.floor(Number(p.fecha || p.fechaCreacion || Date.now()) / 1000) },
+                _raw: p
+            });
+        });
 
         pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
 
@@ -880,6 +916,7 @@ async function loadData() {
         });
     }
 }
+
 // ═══════════════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════════════
@@ -1834,6 +1871,51 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
 
+
+
+// ── GUÍA MODAL ──
+const GUIDE_KEY = 'rw_guide_v1';
+
+function _positionGuide() {
+    const btn = document.getElementById('btn-guide');
+    const box = document.getElementById('guide-box');
+    if (!btn || !box) return;
+    const r = btn.getBoundingClientRect();
+    box.style.left = r.left + 'px';
+    box.style.top  = r.top  + 'px';
+    const avail = window.innerWidth - r.left - 12;
+    box.style.width = Math.min(avail, 480) + 'px';
+    box.style.maxWidth = 'none';
+}
+
+function openGuide() {
+    _positionGuide();
+    document.getElementById('guide-modal').classList.add('show');
+}
+
+function maybeShowGuide() {
+    try {
+        const raw = localStorage.getItem(GUIDE_KEY);
+        const g = raw ? JSON.parse(raw) : { count: 0, lastShown: 0 };
+        const now = Date.now();
+        const hs24 = 24 * 60 * 60 * 1000;
+        if (g.count < 3 && (now - (g.lastShown || 0)) >= hs24) {
+            setTimeout(() => {
+                openGuide();
+                localStorage.setItem(GUIDE_KEY, JSON.stringify({ count: (g.count || 0) + 1, lastShown: now }));
+            }, 1200);
+        }
+    } catch(_) {}
+}
+
+function closeGuide() {
+    document.getElementById('guide-modal').classList.remove('show');
+}
+
+function toggleGuide(el) {
+    document.querySelectorAll('.guide-ribbon.open').forEach(r => { if (r !== el) r.classList.remove('open'); });
+    el.classList.toggle('open');
+}
 
 window.addEventListener('load', init);
 </script>
