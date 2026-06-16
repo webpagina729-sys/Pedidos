@@ -7,7 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -389,32 +388,16 @@
 <!-- ══ LOGIN ══ -->
 <div class="login-wrap" id="login-wrap">
     <div class="login-box">
-        <!-- Botón Google (esquina superior derecha) -->
-        <button class="btn-google-g" onclick="loginWithGoogle()" title="Continuar con Google" type="button">
-            <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-                <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-                <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
-            </svg>
-        </button>
         <div class="login-icon"><img src="logo.png" alt="Logo"/></div>
         <h1>Mi Panel de Ventas</h1>
-        <p>Ingresá tu código de revendedor para ver tus pedidos y estadísticas</p>
+        <p>Ingresá tu contraseña para acceder al panel</p>
         <div class="login-err" id="login-err"></div>
         <div class="field">
-            <label>Código de revendedor</label>
-            <input type="text" id="inp-code" placeholder="Ej: RW1234" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="text-transform:uppercase"/>
-        </div>
-        <div class="field">
             <label>Contraseña</label>
-            <input type="password" id="inp-pin" placeholder="Tu contraseña de revendedor" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
-        </div>
-        <div class="recaptcha-wrap">
-            <div class="g-recaptcha" data-sitekey="6LeNuM0sAAAAAJ8_Jdv1DhVqhJMsmDZl7KokfCw_" data-size="normal"></div>
+            <input type="password" id="inp-pin" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
         </div>
         <button class="btn-login" onclick="doLogin()">Ingresar</button>
-        <div class="login-subtitle">Panel exclusivo de revendedores · Revende Ways</div>
+        <div class="login-subtitle">Panel principal - Revende Ways</div>
     </div>
 </div>
 
@@ -598,6 +581,9 @@ let activeTab       = 'calzados';
 let activeStatus    = 'pendiente';
 let deleteTarget    = null;
 let currentCode     = '';
+let currentVendorNombre   = '';
+let currentVendorApellido = '';
+const WORKER_PANEL_PRINCIPAL = 'https://workerpagos.tuweb.workers.dev';
 let configTienda    = {};  // configTiendaAll del revendedor (rangos de ganancia)
 let chartModalInst  = null;
 
@@ -730,6 +716,8 @@ function init() {
             const d = JSON.parse(stored);
             currentCode = d.code || '';
             configTienda = d.config || {};
+            currentVendorNombre = d.nombre || '';
+            currentVendorApellido = d.apellido || '';
             showMain();
             loadData();
         } catch(_) { showLogin(); }
@@ -757,112 +745,20 @@ function selectTheme(theme) {
 const WORKER_AUTH    = 'https://datosderevendedor.tuweb.workers.dev';
 
 async function doLogin() {
-    const code = (document.getElementById('inp-code').value || '').trim().toUpperCase();
-    const pin  = (document.getElementById('inp-pin').value || '').trim();
-    if (!code) { loginErr('Ingresá tu código de revendedor'); return; }
-    if (!pin)  { loginErr('Ingresá tu contraseña'); return; }
-
-    const recaptchaResponse = grecaptcha.getResponse();
-    if (!recaptchaResponse) { loginErr('Por favor completá el reCAPTCHA'); return; }
+    const pin = (document.getElementById('inp-pin').value || '').trim();
+    if (pin !== '12346789') { loginErr('Contraseña incorrecta.'); return; }
 
     const btn = document.querySelector('.btn-login');
     btn.textContent = 'Verificando...'; btn.disabled = true;
 
-    try {
-        // Verificar contraseña con el worker de datos de revendedor
-        let ok = false;
-        let vendedorData = null;
-
-        try {
-            const authRes = await fetch(WORKER_AUTH, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codigo: code, contrasena: pin })
-            });
-            if (authRes.ok) {
-                const authData = await authRes.json();
-                if (authData.success || authData.ok || authData.vendedor) {
-                    ok = true;
-                    vendedorData = authData.vendedor || authData;
-                } else if (authData.error) {
-                    loginErr(authData.error || 'Código o contraseña incorrectos.');
-                    btn.textContent = 'Ingresar'; btn.disabled = false;
-                    return;
-                }
-            } else if (authRes.status === 401 || authRes.status === 403) {
-                loginErr('Código o contraseña incorrectos.');
-                btn.textContent = 'Ingresar'; btn.disabled = false;
-                return;
-            } else {
-                // Fallback: intentar GET
-                const r2 = await fetch(`${WORKER_AUTH}?codigo=${encodeURIComponent(code)}`);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (d2 && (d2.vendedor || d2.codigoVendedor)) {
-                        const v = d2.vendedor || d2;
-                        const storedPass = v.contrasena || v.password || v.clave || v.pin;
-                        if (!storedPass || storedPass === pin) {
-                            ok = true;
-                            vendedorData = v;
-                        } else {
-                            loginErr('Código o contraseña incorrectos.');
-                            btn.textContent = 'Ingresar'; btn.disabled = false;
-                            return;
-                        }
-                    }
-                }
-            }
-        } catch(authErr) {
-            // Si el worker de auth falla, intentar con el worker de datos original
-            const res = await fetch(WORKER_DATA, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'login', codigo: code, pin })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.success || data.ok || data.vendedor) {
-                    ok = true;
-                    vendedorData = data.vendedor || data;
-                }
-            }
-        }
-
-        if (!ok && !vendedorData) {
-            // Último fallback: sólo verificar que el worker devuelva datos con ese código
-            try {
-                const r3 = await fetch(WORKER_DATA);
-                if (r3.ok) {
-                    const d3 = await r3.json();
-                    const ranking = d3.ranking || [];
-                    const v = ranking.find(x => (x.codigoVendedor||'').toUpperCase() === code);
-                    if (v) { ok = true; vendedorData = v; }
-                }
-            } catch(_) {}
-        }
-
-        if (!ok) {
-            loginErr('Código o contraseña incorrectos. Verificá tus datos.');
-            btn.textContent = 'Ingresar'; btn.disabled = false;
-            return;
-        }
-
-        // Extraer configTiendaAll del vendedor
-        const cfgAll = (vendedorData && (vendedorData.configTiendaAll || vendedorData.configTienda)) || {};
-        configTienda = cfgAll;
-
-        sessionStorage.setItem(S_KEY, JSON.stringify({ code, config: cfgAll }));
-        currentCode = code;
-        loginErr('');
-
-        // Mostrar selector de tema
-        showThemeSelector();
-
-    } catch(e) {
-        loginErr('Error de conexión: ' + e.message);
-    }
+    currentCode = 'PANEL';
+    currentVendorNombre = '';
+    currentVendorApellido = '';
+    configTienda = {};
+    sessionStorage.setItem(S_KEY, JSON.stringify({ code: currentCode, config: {}, nombre: '', apellido: '' }));
+    loginErr('');
+    showThemeSelector();
     btn.textContent = 'Ingresar'; btn.disabled = false;
-    if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
 }
 
 function loginErr(m) {
@@ -894,90 +790,62 @@ async function loadData() {
 
     try {
         pedidos = [];
-
-        // 1. Intentar GET /ranking o raíz del worker → buscar pedidos del revendedor
-        const res = await fetch(WORKER_DATA);
-        if (!res.ok) {
-            // Worker no disponible: mostrar estado vacío sin error
-            renderAll();
-            return;
-        }
-        const data = await res.json();
-
-        // El worker puede devolver { ranking, pedidos, ... }
-        // Buscar los pedidos que correspondan al código actual
-        let rawPedidos = [];
-
-        if (Array.isArray(data.pedidos)) {
-            rawPedidos = data.pedidos.filter(p =>
-                (p.codigoVendedor||'').toUpperCase() === currentCode ||
-                (p.codigo||'').toUpperCase() === currentCode
-            );
-        }
-
-        if (!rawPedidos.length && Array.isArray(data.ranking)) {
-            // El worker devuelve ranking con info agregada, buscar los pedidos del vendedor
-            const vendorEntry = data.ranking.find(v => (v.codigoVendedor||'').toUpperCase() === currentCode);
-            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
-                rawPedidos = vendorEntry.pedidos;
-            }
-        }
-
-        // Si el worker tiene un endpoint específico por código
-        if (!rawPedidos.length) {
-            try {
-                const r2 = await fetch(`${WORKER_DATA}?codigo=${encodeURIComponent(currentCode)}`);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
-                    else if (Array.isArray(d2)) rawPedidos = d2;
-                    // También actualizar config si viene
-                    if (d2.vendedor && d2.vendedor.configTiendaAll) {
-                        configTienda = d2.vendedor.configTiendaAll;
-                        const stored = sessionStorage.getItem(S_KEY);
-                        if (stored) {
-                            const s = JSON.parse(stored);
-                            s.config = configTienda;
-                            sessionStorage.setItem(S_KEY, JSON.stringify(s));
-                        }
-                    }
-                }
-            } catch(_) {}
-        }
-
-        // Normalizar pedidos
         const seen = new Set();
-        rawPedidos.forEach(p => {
-            const id = p.pedidoId || p.id || p._id;
-            if (!id || seen.has(id)) return;
-            seen.add(id);
-            if (isLocallyDeleted(id)) return;
 
-            const ep = (p.estadoPago || p.estado || '').toUpperCase();
-            const estado = ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
-                         : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
-                         : 'pendiente';
+        function normalizar(rawList) {
+            rawList.forEach(p => {
+                const id = p.pedidoId || p.docId || p.id || p._id;
+                if (!id || seen.has(id)) return;
+                seen.add(id);
+                if (isLocallyDeleted(id)) return;
 
-            const clienteNombre = fullName(p.cliente) || p.nombreCliente || '';
+                const ep = (p.estadoPago || p.estadoAprobacion || p.estado || '').toUpperCase();
+                const estado = (ep === 'APROBADO' || ep === 'PAGADO' || ep === 'APROBADO') ? 'pagado'
+                             : (ep === 'RECHAZADO' || ep === 'CANCELADO') ? 'cancelado'
+                             : 'pendiente';
 
-            pedidos.push({
-                id,
-                estado,
-                items: (p.productos || p.items || []).map(pr => ({
-                    nombre:   pr.nombre || pr.title || '—',
+                // Productos: soporta tanto /api/pedidos como /api/panel-gestion
+                const rawItems = p.productos || p.items || [];
+                const items = rawItems.map(pr => ({
+                    nombre:   pr.nombre   || pr.title || '—',
                     cantidad: Number(pr.cantidad || pr.quantity || 1),
-                    precio:   Number(pr.precio || pr.unit_price || pr.precioBase || 0)
-                })),
-                cliente: p.cliente || null,
-                envio: p.envio || p.cliente || null,
-                nicho: p.nicho || null,
-                codigoVendedor: p.codigoVendedor || currentCode,
-                _vCode: p.codigoVendedor || currentCode,
-                _clienteName: clienteNombre,
-                fechaCreacion: { seconds: Math.floor(Number(p.fecha || p.fechaCreacion || Date.now()) / 1000) },
-                _raw: p
+                    precio:   Number(pr.precio || pr.precioMayorista || pr.unit_price || pr.precioBase || 0)
+                }));
+
+                pedidos.push({
+                    id,
+                    estado,
+                    items,
+                    cliente:        p.cliente || null,
+                    envio:          p.envio   || p.cliente || null,
+                    nicho:          p.nicho   || p.categoria || null,
+                    codigoVendedor: p.codigoVendedor || '',
+                    _vCode:         p.codigoVendedor || '',
+                    _clienteName:   (typeof p.cliente === 'string' ? p.cliente : '') ||
+                                    fullName(p.cliente) || p.nombreCliente || '',
+                    fechaCreacion:  { seconds: Math.floor(Number(p.fecha || p.fechaRegistro || p.fechaCreacion || Date.now()) / 1000) },
+                    _raw: p
+                });
             });
-        });
+        }
+
+        // ── FUENTE 1: /api/pedidos (web mayorista) ───────────────────────
+        try {
+            const r1 = await fetch(WORKER_PAGOS + '/api/pedidos');
+            if (r1.ok) {
+                const d1 = await r1.json();
+                normalizar(Array.isArray(d1.pedidos) ? d1.pedidos : []);
+            }
+        } catch(_) {}
+
+        // ── FUENTE 2: /api/panel-gestion (pedidos aprobados revendedor) ──
+        try {
+            const r2 = await fetch(WORKER_PAGOS + '/api/panel-gestion');
+            if (r2.ok) {
+                const d2 = await r2.json();
+                normalizar(Array.isArray(d2.panelGestion) ? d2.panelGestion : []);
+            }
+        } catch(_) {}
 
         pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
 
@@ -999,7 +867,6 @@ async function loadData() {
         });
     }
 }
-
 // ═══════════════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════════════
@@ -1175,6 +1042,42 @@ async function sendPedido(id, btn) {
         });
         if (res.ok) {
             toast('Pedido enviado correctamente', true);
+            // ── Reenvío al PANEL PRINCIPAL (worker /api/pedido) ──
+            try {
+                const cli = p.cliente || p.envio || {};
+                const env = p.envio || p.cliente || {};
+                const direccionFull = [env.direccion, env.ciudad, env.provincia, env.cp]
+                    .filter(Boolean).join(', ');
+                const productosCosto = (p.items || []).map(it => ({
+                    nombre: it.nombre,
+                    cantidad: Number(it.cantidad) || 1,
+                    precio: Number(it.precio) || 0   // PRECIO DE COSTO (mayorista original)
+                }));
+                const payloadPanel = {
+                    cliente: {
+                        nombre: (cli.nombre || '') + (cli.apellido ? ' ' + cli.apellido : ''),
+                        email: cli.email || env.email || '',
+                        telefono: cli.telefono || env.telefono || '',
+                        direccion: direccionFull
+                    },
+                    productos: productosCosto,
+                    total: Math.round(totalInv),   // total con precio de COSTO
+                    codigoVendedor: currentCode,
+                    uid: p.id,
+                    vendedor: {
+                        codigo: currentCode,
+                        nombre: currentVendorNombre,
+                        apellido: currentVendorApellido
+                    },
+                    estadoPagoRevendedor: 'APROBADO',
+                    nicho: nichoKey
+                };
+                await fetch(WORKER_PANEL_PRINCIPAL + '/api/pedido', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadPanel)
+                });
+            } catch(_) { /* no romper el flujo principal */ }
         } else {
             toast('Error al enviar: HTTP ' + res.status, 'err');
         }
@@ -1917,23 +1820,7 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
-async function loginWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        // Usar el email como código de sesión
-        const emailCode = (user.email || '').split('@')[0].toUpperCase();
-        currentCode = emailCode;
-        configTienda = {};
-        sessionStorage.setItem(S_KEY, JSON.stringify({ code: emailCode, config: {} }));
-        showThemeSelector();
-    } catch(e) {
-        if (e.code !== 'auth/popup-closed-by-user') {
-            loginErr('Error con Google: ' + (e.message || e.code));
-        }
-    }
-}
+
 
 window.addEventListener('load', init);
 </script>
