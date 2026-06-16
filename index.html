@@ -847,6 +847,19 @@ async function loadData() {
             }
         } catch(_) {}
 
+        // ── FUENTE 3: datosderevendedor (pedidos aprobados desde panel revendedor) ──
+        try {
+            const r3 = await fetch('https://datosderevendedor.tuweb.workers.dev');
+            if (r3.ok) {
+                const d3 = await r3.json();
+                const lista = Array.isArray(d3) ? d3
+                            : Array.isArray(d3.pedidos) ? d3.pedidos
+                            : Array.isArray(d3.registros) ? d3.registros
+                            : [];
+                normalizar(lista);
+            }
+        } catch(_) {}
+
         pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
 
         const tot  = pedidos.length;
