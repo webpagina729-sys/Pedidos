@@ -606,8 +606,8 @@ const WHATSAPP_NUMS = {
     perfumes:  '5491157951826',
     multishop: '5491157951826'
 };
-const CAT_LABELS = { calzados: 'Calzados', perfumes: 'Perfumes Árabes', multishop: 'Multishop' };
-const CAT_ICONS  = { calzados: '👟', perfumes: '🧴', multishop: '🛍️' };
+const CAT_LABELS = { calzados: 'Calzados', perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', multishop: 'Multishop' };
+const CAT_ICONS  = { calzados: '👟', perfumes: '🧴', belleza: '💄', bazar: '🏠', jugueteria: '🧸', libreria: '📚', multishop: '🛍️' };
 
 let pedidos = [];          // pedidos crudos (workerpagos /api/pedidos), pago APROBADO
 let panelGestion = [];     // registros confirmados con costo/ganancia real
@@ -650,9 +650,13 @@ function lsSetSent(cat) { const s = lsGetSent(); s[cat] = new Date().toISOString
 function catOf(items, nichoHint) {
     if (nichoHint) {
         const n = String(nichoHint).toLowerCase();
-        if (n.includes('calz')) return 'calzados';
-        if (n.includes('perfum') || n.includes('arabe') || n.includes('árabe')) return 'perfumes';
-        if (n.includes('multi')) return 'multishop';
+        if (n === 'calzados' || n.includes('calz')) return 'calzados';
+        if (n === 'perfumes' || n.includes('perfum') || n.includes('arabe') || n.includes('árabe')) return 'perfumes';
+        if (n === 'belleza') return 'belleza';
+        if (n === 'bazar') return 'bazar';
+        if (n === 'jugueteria' || n === 'juguetería') return 'jugueteria';
+        if (n === 'libreria' || n === 'librería') return 'libreria';
+        if (n === 'multishop' || n.includes('multi')) return 'multishop';
     }
     const nm = i => (i.nombre || '').toUpperCase();
     const KP = ['PERFUME','ARABE','ÁRABE','BODY SPLASH','LATTAFA','AFNAN','ARMAF','YARA','ASAD','HALAMAN','CLUB DE NUIT','PRIDE OF','ODYSSEY','OUD','ATTAR'];
@@ -662,6 +666,63 @@ function catOf(items, nichoHint) {
     return 'multishop';
 }
 function catIcon(c) { return CAT_ICONS[c] || '📦'; }
+
+// ═══════════════════════════════════════════════════════════
+// PRECIOS MAYORISTAS REALES (Worker restoprecios)
+// Fuente de verdad de "lo que a mí me cuesta cada producto".
+// Se usa como PRIMER método (match exacto por nombre); si un
+// producto no aparece ahí (pedidos viejos, nombres raros, etc.)
+// se cae a la estimación por porcentaje/costo fijo de más abajo.
+// ═══════════════════════════════════════════════════════════
+const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
+let CATALOGO_PRECIOS_WORKER = {};
+(function cargarCatalogoPreciosWorker() {
+    try {
+        const cache = JSON.parse(localStorage.getItem('_catalogoPreciosWorkerCache') || 'null');
+        if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
+            CATALOGO_PRECIOS_WORKER = cache.data;
+        }
+    } catch(_) {}
+    fetch(RESTOPRECIOS_WORKER)
+        .then(r => r.json())
+        .then(data => {
+            const mapa = {};
+            (data.productos || []).forEach(p => {
+                if (p && p.nombre && p.precio_mayorista != null) {
+                    mapa[String(p.nombre).trim().toUpperCase()] = Number(p.precio_mayorista);
+                }
+            });
+            CATALOGO_PRECIOS_WORKER = mapa;
+            try { localStorage.setItem('_catalogoPreciosWorkerCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
+            if (typeof pedidos !== 'undefined' && pedidos.length && typeof renderPedidosView === 'function') renderPedidosView();
+        })
+        .catch(() => {});
+})();
+
+function _limpiarNombreProducto(s) {
+    return String(s || '').trim().toUpperCase()
+        .replace(/\s*\(T\.?\s*\d+\)\s*/gi, '')
+        .replace(/\s+/g, ' ').trim();
+}
+
+// Busca el precio mayorista real de un producto por nombre (match exacto,
+// luego por contenido en cualquiera de las dos direcciones).
+function precioMayoristaRealPorNombre(nombre) {
+    if (!nombre) return null;
+    const n = _limpiarNombreProducto(nombre);
+    const keys = Object.keys(CATALOGO_PRECIOS_WORKER);
+    if (!keys.length) return null;
+    if (CATALOGO_PRECIOS_WORKER[n] != null) return CATALOGO_PRECIOS_WORKER[n];
+    const porContenido = keys
+        .filter(k => n.includes(k) && k.length > 3)
+        .sort((a, b) => b.length - a.length);
+    if (porContenido.length) return CATALOGO_PRECIOS_WORKER[porContenido[0]];
+    const porContenido2 = keys
+        .filter(k => k.includes(n) && n.length > 3)
+        .sort((a, b) => a.length - b.length);
+    if (porContenido2.length) return CATALOGO_PRECIOS_WORKER[porContenido2[0]];
+    return null;
+}
 
 // ═══════════════════════════════════════════════════════════
 // REGLA DE COSTO ORIGINAL / GANANCIA REAL
@@ -704,17 +765,25 @@ function calcCalzadoOriginal(it) {
     const costoOriginal = esNinoCalzado(it) ? COSTO_CALZADO_NINO : COSTO_CALZADO_ADULTO;
     return { costoOriginal };
 }
-// Devuelve la economía real de un item de panelGestion, aplicando
-// la regla que corresponda según categoría del pedido.
+// Devuelve la economía real de un item de panelGestion: precio que paga
+// el revendedor (a mi) menos lo que a mí me cuesta el producto realmente
+// (Worker restoprecios, por nombre). Si el producto no aparece en el
+// Worker (pedido viejo, nombre no matcheable), se cae a la estimación
+// vieja por categoría, para no perder el dato.
 function itemEconomiaReal(it, categoria) {
     const qty = Number(it.cantidad || 1);
     const precioCliente = Number(it.precioClienteUnitario ?? it.precioVenta ?? it.precio ?? 0);
     const valorEntrada = Number(it.costoMayoristaUnitario ?? it.precioCosto ?? it.costoUnitario ?? 0);
-    let costoOriginalUnit;
-    if (categoria === 'calzados') {
-        costoOriginalUnit = calcCalzadoOriginal(it).costoOriginal;
-    } else {
-        costoOriginalUnit = calcPerfumeOriginal(valorEntrada).costoOriginal;
+
+    let costoOriginalUnit = precioMayoristaRealPorNombre(it.nombre);
+    if (costoOriginalUnit == null) {
+        // Fallback: estimación vieja (solo para pedidos que no matchean
+        // contra el Worker de precios reales).
+        if (categoria === 'calzados') {
+            costoOriginalUnit = calcCalzadoOriginal(it).costoOriginal;
+        } else {
+            costoOriginalUnit = calcPerfumeOriginal(valorEntrada).costoOriginal;
+        }
     }
     const gananciaUnit = precioCliente - costoOriginalUnit;
     return {
@@ -808,7 +877,7 @@ async function loadData() {
 
     const rawPedidos = Array.isArray(pedidosRes?.pedidos) ? pedidosRes.pedidos : [];
     pedidos = rawPedidos
-        .filter(p => (p.estadoPago || '').toUpperCase() === 'APROBADO')
+        .filter(p => ['PENDIENTE','APROBADO'].includes((p.estadoPago || '').toUpperCase()))
         .filter(p => !deleted.has(p.pedidoId))
         .map(p => {
             const items = (p.productos || p.items || []).map(pr => ({
@@ -824,6 +893,7 @@ async function loadData() {
                 total: Number(p.total || 0),
                 gananciaVendedor: Number(p.totalGananciaVendedor || 0),
                 nicho: p.nicho || catOf(items),
+                estadoPago: (p.estadoPago || '').toUpperCase(),
                 fecha: Number(p.fecha) || (p.fechaISO ? Date.parse(p.fechaISO) : Date.now()),
                 fechaPago: p.fechaPago || null
             };
@@ -924,6 +994,10 @@ function pedidoCard(p) {
     const cli = p.cliente || {};
     const cliNombre = fullName(cli) || cli.nombre || '';
     const hasEnvio = cliNombre || cli.telefono || cli.direccion;
+    const esPendiente = p.estadoPago === 'PENDIENTE';
+    const estadoBadge = esPendiente
+        ? `<span class="badge-estado-pago" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">🟡 Pendiente de pago</span>`
+        : `<span class="badge-estado-pago" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">🟢 Pago aprobado</span>`;
     const envioBlock = hasEnvio ? `
         <div class="ship-block">
             ${cliNombre ? `<div class="ship-row"><strong>${esc(cliNombre)}</strong> <span style="color:var(--text3)">(cliente del revendedor)</span></div>` : ''}
@@ -943,6 +1017,7 @@ function pedidoCard(p) {
             <div class="ribbon-main">
                 <span class="r-name">Pedido #${String(p.id).slice(-8).toUpperCase()}</span>
                 <span class="status-chip s-pendiente">Nuevo</span>
+                ${estadoBadge}
             </div>
             <div class="ribbon-meta">
                 <span class="r-date">${fecha}</span>
@@ -1363,14 +1438,14 @@ function renderVendorBarChart(vendors) {
 function renderCategoriaPie(vendors, products) {
     const ctx = document.getElementById('canvas-cat-pie');
     if (!ctx) return;
-    const cats = { calzados:0, perfumes:0, multishop:0 };
+    const cats = { calzados:0, perfumes:0, belleza:0, bazar:0, jugueteria:0, libreria:0, multishop:0 };
     panelGestion.forEach(g => { if (cats[g.categoria] !== undefined) cats[g.categoria]++; });
     Chart.getChart(ctx)?.destroy();
     new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
-        data: { labels: ['Calzados','Perfumes Árabes','Multishop'], datasets: [{
-            data: [cats.calzados, cats.perfumes, cats.multishop],
-            backgroundColor: ['#0066ff','#8b5cf6','#00c96e'], borderWidth: 0
+        data: { labels: ['Calzados','Perfumería','Belleza y Cuidado Personal','Bazar','Juguetería','Librería','Multishop'], datasets: [{
+            data: [cats.calzados, cats.perfumes, cats.belleza, cats.bazar, cats.jugueteria, cats.libreria, cats.multishop],
+            backgroundColor: ['#0066ff','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#00c96e'], borderWidth: 0
         }]},
         options: { responsive:true, maintainAspectRatio:false,
             plugins: { legend:{ position:'bottom', labels:{ color:'#9aa0b4', font:{size:11}, boxWidth:10, padding:12 } } } }
