@@ -674,6 +674,7 @@ let activeRvndrCode = null;
 // 🔧 NUEVO: estados reales de index(1).html — pedidoId -> {uid, codigoVendedor, ...}
 let ESTADOS_CONFIRMADOS = {};
 let ESTADOS_PAGADOS = {};
+let ESTADOS_ELIMINADOS = {};   // pedidoId -> true, si se eliminó/no se aprobó en index(1).html
 let CLIENTES_TODOS = [];   // clientes de TODOS los revendedores (workerwebcliente /clientes)
 
 // ═══════════════════════════════════════════════════════════
@@ -943,6 +944,7 @@ async function loadData() {
 
     ESTADOS_CONFIRMADOS = (estadosRes && estadosRes.ok && estadosRes.confirmados) || {};
     ESTADOS_PAGADOS     = (estadosRes && estadosRes.ok && estadosRes.pagados) || {};
+    ESTADOS_ELIMINADOS  = (estadosRes && estadosRes.ok && estadosRes.eliminados) || {};
     CLIENTES_TODOS      = (clientesRes && clientesRes.ok && Array.isArray(clientesRes.clientes)) ? clientesRes.clientes : [];
 
     const deleted = new Set(lsGetDeleted());
@@ -951,6 +953,11 @@ async function loadData() {
     pedidos = rawPedidos
         .filter(p => ['PENDIENTE','APROBADO'].includes((p.estadoPago || '').toUpperCase()))
         .filter(p => !deleted.has(p.pedidoId))
+        // 🔧 NUEVO: si index(1).html marcó este pedido como eliminado o
+        // "no aprobado", nunca debe verse acá — sin importar si el
+        // borrado en workerpagos funcionó o no (ese Worker es externo y
+        // no se puede garantizar desde este panel).
+        .filter(p => !ESTADOS_ELIMINADOS[p.pedidoId || p.id])
         .map(p => {
             const items = (p.productos || p.items || []).map(pr => ({
                 nombre: pr.nombre || pr.title || '—',
@@ -981,7 +988,10 @@ async function loadData() {
     //   - Pagado (tras "Enviar a precio mayorista" con éxito) → llega
     //     como "confirmado" — SOLO acá cuenta como venta real para
     //     estadísticas/ganancias.
+    //   - Eliminado o "no aprobado" en index(1).html → desaparece de
+    //     pedidos.html por completo (se filtra antes de mapear).
     panelGestion = (Array.isArray(panelRes?.panelGestion) ? panelRes.panelGestion : [])
+        .filter(g => !ESTADOS_ELIMINADOS[g.pedidoId])
         .map(g => {
             let estadoReal = 'pendiente';
             if (ESTADOS_PAGADOS[g.pedidoId]) estadoReal = 'confirmado';
@@ -1165,6 +1175,7 @@ function panelGestionCard(g) {
                         ${yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
                         <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${g.pedidoId}','retirar')">🏪 Pasar a retirar</button>
                         <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`}
+                        <button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>
                     </div>
                 </div>
             </div>
@@ -1230,6 +1241,30 @@ function pedidoCard(p) {
 
 function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle('expanded'); }
 function toggleRibbonEl(fullId) { document.getElementById(fullId)?.classList.toggle('expanded'); }
+
+// 🔧 NUEVO: botón de emergencia para los pedidos que quedaron
+// "pegados" en pedidos.html de ANTES de que existiera el registro
+// automático de eliminados (o si por algún motivo puntual la
+// sincronización automática no llegó a avisar). Lo marca en el mismo
+// registro que usa index(1).html, y desaparece al instante de acá.
+async function marcarComoEliminadoManual(pedidoId, codigoVendedor) {
+    if (!confirm('¿Confirmás que este pedido ya no existe en index(1).html? Va a dejar de verse en este panel.')) return;
+    const res = await fetchJson(WORKER_ESTADOS + '/api/pedido-eliminado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedidoId, codigoVendedor, motivo: 'sincronizacion_manual' })
+    });
+    if (res && res.ok) {
+        ESTADOS_ELIMINADOS[pedidoId] = true;
+        panelGestion = panelGestion.filter(g => g.pedidoId !== pedidoId);
+        renderPedidosView();
+        renderStatsView();
+        renderRevmesView();
+        toast('Pedido sincronizado y quitado del panel', true);
+    } else {
+        toast('No se pudo sincronizar — probá de nuevo', 'err');
+    }
+}
 
 function enviarALista(id, tipoEntrega) {
     const lista = lsGetLista();
