@@ -133,8 +133,15 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .btn-guide-icon:hover { color: var(--blue); border-color: var(--blue); }
 
 /* ── MENU NAV ── */
-.menu-nav { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: nowrap; overflow-x: auto; padding-bottom:2px; }
+.menu-nav { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; padding-bottom:2px; }
 .menu-btn { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
+/* 🔧 FIX: en celular esto se veía en una sola fila con scroll horizontal
+   (nowrap) — ahora se acomoda en 2 filas parejas, compacto, sin deslizar. */
+@media (max-width: 980px) {
+    .menu-nav { flex-wrap: wrap; overflow-x: visible; gap: 6px; }
+    .menu-btn { flex: 1 1 calc(50% - 6px); justify-content: center; padding: 8px 6px; font-size: 10.5px; gap: 4px; }
+    .menu-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+}
 .menu-btn.active { background: var(--blue-pale); border-color: var(--blue); color: var(--blue); }
 .menu-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); background: var(--surface2); }
 .menu-btn .cnt2 { background:var(--surface2); color:var(--text3); font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px; }
@@ -172,6 +179,19 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .kpi { background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:14px 16px; }
 .kpi-lbl { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
 .kpi-val { font-size:22px; font-weight:800; color:var(--text); }
+/* 🔧 NUEVO: variante compacta — número al lado del texto, tarjetas más
+   chicas. Se usa en celular para que el panel se vea profesional y no
+   ocupe toda la pantalla con cuadros gigantes. */
+@media (max-width: 980px) {
+    .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap:6px; margin-bottom:14px; }
+    .kpi { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:7px 9px; }
+    .kpi-lbl { font-size:9px; margin-bottom:0; white-space:normal; line-height:1.2; }
+    .kpi-val { font-size:13.5px; flex-shrink:0; white-space:nowrap; }
+    .dash-grid { grid-template-columns: repeat(auto-fit, minmax(120px,1fr)) !important; gap:6px !important; }
+    .kpi-card { padding:10px !important; }
+    .kpi-card .kpi-num { font-size:16px !important; }
+    .kpi-card .kpi-lab { font-size:9.5px !important; }
+}
 
 .charts-row { display:grid; grid-template-columns: 1.6fr 1fr; gap:14px; margin-bottom:18px; }
 .chart-card { background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:16px 18px; }
@@ -238,6 +258,31 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .ribbon.expanded .ribbon-body { max-height: 1400px; }
 .ribbon-inner { padding: 15px 16px; border-top: 1px solid var(--border); }
 .status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; }
+
+/* 🔧 NUEVO: puntos de color con animación de pulso (estilo radar) para
+   reemplazar los emojis de colores — solo pulsa cuando esa opción tiene
+   pedidos adentro. */
+.dot-status { position: relative; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display:inline-block; }
+.dot-status.pulsing::before {
+    content: ''; position: absolute; inset: -6px; border-radius: 50%;
+    background: inherit; opacity: .55; animation: dotPulse 1.6s ease-out infinite;
+}
+@keyframes dotPulse {
+    0%   { transform: scale(0.4); opacity: .55; }
+    100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Cintas de estado apiladas (Pendientes/Aprobados/Confirmados) y sus
+   sub-cintas anidadas (revendedor → categoría → detalle). */
+.estado-ribbon { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+.estado-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; gap: 10px; }
+.estado-head-left { display: flex; align-items: center; gap: 10px; }
+.estado-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.estado-body { max-height: 0; overflow: hidden; transition: max-height .35s ease; background: var(--bg2); }
+.estado-ribbon.expanded .estado-body { max-height: 8000px; }
+.estado-ribbon.expanded .estado-caret { transform: rotate(180deg); }
+.estado-caret { transition: transform .25s; color: var(--text3); }
+.estado-inner { padding: 12px 14px; }
 .s-pendiente { background: var(--amber-pale); color: var(--amber); border: 1px solid rgba(245,158,11,.2); }
 .s-lista { background: var(--blue-pale); color: var(--blue); border: 1px solid var(--blue-glow); }
 .s-retirar { background: var(--purple-pale); color: var(--purple); border: 1px solid rgba(139,92,246,.25); }
@@ -257,6 +302,9 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .actions { display: flex; gap: 7px; flex-wrap: wrap; }
 .btn-act { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: none; font-family: var(--font); transition: all .18s; }
 .btn-retirar { background: var(--purple-pale); color: var(--purple); border: 1px solid rgba(139,92,246,.25); }
+.btn-act.btn-wa { background: rgba(37,211,102,.14); color: #0a8a3f; border: 1px solid rgba(37,211,102,.3); padding: 8px 13px; font-size: 11.5px; }
+.btn-act.btn-pago-verificado { background: rgba(10,201,122,.15); color: #0a8a52; border: 1px solid rgba(10,201,122,.35); }
+.btn-act.btn-pago-verificado:hover { background: var(--green); color: #fff; }
 .btn-retirar:hover { background: var(--purple); color: #fff; }
 .btn-domicilio { background: var(--green-pale); color: var(--green); border: 1px solid rgba(0,201,110,.25); }
 .btn-domicilio:hover { background: var(--green); color: #0b0d12; }
@@ -370,6 +418,45 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     .wrap { padding: 14px 10px 50px; }
     .page-title { font-size:18px; }
     .kpi-num { font-size:21px; }
+
+    /* 🔧 NUEVO: Info Rvndr y el resto de los modales flotantes se veían
+       con elementos gigantes en celular — se achica todo de forma
+       consistente, igual de compacto que index(1).html. */
+    .rvndr-box { max-width: 100%; border-radius: 12px; }
+    .rvndr-body { padding: 14px !important; }
+    .podium-avatar { width: 38px; height: 38px; font-size: 13px; margin: 0 auto 6px; }
+    .estrella-card { padding: 10px 12px; gap: 10px; margin-bottom: 14px; border-radius: 10px; }
+    .estrella-icon { font-size: 20px; }
+    .estrella-lab { font-size: 10px; }
+    .estrella-name { font-size: 13px; }
+    .estrella-sub { font-size: 10.5px; }
+    .race-row { gap: 8px; margin-bottom: 9px; }
+    .race-icon { width: 26px; height: 26px; font-size: 12px; border-radius: 7px; }
+    .race-name { font-size: 11.5px; }
+    .race-val { font-size: 11px; }
+    .race-rank { font-size: 11px; min-width: 16px; }
+    .race-wrap { padding: 8px !important; }
+    .ship-block { padding: 10px !important; }
+    .ship-row { font-size: 11.5px; margin-bottom: 3px; }
+    .section-title { font-size: 12.5px !important; }
+    .rank-row { padding: 8px 6px !important; gap: 8px !important; }
+    .rank-name { font-size: 12px !important; }
+    .rank-sub { font-size: 10px !important; }
+    .rank-val { font-size: 12px !important; }
+    .ribbon-head { padding: 9px 10px !important; }
+    .r-name { font-size: 12px !important; }
+    .r-code, .r-date { font-size: 10px !important; }
+    .ribbon-inner { padding: 10px !important; }
+
+    /* 🔧 NUEVO: las cintas de estado (Pedidos Nuevos / Lista de pedidos)
+       se agregaron después de este pase de compactación y quedaron
+       afuera — ahora también son compactas en celular. */
+    .estado-head { padding: 10px 12px !important; gap: 8px !important; }
+    .estado-title { font-size: 12.5px !important; }
+    .estado-inner { padding: 10px !important; }
+    .estado-head-left { gap: 8px !important; }
+    .vendor-avatar { width: 26px !important; height: 26px !important; font-size: 10.5px !important; }
+    .cnt, .cnt2 { font-size: 10px !important; padding: 1px 6px !important; }
 }
 </style>
 </head>
@@ -455,6 +542,9 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <button class="sidebar-btn" onclick="logout()" title="Salir">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
+        <button class="sidebar-btn" onclick="abrirConfigWhatsappProveedores()" title="Configurar WhatsApp de proveedores">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
     </aside>
     <div class="app-main">
     <header class="topbar" id="topbar2" style="display:flex;position:static;margin-bottom:6px">
@@ -513,27 +603,13 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
         <!-- VIEW: PEDIDOS NUEVOS -->
         <div class="view active" id="view-pedidos">
-            <div class="section-sub">Pedidos de revendedores, según su estado real en index(1).html.</div>
-            <div class="subtabs">
-                <button class="subtab active" id="ptab-pendiente" onclick="switchPedidosTab('pendiente')">🟡 Pendientes <span class="cnt" id="pcnt-pendiente">0</span></button>
-                <button class="subtab" id="ptab-aprobado" onclick="switchPedidosTab('aprobado')">🔵 Aprobados <span class="cnt" id="pcnt-aprobado">0</span></button>
-                <button class="subtab" id="ptab-confirmado" onclick="switchPedidosTab('confirmado')">🟢 Confirmados <span class="cnt" id="pcnt-confirmado">0</span></button>
-            </div>
-            <div class="subpane active" id="ppane-pendiente"></div>
-            <div class="subpane" id="ppane-aprobado"></div>
-            <div class="subpane" id="ppane-confirmado"></div>
+            <div class="section-sub">Pedidos según su estado real en panel de los revendedores</div>
+            <div id="pedidos-estado-wrap"></div>
         </div>
 
         <!-- VIEW: LISTA DE PEDIDOS -->
         <div class="view" id="view-lista">
-            <div class="subtabs">
-                <button class="subtab active" id="ltab-retirar" onclick="switchListaTab('retirar')">🏪 Para retirar <span class="cnt" id="lcnt-retirar">0</span></button>
-                <button class="subtab" id="ltab-domicilio" onclick="switchListaTab('domicilio')">🏠 Para recibir <span class="cnt" id="lcnt-domicilio">0</span></button>
-                <button class="subtab" id="ltab-enviar" onclick="switchListaTab('enviar')">📦 Enviar pedidos</button>
-            </div>
-            <div class="subpane active" id="lpane-retirar"></div>
-            <div class="subpane" id="lpane-domicilio"></div>
-            <div class="subpane" id="lpane-enviar"></div>
+            <div id="lista-estado-wrap"></div>
         </div>
 
         <!-- VIEW: ESTADÍSTICAS -->
@@ -598,6 +674,28 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <button class="rvndr-close" onclick="document.getElementById('cliente-detalle-modal').classList.remove('show')">✕</button>
         </div>
         <div class="rvndr-body" id="clidet-body"></div>
+    </div>
+</div>
+
+<!-- ══ MODAL CONFIGURAR WHATSAPP DE PROVEEDORES POR CATEGORÍA ══ -->
+<div class="rvndr-overlay" id="wa-config-modal">
+    <div class="rvndr-box" style="max-width:480px">
+        <div class="rvndr-head">
+            <h3>WhatsApp de proveedores</h3>
+            <button class="rvndr-close" onclick="document.getElementById('wa-config-modal').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body" id="wa-config-body"></div>
+    </div>
+</div>
+
+<!-- ══ MODAL "SUS CLIENTES" (de un revendedor, en Pedidos Locales/Enviados) ══ -->
+<div class="rvndr-overlay" id="sus-clientes-modal">
+    <div class="rvndr-box" style="max-width:560px">
+        <div class="rvndr-head">
+            <h3 id="susclientes-titulo">Sus clientes</h3>
+            <button class="rvndr-close" onclick="document.getElementById('sus-clientes-modal').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body" id="susclientes-body"></div>
     </div>
 </div>
 
@@ -881,6 +979,8 @@ function init() {
     document.getElementById('rvndr-detalle-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
     document.getElementById('rvndr-clientes-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
     document.getElementById('cliente-detalle-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
+    document.getElementById('wa-config-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
+    document.getElementById('sus-clientes-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
 }
 function showThemeSelector() {
     document.getElementById('login-wrap').style.display = 'none';
@@ -950,8 +1050,18 @@ async function resolveVendor(codigo) {
     return v;
 }
 
+// Respaldo para pedidos viejos donde "cliente" es solo un texto plano
+// (nombre completo) en vez del objeto estructurado nuevo — separa lo que
+// puede en nombre/apellido para que "Sus Clientes" no quede vacío.
+function _parsearClienteString(str) {
+    if (!str || typeof str !== 'string') return null;
+    const partes = str.trim().split(/\s+/);
+    return { nombre: partes[0] || '', apellido: partes.slice(1).join(' ') || '', telefono: '' };
+}
+
 async function loadData() {
-    document.getElementById('pedidos-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+    const pedidosWrap = document.getElementById('pedidos-estado-wrap');
+    if (pedidosWrap) pedidosWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
     document.getElementById('revmes-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando ranking...</p></div>';
 
@@ -1029,7 +1139,12 @@ async function loadData() {
                 gananciaTotal: Number(g.gananciaTotal || 0),
                 fecha: g.fecha ? Date.parse(g.fecha) : Date.now(),
                 estadoReal,
-                fechaPago: pagoInfo && pagoInfo.fechaPago ? Date.parse(pagoInfo.fechaPago) : null
+                fechaPago: pagoInfo && pagoInfo.fechaPago ? Date.parse(pagoInfo.fechaPago) : null,
+                // 🔧 NUEVO: identidad y elección de entrega del CLIENTE del
+                // revendedor (no confundir con cómo el revendedor recibe SU
+                // propio pedido mayorista, que es otro concepto aparte).
+                tipoEntregaCliente: (g.tipoEntrega || (g.envio && g.envio.tipoEntrega) || (g.cliente && g.cliente.tipoEntrega) || '').toLowerCase(),
+                cliente: g.clienteInfo || (typeof g.cliente === 'object' ? g.cliente : _parsearClienteString(g.cliente)) || g.envio || {},
             };
         });
 
@@ -1049,10 +1164,11 @@ async function loadData() {
     CLIENTES_TODOS.forEach(c => c.codigoVendedor && codes.add(String(c.codigoVendedor).toUpperCase()));
     await Promise.all([...codes].map(c => resolveVendor(c)));
 
-    document.getElementById('cnt-nuevos').textContent = pedidos.filter(p => !lsGetLista()[p.id]).length;
-    document.getElementById('cnt-lista').textContent = Object.keys(lsGetLista()).length;
+    document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
     const tot = pedidos.length;
     document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
+
+    await cargarWhatsappProveedores();
 
     renderPedidosView();
     renderListaView();
@@ -1095,94 +1211,114 @@ const ESTADO_REAL_LABEL = {
     confirmado: { txt: '🟢 Confirmado', bg: '#dcfce7', color: '#166534', border: '#bbf7d0' },
 };
 
-let activePedidosTab = 'pendiente';
-function switchPedidosTab(t) {
-    activePedidosTab = t;
-    document.querySelectorAll('#view-pedidos .subtab').forEach(b => b.classList.toggle('active', b.id === 'ptab-'+t));
-    document.querySelectorAll('#view-pedidos .subpane').forEach(p => p.classList.toggle('active', p.id === 'ppane-'+t));
-}
+// 🔧 REESTRUCTURADO POR COMPLETO: antes eran pestañas horizontales con
+// emojis de colores. Ahora son 3 CINTAS APILADAS (Pendientes, Aprobados,
+// Confirmados) con un punto de color que pulsa (estilo radar) solo
+// cuando esa opción tiene pedidos adentro. Al tocar una cinta se
+// despliega hacia abajo con sub-cintas por Revendedor, que a su vez se
+// despliegan en sub-cintas por Categoría, que a su vez muestran el
+// pedido completo (productos, proveedor, etc.) — igual para las 3.
+const ESTADO_DOT_COLOR = { pendiente: '#f59e0b', aprobado: '#3968f6', confirmado: '#0ac97a' };
+const ESTADO_TITULOS = { pendiente: 'Pendientes', aprobado: 'Aprobados', confirmado: 'Confirmados' };
+const ESTADO_VACIO_MSG = {
+    pendiente:  'Acá van a aparecer los pedidos apenas un revendedor los apruebe en su panel, antes de confirmarlos.',
+    aprobado:   'Acá aparecen los pedidos que el revendedor ya confirmó en "Pedidos Confirmados" de su panel, esperando su pago.',
+    confirmado: 'Acá aparecen los pedidos que el revendedor ya pagó con éxito vía "Enviar a precio mayorista".',
+};
 
-// 🔧 REESTRUCTURADO POR COMPLETO: antes todo se mezclaba en una sola
-// lista sin separar por estado. Ahora hay 3 pestañas — Pendientes,
-// Aprobados, Confirmados — calcadas del ciclo real de index(1).html:
-//   Pendiente  = aprobado en index(1).html, todavía sin confirmar
-//   Aprobado   = confirmado en index(1).html (lista "Pedidos Confirmados"), sin pagar
-//   Confirmado = pagado con éxito ("Enviar a precio mayorista")
-// Dentro de cada pestaña, se sigue agrupando por Revendedor → Categoría.
 function renderPedidosView() {
-    document.getElementById('pcnt-pendiente').textContent  = panelGestion.filter(g => g.estadoReal === 'pendiente').length;
-    document.getElementById('pcnt-aprobado').textContent   = panelGestion.filter(g => g.estadoReal === 'aprobado').length;
-    document.getElementById('pcnt-confirmado').textContent = panelGestion.filter(g => g.estadoReal === 'confirmado').length;
+    const wrap = document.getElementById('pedidos-estado-wrap');
+    if (!wrap) return;
+
     document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
 
-    ['pendiente','aprobado','confirmado'].forEach(estado => renderPedidosTabPane(estado));
+    let html = '';
+    ['pendiente','aprobado','confirmado'].forEach(estado => {
+        const gsDelEstado = panelGestion.filter(g => g.estadoReal === estado);
+        const hayPedidos = gsDelEstado.length > 0;
+        const ribbonId = 'estado-rib-' + estado;
+
+        html += `<div class="estado-ribbon" id="${ribbonId}">
+            <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
+                <div class="estado-head-left">
+                    <span class="dot-status ${hayPedidos ? 'pulsing' : ''}" style="background:${ESTADO_DOT_COLOR[estado]}"></span>
+                    <span class="estado-title">${ESTADO_TITULOS[estado]}</span>
+                    <span class="cnt">${gsDelEstado.length}</span>
+                </div>
+                <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="estado-body"><div class="estado-inner">
+                ${hayPedidos ? renderRevendedoresAnidados(gsDelEstado, estado) : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📭</div><p>${ESTADO_VACIO_MSG[estado]}</p></div>`}
+            </div></div>
+        </div>`;
+    });
+
+    wrap.innerHTML = html;
 }
 
-function renderPedidosTabPane(estado) {
-    const el = document.getElementById('ppane-' + estado);
-    if (!el) return;
-    const gsDelEstado = panelGestion.filter(g => g.estadoReal === estado);
+function toggleEstadoRibbon(id) { document.getElementById(id)?.classList.toggle('expanded'); }
 
-    if (!gsDelEstado.length) {
-        const msgs = {
-            pendiente:  ['🟡','Sin pedidos pendientes','Acá van a aparecer los pedidos apenas un revendedor los apruebe en index(1).html, antes de confirmarlos.'],
-            aprobado:   ['🔵','Sin pedidos aprobados','Acá aparecen los pedidos que el revendedor ya confirmó en "Pedidos Confirmados" de index(1).html, esperando su pago.'],
-            confirmado: ['🟢','Sin pedidos confirmados','Acá aparecen los pedidos que el revendedor ya pagó con éxito vía "Enviar a precio mayorista".'],
-        };
-        const [icon, titulo, sub] = msgs[estado];
-        el.innerHTML = `<div class="empty"><div class="empty-icon">${icon}</div><h3>${titulo}</h3><p>${sub}</p></div>`;
-        return;
-    }
-
+// Sub-cintas por Revendedor (nombre y apellido) dentro de un estado.
+function renderRevendedoresAnidados(gsDelEstado, estado) {
     const porVendedor = {};
     gsDelEstado.forEach(g => {
         const k = g.codigoVendedor || '—';
-        if (!porVendedor[k]) porVendedor[k] = {};
-        const cat = g.categoria || 'multishop';
-        if (!porVendedor[k][cat]) porVendedor[k][cat] = [];
-        porVendedor[k][cat].push(g);
+        if (!porVendedor[k]) porVendedor[k] = [];
+        porVendedor[k].push(g);
     });
 
-    let html = '';
-    Object.entries(porVendedor).forEach(([codigo, categorias]) => {
+    return Object.entries(porVendedor).map(([codigo, gs]) => {
         const nombre = vendorLabel(codigo);
-        const totalPedidosVendedor = Object.values(categorias).reduce((s, arr) => s + arr.length, 0);
-        const totalUnidVendedor = Object.values(categorias).reduce((s, arr) => s + arr.reduce((a,g) => a + (g.items||[]).reduce((x,i)=>x+(Number(i.cantidad)||1),0), 0), 0);
-
-        html += `<div class="vendor-block">
-            <div class="vendor-head">
-                <div class="vendor-avatar">${initials(nombre)}</div>
-                <span class="vendor-name">${esc(nombre)}</span>
-                ${codigo && codigo !== '—' ? `<span class="vendor-code">${esc(codigo)}</span>` : ''}
-                <span class="vendor-qty">${totalPedidosVendedor} pedido${totalPedidosVendedor!==1?'s':''} · ${totalUnidVendedor} unid.</span>
-            </div>`;
-
-        Object.entries(categorias).forEach(([cat, gs]) => {
-            const catId = `catv-${estado}-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
-            const totalUnidCat = gs.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
-            const totalMayoristaCat = gs.reduce((s,g) => s + Number(g.costoTotal||0), 0);
-            html += `<div class="ribbon" id="${catId}" style="margin-bottom:8px;margin-left:14px">
-                <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
-                    <div class="ribbon-main">
-                        <span style="font-size:15px">${catIcon(cat)}</span>
-                        <span class="r-name">${CAT_LABELS[cat] || cat}</span>
-                        <span class="r-code">${gs.length} pedido${gs.length!==1?'s':''} · ${totalUnidCat} unid.</span>
-                    </div>
-                    <div class="ribbon-meta">
-                        <span class="r-date" style="font-weight:700;color:var(--blue)">${money(totalMayoristaCat)}</span>
-                        <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                    </div>
+        const vId = `rv-${estado}-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const totalU = gs.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
+        return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
+            <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
+                <div class="ribbon-main">
+                    <div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div>
+                    <span class="r-name">${esc(nombre)}</span>
                 </div>
-                <div class="ribbon-body"><div class="ribbon-inner" style="padding:12px 14px">
-                    ${gs.map(g => panelGestionCard(g)).join('')}
-                </div></div>
-            </div>`;
-        });
+                <div class="ribbon-meta">
+                    <span class="r-code">${gs.length} ped. · ${totalU} unid.</span>
+                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <div class="ribbon-body"><div class="ribbon-inner">
+                ${renderCategoriasAnidadas(gs, estado, codigo)}
+            </div></div>
+        </div>`;
+    }).join('');
+}
 
-        html += `</div>`;
+// Sub-sub-cintas por Categoría dentro de un revendedor.
+function renderCategoriasAnidadas(gs, estado, codigo) {
+    const porCategoria = {};
+    gs.forEach(g => {
+        const cat = g.categoria || 'multishop';
+        if (!porCategoria[cat]) porCategoria[cat] = [];
+        porCategoria[cat].push(g);
     });
 
-    el.innerHTML = html;
+    return Object.entries(porCategoria).map(([cat, gsCat]) => {
+        const catId = `catv-${estado}-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const totalUnidCat = gsCat.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
+        const totalMayoristaCat = gsCat.reduce((s,g) => s + Number(g.costoTotal||0), 0);
+        return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
+            <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
+                <div class="ribbon-main">
+                    <span style="font-size:14px">${catIcon(cat)}</span>
+                    <span class="r-name">${CAT_LABELS[cat] || cat}</span>
+                    <span class="r-code">${gsCat.length} ped. · ${totalUnidCat} unid.</span>
+                </div>
+                <div class="ribbon-meta">
+                    <span class="r-date" style="font-weight:700;color:var(--blue)">${money(totalMayoristaCat)}</span>
+                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <div class="ribbon-body"><div class="ribbon-inner" style="padding:10px 12px">
+                ${gsCat.map(g => panelGestionCard(g)).join('')}
+            </div></div>
+        </div>`;
+    }).join('');
 }
 
 // Tarjeta de un pedido individual de panelGestion (usa el estado REAL de
@@ -1221,16 +1357,141 @@ function panelGestionCard(g) {
                 <div class="order-foot">
                     <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total mayorista: <strong>${money(g.costoTotal)}</strong></div>
                     <div class="actions">
-                        ${g.estadoReal !== 'confirmado' ? `<span class="status-chip s-espera">Esperando el pago del revendedor para poder prepararlo</span>` :
-                          yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
+                        ${g.estadoReal === 'aprobado' ? `
+                        <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pendiente de pago)</button>
+                        <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>` : ''}
+                        ${g.estadoReal === 'confirmado' ? (yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
+                        <button class="btn-act btn-pago-verificado" onclick="${stop}marcarPagoVerificado('${g.pedidoId}')">✅ Pago Verificado</button>
+                        <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pagada)</button>
+                        <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>
                         <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${g.pedidoId}','retirar')">🏪 Pasar a retirar</button>
-                        <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`}
+                        <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`) : ''}
+                        ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">Esperando a que el revendedor confirme este pedido</span>` : ''}
                         <button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FACTURAS "REVENDE WAYS → REVENDEDOR" (con marca de agua según estado)
+// 🔧 NUEVO: descarga + compartir por WhatsApp del revendedor. En
+// "Aprobados" lleva marca roja "PENDIENTE DE PAGO"; en "Confirmados"
+// (ya pagado a precio mayorista) lleva marca verde "PAGADO".
+// ═══════════════════════════════════════════════════════════
+function _agregarMarcaAguaFactura(doc, W, H, texto, color) {
+    doc.saveGraphicsState?.();
+    doc.setTextColor(...color);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(texto.length > 12 ? 34 : 48);
+    try { doc.setGState(new doc.GState({ opacity: 0.16 })); } catch(_e) {}
+    doc.text(texto, W / 2, H / 2, { align: 'center', angle: 35 });
+    try { doc.setGState(new doc.GState({ opacity: 1 })); } catch(_e) {}
+    doc.restoreGraphicsState?.();
+}
+
+function _generarFacturaProveedorPDF(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g || !window.jspdf) return null;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
+    const pagado = g.estadoReal === 'confirmado';
+    const nombre = vendorLabel(g.codigoVendedor);
+    const info = vendorCache[g.codigoVendedor] || {};
+
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 0, W, 34, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Revende Ways', 14, 15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text(pagado ? 'Factura de compra a proveedor — PAGADA' : 'Factura de compra a proveedor — PENDIENTE DE PAGO', 14, 23);
+    doc.setFontSize(8);
+    doc.text(`Pedido #${String(g.pedidoId).slice(-8).toUpperCase()} · ${ba(g.fecha)}`, 14, 29);
+
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Facturado a:', 14, 46);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(nombre, 14, 53);
+    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
+    doc.text('Código: ' + g.codigoVendedor, 14, 65);
+
+    let y = 78;
+    doc.setFillColor(240,242,247);
+    doc.rect(14, y-6, W-28, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
+    y += 10;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+    (g.items||[]).forEach(it => {
+        if (y > H - 40) { doc.addPage(); y = 20; }
+        const precio = Number(it.costoUnitario ?? it.precioMayorista ?? it.precio ?? 0);
+        doc.setFontSize(9.5);
+        doc.text(String(it.nombre||'—').slice(0,50), 17, y);
+        doc.text(String(it.cantidad||1), W-70, y);
+        doc.text('$'+precio.toLocaleString('es-AR'), W-17, y, { align:'right' });
+        y += 7;
+    });
+
+    y += 6;
+    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
+    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('TOTAL A PAGAR', W-86, y+7);
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+    doc.text('$'+Math.round(g.costoTotal||0).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
+
+    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
+    return doc;
+}
+
+function descargarFacturaProveedor(pedidoId) {
+    const doc = _generarFacturaProveedorPDF(pedidoId);
+    if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
+    doc.save(`Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`);
+    toast('Factura descargada', true);
+}
+
+async function compartirFacturaWhatsApp(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    const doc = _generarFacturaProveedorPDF(pedidoId);
+    if (!doc || !g) { toast('No se pudo generar la factura', 'err'); return; }
+    const blob = doc.output('blob');
+    const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
+    const wa = vendorWa(g.codigoVendedor);
+    const mensaje = g.estadoReal === 'confirmado' ? 'Te comparto tu factura ya pagada.' : 'Te comparto tu factura pendiente de pago.';
+    try {
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: filename, text: mensaje });
+            return;
+        }
+    } catch(e) { return; }
+    doc.save(filename);
+    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+}
+
+// "Pago Verificado" — confirma manualmente que el dinero llegó. No
+// cambia el estado real (eso lo determina index(1).html/Mercado Pago),
+// pero deja un aviso visual + mueve el pedido a la lista de "Enviar
+// Pedidos" (ver Lista de pedidos) para su preparación y envío al proveedor.
+async function marcarPagoVerificado(pedidoId) {
+    if (!confirm('¿Confirmás que el pago de este pedido ya se verificó?')) return;
+    const set = new Set(JSON.parse(localStorage.getItem('pagosVerificados') || '[]'));
+    set.add(pedidoId);
+    localStorage.setItem('pagosVerificados', JSON.stringify([...set]));
+    toast('Pago verificado — pedido movido a "Enviar Pedidos"', true);
+    renderPedidosView();
+    if (typeof renderListaView === 'function') renderListaView();
+}
+function pagoYaVerificado(pedidoId) {
+    try { return JSON.parse(localStorage.getItem('pagosVerificados') || '[]').includes(pedidoId); } catch(_) { return false; }
 }
 
 function pedidoCard(p) {
@@ -1353,137 +1614,273 @@ function confirmDelete() {
 
 // ═══════════════════════════════════════════════════════════
 // VIEW: LISTA DE PEDIDOS
+// 🔧 REESTRUCTURADO POR COMPLETO — ya no es sobre "cómo recibo YO mi
+// pedido mayorista del revendedor" (retirar/domicilio de la plataforma).
+// Ahora es sobre cómo el CLIENTE del revendedor eligió recibir SU
+// pedido en tienda.html:
+//   Pedidos Locales  = clientes que eligieron "Retirar por sucursal"
+//   Pedidos Enviados = clientes que eligieron "Recibir a domicilio"
+//   Enviar Pedidos   = pedidos con "Pago Verificado" tocado, listos
+//                      para pedirle la mercadería al proveedor por
+//                      WhatsApp, agrupados por Revendedor → Categoría.
+// Mismo patrón visual de cintas apiladas que "Pedidos Nuevos".
 // ═══════════════════════════════════════════════════════════
-function switchListaTab(t) {
-    activeListaTab = t;
-    document.querySelectorAll('.subtab').forEach(e => e.classList.remove('active'));
-    document.querySelectorAll('.subpane').forEach(e => e.classList.remove('active'));
-    document.getElementById('ltab-'+t).classList.add('active');
-    document.getElementById('lpane-'+t).classList.add('active');
+function renderListaView() {
+    const wrap = document.getElementById('lista-estado-wrap');
+    if (!wrap) return;
+
+    const locales  = panelGestion.filter(g => g.tipoEntregaCliente === 'retirar');
+    const enviados = panelGestion.filter(g => g.tipoEntregaCliente === 'domicilio');
+    const paraEjecutar = panelGestion.filter(g => pagoYaVerificado(g.pedidoId));
+
+    document.getElementById('cnt-lista').textContent = paraEjecutar.length;
+
+    let html = '';
+    html += renderSeccionLista('locales', '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21V13h6v8"/></svg>Pedidos Locales', locales, 'Clientes que eligieron "Retirar por sucursal" en tienda.html.', renderPedidoLocalEnviado);
+    html += renderSeccionLista('enviados', '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Pedidos Enviados', enviados, 'Clientes que eligieron "Recibir a domicilio" en tienda.html.', renderPedidoLocalEnviado);
+    html += renderSeccionEnviarPedidos(paraEjecutar);
+
+    wrap.innerHTML = html;
 }
 
-function renderListaView() {
-    const lista = lsGetLista();
-    const ids = Object.keys(lista);
-    document.getElementById('cnt-lista').textContent = ids.length;
-
-    const grouped = { retirar: [], domicilio: [] };
-    ids.forEach(id => {
-        const g = panelGestion.find(x => x.pedidoId === id);
-        if (!g) return;
-        const tipo = lista[id].tipoEntrega === 'domicilio' ? 'domicilio' : 'retirar';
-        grouped[tipo].push(g);
+// Cinta de sección genérica (mismo look que las de "Pedidos Nuevos"),
+// agrupando por Revendedor.
+function renderSeccionLista(key, titulo, gs, sub, renderFn) {
+    const ribbonId = 'lista-rib-' + key;
+    const porVendedor = {};
+    gs.forEach(g => {
+        const k = g.codigoVendedor || '—';
+        (porVendedor[k] = porVendedor[k] || []).push(g);
     });
-
-    document.getElementById('lcnt-retirar').textContent = grouped.retirar.length;
-    document.getElementById('lcnt-domicilio').textContent = grouped.domicilio.length;
-
-    ['retirar','domicilio'].forEach(tipo => {
-        const el = document.getElementById('lpane-'+tipo);
-        const gs = grouped[tipo];
-        if (!gs.length) {
-            el.innerHTML = `<div class="empty"><div class="empty-icon">${tipo==='retirar'?'🏪':'🏠'}</div><h3>Sin pedidos</h3><p>No hay pedidos en "${tipo==='retirar'?'Para retirar':'Para recibir'}" todavía.</p></div>`;
-            return;
-        }
-        el.innerHTML = gs.map(g => {
-            const fecha = ba(g.fecha);
-            const nombre = vendorLabel(g.codigoVendedor);
-            const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
-            const rows = (g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
-            return `<div class="ribbon" id="lc-${g.pedidoId}">
-                <div class="ribbon-head" onclick="toggleRibbonEl('lc-${g.pedidoId}')">
+    const cuerpo = Object.keys(porVendedor).length
+        ? Object.entries(porVendedor).map(([codigo, gsV]) => {
+            const nombre = vendorLabel(codigo);
+            const vId = `${ribbonId}-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+            return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
+                <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
                     <div class="ribbon-main">
+                        <div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div>
                         <span class="r-name">${esc(nombre)}</span>
-                        <span class="r-code">${CAT_LABELS[g.categoria] || g.categoria}</span>
-                        <span class="status-chip ${tipo==='retirar'?'s-retirar':'s-domicilio'}">${tipo==='retirar'?'Retirar':'Domicilio'}</span>
+                        <span class="r-code">${gsV.length} pedido${gsV.length!==1?'s':''}</span>
                     </div>
-                    <div class="ribbon-meta"><span class="r-date">${fecha}</span>
+                    <div class="ribbon-meta">
+                        <button class="btn-act btn-outline" onclick="event.stopPropagation();abrirSusClientes('${codigo}','${key}')">Sus Clientes</button>
                         <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                 </div>
                 <div class="ribbon-body"><div class="ribbon-inner">
-                    <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
-                    <div class="order-foot">
-                        <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid.</div>
-                        <div class="actions">
-                            <button class="btn-act btn-outline" onclick="event.stopPropagation();enviarALista('${g.pedidoId}','${tipo==='retirar'?'domicilio':'retirar'}')">Mover a ${tipo==='retirar'?'domicilio':'retirar'}</button>
-                            <button class="btn-act btn-del" onclick="event.stopPropagation();quitarDeLista('${g.pedidoId}')">Quitar de la lista</button>
-                        </div>
-                    </div>
+                    ${gsV.map(renderFn).join('')}
+                </div></div>
+            </div>`;
+        }).join('')
+        : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📭</div><p>Sin pedidos todavía.</p></div>`;
+
+    return `<div class="estado-ribbon" id="${ribbonId}">
+        <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
+            <div class="estado-head-left">
+                <span class="dot-status ${gs.length ? 'pulsing' : ''}" style="background:${gs.length ? '#3968f6' : '#8b93a7'}"></span>
+                <span class="estado-title">${titulo}</span>
+                <span class="cnt">${gs.length}</span>
+            </div>
+            <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="estado-body"><div class="estado-inner">
+            <p class="section-sub" style="margin:0 0 10px">${sub}</p>
+            ${cuerpo}
+        </div></div>
+    </div>`;
+}
+
+// Pedido individual dentro de Pedidos Locales/Enviados — con factura +
+// compartir por WhatsApp al revendedor.
+function renderPedidoLocalEnviado(g) {
+    const fecha = ba(g.fecha);
+    const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
+    const rows = (g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
+    const cliNombre = `${g.cliente?.nombre||''} ${g.cliente?.apellido||''}`.trim() || 'Cliente';
+    return `<div class="ribbon" id="lc-${g.pedidoId}" style="margin-bottom:8px">
+        <div class="ribbon-head" onclick="toggleRibbonEl('lc-${g.pedidoId}')" style="background:var(--surface2)">
+            <div class="ribbon-main">
+                <span style="font-size:14px">${catIcon(g.categoria)}</span>
+                <span class="r-name">${CAT_LABELS[g.categoria] || g.categoria}</span>
+                <span class="r-code">Cliente: ${esc(cliNombre)}</span>
+            </div>
+            <div class="ribbon-meta"><span class="r-date">${fecha}</span>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+        <div class="ribbon-body"><div class="ribbon-inner">
+            <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
+            <div class="order-foot">
+                <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total: <strong>${money(g.total)}</strong></div>
+                <div class="actions">
+                    <button class="btn-act btn-pdf" onclick="event.stopPropagation();descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura</button>
+                    <button class="btn-act btn-wa" onclick="event.stopPropagation();compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>
+                </div>
+            </div>
+        </div></div>
+    </div>`;
+}
+
+// "Sus Clientes" — modal con los clientes de ESE revendedor en esta
+// sección (Locales o Enviados), en cintas por nombre y apellido.
+function abrirSusClientes(codigo, seccion) {
+    const fuente = seccion === 'locales'
+        ? panelGestion.filter(g => g.tipoEntregaCliente === 'retirar' && g.codigoVendedor === codigo)
+        : panelGestion.filter(g => g.tipoEntregaCliente === 'domicilio' && g.codigoVendedor === codigo);
+
+    document.getElementById('susclientes-titulo').textContent = 'Clientes de ' + vendorLabel(codigo);
+    const porCliente = {};
+    fuente.forEach(g => {
+        const nombre = `${g.cliente?.nombre||''} ${g.cliente?.apellido||''}`.trim() || 'Cliente sin nombre';
+        const key = nombre + '|' + (g.cliente?.telefono || '');
+        (porCliente[key] = porCliente[key] || { nombre, telefono: g.cliente?.telefono, pedidos: [] }).pedidos.push(g);
+    });
+
+    const entries = Object.values(porCliente);
+    let html = !entries.length
+        ? `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🧑‍🤝‍🧑</div><p>Sin clientes en esta sección todavía.</p></div>`
+        : entries.map((c, i) => {
+            const cId = `susc-${i}`;
+            return `<div class="ribbon" id="${cId}" style="margin-bottom:8px">
+                <div class="ribbon-head" onclick="toggleRibbonEl('${cId}')">
+                    <div class="ribbon-main"><span class="r-name">${esc(c.nombre)}</span><span class="r-code">${c.pedidos.length} pedido${c.pedidos.length!==1?'s':''}</span></div>
+                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ribbon-body"><div class="ribbon-inner">
+                    ${c.telefono ? `<div class="ship-row">📞 ${esc(c.telefono)}</div>` : ''}
+                    ${c.pedidos.map(renderPedidoLocalEnviado).join('')}
                 </div></div>
             </div>`;
         }).join('');
-    });
 
-    renderEnviarPedidos(ids.map(id => panelGestion.find(g => g.pedidoId === id)).filter(Boolean));
+    document.getElementById('susclientes-body').innerHTML = html;
+    document.getElementById('sus-clientes-modal').classList.add('show');
 }
 
-function renderEnviarPedidos(gsInLista) {
-    const el = document.getElementById('lpane-enviar');
-    if (!gsInLista.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">📦</div><h3>Nada para enviar</h3><p>Enviá pedidos a la lista primero para poder agruparlos por categoría.</p></div>`;
-        return;
-    }
-    const cats = { calzados:{}, perfumes:{}, belleza:{}, bazar:{}, jugueteria:{}, libreria:{}, multishop:{} };
-    gsInLista.forEach(g => {
-        const c = cats[g.categoria] ? g.categoria : 'multishop';
-        (g.items||[]).forEach(it => {
-            const key = it.nombre.trim();
-            cats[c][key] = (cats[c][key] || 0) + Number(it.cantidad || 1);
-        });
+// "Enviar Pedidos" — pedidos con Pago Verificado, agrupados por
+// Revendedor → Categoría, con botón "Ejecutar Pedido" (WhatsApp al
+// proveedor de esa categoría, con todos los productos + datos del
+// revendedor).
+function renderSeccionEnviarPedidos(paraEjecutar) {
+    const ribbonId = 'lista-rib-enviar';
+    const porVendedor = {};
+    paraEjecutar.forEach(g => {
+        const k = g.codigoVendedor || '—';
+        (porVendedor[k] = porVendedor[k] || []).push(g);
     });
 
-    const sentLog = lsGetSent();
-    let html = `<div class="cat-grid">`;
-    Object.entries(cats).forEach(([c, prods]) => {
-        const entries = Object.entries(prods).sort((a,b) => b[1]-a[1]);
-        const totalU = entries.reduce((s,[,q])=>s+q,0);
-        const lastSent = sentLog[c] ? ba(Date.parse(sentLog[c])) : null;
-        html += `<div class="cat-card">
-            <div class="cat-head">
-                <div class="cat-icon" style="background:var(--surface2)">${catIcon(c)}</div>
-                <div><div class="cat-title">${CAT_LABELS[c]}</div><div class="cat-sub">${entries.length} producto${entries.length!==1?'s':''} · ${totalU} unid.</div></div>
+    const cuerpo = Object.keys(porVendedor).length
+        ? Object.entries(porVendedor).map(([codigo, gsV]) => {
+            const nombre = vendorLabel(codigo);
+            const vId = `enviar-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+            const porCategoria = {};
+            gsV.forEach(g => { (porCategoria[g.categoria] = porCategoria[g.categoria] || []).push(g); });
+
+            const subcintas = Object.entries(porCategoria).map(([cat, gsCat]) => {
+                const catId = `${vId}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+                const totalU = gsCat.reduce((s,g)=>s+(g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0),0);
+                const info = vendorCache[codigo] || {};
+                const rows = gsCat.flatMap(g => g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
+                return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
+                    <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
+                        <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${CAT_LABELS[cat]||cat}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
+                        <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="ribbon-body"><div class="ribbon-inner">
+                        <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
+                        <div class="ship-block" style="margin-top:10px">
+                            <div class="ship-row">📇 Datos de envío del revendedor</div>
+                            <div class="ship-row"><strong>${esc(nombre)}</strong></div>
+                            ${(info.whatsappRevendedor||info.telefono) ? `<div class="ship-row">📞 ${esc(info.whatsappRevendedor||info.telefono)}</div>` : ''}
+                            ${(info.ciudad||info.provincia) ? `<div class="ship-row">📍 ${esc([info.ciudad,info.provincia].filter(Boolean).join(', '))}</div>` : ''}
+                        </div>
+                        <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:10px" onclick="ejecutarPedido('${codigo}','${cat}')">🚀 Ejecutar Pedido</button>
+                    </div></div>
+                </div>`;
+            }).join('');
+
+            return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
+                <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
+                    <div class="ribbon-main"><div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div><span class="r-name">${esc(nombre)}</span><span class="r-code">${gsV.length} pedido${gsV.length!==1?'s':''}</span></div>
+                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ribbon-body"><div class="ribbon-inner">${subcintas}</div></div>
+            </div>`;
+        }).join('')
+        : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📦</div><p>Todavía no hay pedidos con "Pago Verificado" para ejecutar.</p></div>`;
+
+    return `<div class="estado-ribbon" id="${ribbonId}">
+        <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
+            <div class="estado-head-left">
+                <span class="dot-status ${paraEjecutar.length ? 'pulsing' : ''}" style="background:${paraEjecutar.length ? '#0ac97a' : '#8b93a7'}"></span>
+                <span class="estado-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Enviar Pedidos</span>
+                <span class="cnt">${paraEjecutar.length}</span>
             </div>
-            <div class="cat-list">
-                ${entries.length ? entries.map(([n,q]) => `<div class="cat-item"><strong>${esc(n)}</strong><b>x${q}</b></div>`).join('') : '<div class="cat-item" style="color:var(--text3)">Sin productos</div>'}
-            </div>
-            <div class="cat-foot">
-                <div class="cat-total">${lastSent ? `Último envío: ${lastSent}` : 'Aún no enviado'}</div>
-                <button class="btn-wa" ${!entries.length ? 'disabled' : ''} onclick="enviarCategoriaWhatsApp('${c}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.36 5.07L2 22l5.06-1.33A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm5.2 14.3c-.22.62-1.28 1.2-1.77 1.24-.47.05-.9.24-3.02-.63-2.55-1.05-4.2-3.6-4.33-3.77-.13-.17-1.03-1.37-1.03-2.6 0-1.24.65-1.85.88-2.1.22-.25.5-.3.66-.3.17 0 .33 0 .48.01.16.01.36-.06.56.43.22.53.73 1.83.8 1.96.06.13.1.28.02.45-.08.17-.13.28-.25.43-.13.15-.27.34-.38.46-.13.13-.26.27-.11.53.14.26.63 1.04 1.36 1.69.94.83 1.72 1.09 1.98 1.21.25.13.4.11.55-.06.15-.18.63-.73.8-.98.17-.25.34-.2.56-.12.23.08 1.47.69 1.72.82.25.13.42.19.48.3.06.11.06.62-.16 1.24z"/></svg>
-                    Enviar
-                </button>
-            </div>
-        </div>`;
-    });
-    html += `</div>`;
-    el.innerHTML = html;
+            <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="estado-body"><div class="estado-inner">${cuerpo}</div></div>
+    </div>`;
 }
 
-function enviarCategoriaWhatsApp(cat) {
-    const lista = lsGetLista();
-    const ids = Object.keys(lista);
-    const gs = ids.map(id => panelGestion.find(g => g.pedidoId === id)).filter(Boolean);
+let WHATSAPP_PROVEEDORES = {};
+async function cargarWhatsappProveedores() {
+    const res = await fetchJson(WORKER_ESTADOS + '/api/whatsapp-proveedores');
+    WHATSAPP_PROVEEDORES = (res && res.ok && res.numeros) || {};
+}
+
+async function ejecutarPedido(codigo, categoria) {
+    const gsCat = panelGestion.filter(g => g.codigoVendedor === codigo && g.categoria === categoria && pagoYaVerificado(g.pedidoId));
+    if (!gsCat.length) { toast('No hay productos para esta categoría', 'err'); return; }
+    const nombre = vendorLabel(codigo);
+    const info = vendorCache[codigo] || {};
     const prods = {};
-    gs.forEach(g => {
-        const c = cats_key(g.categoria);
-        if (c !== cat) return;
-        (g.items||[]).forEach(it => { prods[it.nombre.trim()] = (prods[it.nombre.trim()] || 0) + Number(it.cantidad || 1); });
-    });
-    const entries = Object.entries(prods);
-    if (!entries.length) { toast('No hay productos en esta categoría', 'err'); return; }
+    gsCat.forEach(g => (g.items||[]).forEach(it => { prods[it.nombre.trim()] = (prods[it.nombre.trim()]||0) + Number(it.cantidad||1); }));
 
-    let msg = `Pedido para "REVENDE WAYS"\nProductos:\n`;
-    entries.forEach(([n,q]) => { msg += `${n}, Cantidad: ${q}\n`; });
+    let msg = `Pedido para "REVENDE WAYS"\nCategoría: ${CAT_LABELS[categoria]||categoria}\nRevendedor: ${nombre}\n`;
+    if (info.whatsappRevendedor || info.telefono) msg += `Tel: ${info.whatsappRevendedor || info.telefono}\n`;
+    if (info.ciudad || info.provincia) msg += `Ubicación: ${[info.ciudad,info.provincia].filter(Boolean).join(', ')}\n`;
+    msg += `\nProductos:\n`;
+    Object.entries(prods).forEach(([n,q]) => { msg += `${n}, Cantidad: ${q}\n`; });
     msg += `\nMuchas Gracias, quedo atento a su confirmación! Abrazo.`;
 
-    const num = WHATSAPP_NUMS[cat] || WHATSAPP_NUMS.multishop;
-    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
-    lsSetSent(cat);
-    toast(`Mensaje de ${CAT_LABELS[cat]} listo para enviar`, true);
-    renderListaView();
+    const numero = WHATSAPP_PROVEEDORES[categoria] || WHATSAPP_NUMS[categoria] || WHATSAPP_NUMS.multishop;
+    if (!numero) { toast('No hay un WhatsApp configurado para esta categoría — configuralo desde el ícono de engranaje del panel', 'err'); return; }
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(msg)}`, '_blank');
+    toast('Pedido listo para enviar por WhatsApp', true);
 }
-function cats_key(c) { return ['calzados','perfumes','belleza','bazar','jugueteria','libreria','multishop'].includes(c) ? c : 'multishop'; }
+
+// ── Configuración de WhatsApp de proveedores por categoría (sidebar) ──
+async function abrirConfigWhatsappProveedores() {
+    await cargarWhatsappProveedores();
+    const cats = Object.keys(CAT_LABELS);
+    document.getElementById('wa-config-body').innerHTML = cats.map(c => `
+        <div style="margin-bottom:14px">
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">${catIcon(c)} ${CAT_LABELS[c]}</label>
+            <div style="display:flex;align-items:stretch;border:1px solid var(--border2);border-radius:9px;overflow:hidden">
+                <span style="display:flex;align-items:center;padding:9px 10px;background:var(--bg2);font-size:12.5px;font-weight:700;color:var(--text2);white-space:nowrap">+549</span>
+                <input type="tel" id="wa-cfg-${c}" value="${esc((WHATSAPP_PROVEEDORES[c]||'').replace(/^549/,''))}" placeholder="2395401234" style="flex:1;border:none;outline:none;padding:9px 10px;font-size:13px;background:transparent;color:var(--text)">
+            </div>
+        </div>`).join('') + `
+        <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:6px" onclick="guardarWhatsappProveedores()">Guardar números</button>`;
+    document.getElementById('wa-config-modal').classList.add('show');
+}
+
+async function guardarWhatsappProveedores() {
+    const cats = Object.keys(CAT_LABELS);
+    for (const c of cats) {
+        const input = document.getElementById('wa-cfg-' + c);
+        const digitos = (input?.value || '').replace(/\D/g, '');
+        const numero = digitos ? '549' + digitos : '';
+        WHATSAPP_PROVEEDORES[c] = numero;
+        await fetchJson(WORKER_ESTADOS + '/api/whatsapp-proveedores', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categoria: c, numero })
+        });
+    }
+    toast('Números de WhatsApp guardados', true);
+    document.getElementById('wa-config-modal').classList.remove('show');
+}
 
 // ═══════════════════════════════════════════════════════════
 // AGREGACIÓN POR REVENDEDOR (basada solo en panelGestion)
@@ -1586,10 +1983,11 @@ function productAggregates() {
 // ═══════════════════════════════════════════════════════════
 function renderStatsView() {
     const el = document.getElementById('stats-content');
-    if (!panelGestion.length && !pedidos.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><h3>Sin datos aún</h3><p>Todavía no hay pedidos confirmados de revendedores para armar estadísticas.</p></div>`;
-        return;
-    }
+    // 🔧 FIX: antes, si no había NINGÚN dato todavía, se cortaba acá y
+    // nunca se mostraba la estructura completa (KPIs, gráficos, Mis
+    // Ganancias) — quedaba solo un cartel de "sin datos". Ahora la
+    // estructura completa SIEMPRE se arma, mostrando ceros/vacíos en
+    // cada sección en vez de desaparecer entera.
 
     const vendors = vendorAggregates();
     const products = productAggregates();
@@ -1681,6 +2079,25 @@ function renderStatsView() {
     html += `<div class="section-block">
         <h2 class="section-title">🏁 Productos más vendidos <span style="font-size:11px;font-weight:600;color:var(--text3)">(carrera de ventas — suma de todos los revendedores)</span></h2>
         <div class="race-wrap" id="race-wrap"></div>
+    </div>`;
+
+    // 🔧 NUEVO: sección dedicada "Mis Ganancias" al final de todo —
+    // deja explícito el cálculo: precio de VENTA = precio mayorista que
+    // me paga el revendedor; precio de COSTO = lo que a MÍ me cobra mi
+    // proveedor real, según el Worker restoprecios.tuweb.workers.dev.
+    html += `<div class="section-block">
+        <h2 class="section-title">💚 Mis Ganancias</h2>
+        <p class="section-sub" style="margin-top:-6px">Precio de venta = precio mayorista que me paga cada revendedor. Precio de costo = lo que a mí me cobra mi proveedor real (Worker restoprecios.tuweb.workers.dev). La diferencia es mi ganancia.</p>
+        <div class="dash-grid">
+            ${kpiCard('💰','Facturación (precio de venta)', money(totalFact), 'var(--blue-pale)', 'var(--blue)', 'rgba(0,102,255,.25)')}
+            ${kpiCard('📉','Mi costo real (restoprecios)', money(totalInv), 'var(--amber-pale)', 'var(--amber)', 'rgba(245,158,11,.25)')}
+            ${kpiCard('💚','Mi ganancia', money(totalGan), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.3)')}
+            ${kpiCard('📐','Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%', 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.25)')}
+        </div>
+        ${PRODUCTOS_SIN_RESTOPRECIOS.size ? `<div class="ship-block" style="margin-top:10px;border-color:rgba(245,158,11,.3)">
+            <div class="ship-row" style="color:var(--amber);font-weight:700">⚠️ ${PRODUCTOS_SIN_RESTOPRECIOS.size} producto${PRODUCTOS_SIN_RESTOPRECIOS.size!==1?'s':''} sin precio real en restoprecios</div>
+            <div class="ship-row" style="font-size:11px;color:var(--text3)">Para esos, la ganancia se calculó con una estimación de respaldo — no es el dato exacto.</div>
+        </div>` : ''}
     </div>`;
 
     el.innerHTML = html;
@@ -1914,44 +2331,48 @@ function closeChartModal() {
 function renderRevmesView() {
     const el = document.getElementById('revmes-content');
     const vendors = vendorAggregates().filter(v => v.codigo && v.codigo !== '—');
-    if (!vendors.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">🏆</div><h3>Sin datos</h3><p>Todavía no hay ventas confirmadas de revendedores.</p></div>`;
-        return;
-    }
     vendors.sort((a,b) => b.ganancia - a.ganancia);
     const top3 = vendors.slice(0,3);
     const medals = ['🥇','🥈','🥉'];
     const posClass = ['p1','p2','p3'];
 
-    let html = `<h2 class="section-title">🎁 Regalo para Revendedor <span style="font-size:11px;font-weight:600;color:var(--text3)">top 3 del mes</span></h2>
-    <div class="podium-wrap">`;
-    top3.forEach((v,i) => {
-        const nombre = vendorLabel(v.codigo);
-        const wa = vendorWa(v.codigo);
-        html += `<div class="podium-card ${posClass[i]}">
-            <div class="podium-medal">${medals[i]}</div>
-            <div class="podium-avatar">${initials(nombre)}</div>
-            <div class="podium-name">${esc(nombre)}</div>
-            <div class="podium-code">${esc(v.codigo)}</div>
-            <div class="podium-stat">${money(v.ganancia)}</div>
-            <div class="podium-stat-lab">Ganancia generada</div>
-            ${wa ? `<button class="btn-gift" onclick="enviarRegalo('${v.codigo}')">🎁 Enviar regalo</button>` : `<span style="font-size:11px;color:var(--text3)">Sin WhatsApp registrado</span>`}
-        </div>`;
-    });
-    html += `</div>`;
+    let html = `<h2 class="section-title">🎁 Regalo para Revendedor <span style="font-size:11px;font-weight:600;color:var(--text3)">top 3 del mes</span></h2>`;
+    if (!top3.length) {
+        html += `<div class="empty" style="padding:24px 10px"><div class="empty-icon">🏆</div><p>Todavía no hay ventas confirmadas de revendedores para armar el podio.</p></div>`;
+    } else {
+        html += `<div class="podium-wrap">`;
+        top3.forEach((v,i) => {
+            const nombre = vendorLabel(v.codigo);
+            const wa = vendorWa(v.codigo);
+            html += `<div class="podium-card ${posClass[i]}">
+                <div class="podium-medal">${medals[i]}</div>
+                <div class="podium-avatar">${initials(nombre)}</div>
+                <div class="podium-name">${esc(nombre)}</div>
+                <div class="podium-code">${esc(v.codigo)}</div>
+                <div class="podium-stat">${money(v.ganancia)}</div>
+                <div class="podium-stat-lab">Ganancia generada</div>
+                ${wa ? `<button class="btn-gift" onclick="enviarRegalo('${v.codigo}')">🎁 Enviar regalo</button>` : `<span style="font-size:11px;color:var(--text3)">Sin WhatsApp registrado</span>`}
+            </div>`;
+        });
+        html += `</div>`;
+    }
 
     html += `<h2 class="section-title">Ranking completo de revendedores</h2>`;
-    vendors.forEach((v,i) => {
-        const nombre = vendorLabel(v.codigo);
-        html += `<div class="rank-row" onclick="abrirRvndrMasInfo('${v.codigo}')">
-            <div class="rank-pos">${i<3?medals[i]:'#'+(i+1)}</div>
-            <div class="rank-body">
-                <div class="rank-name">${esc(nombre)}</div>
-                <div class="rank-sub">${v.pedidos} pedido${v.pedidos!==1?'s':''} · ${v.unidades} unid. · ${esc(v.codigo)}</div>
-            </div>
-            <div class="rank-val">${money(v.ganancia)}<span>ganancia</span></div>
-        </div>`;
-    });
+    if (!vendors.length) {
+        html += `<div class="empty" style="padding:20px 10px"><div class="empty-icon">📋</div><p>Sin revendedores con actividad todavía.</p></div>`;
+    } else {
+        vendors.forEach((v,i) => {
+            const nombre = vendorLabel(v.codigo);
+            html += `<div class="rank-row" onclick="abrirRvndrMasInfo('${v.codigo}')">
+                <div class="rank-pos">${i<3?medals[i]:'#'+(i+1)}</div>
+                <div class="rank-body">
+                    <div class="rank-name">${esc(nombre)}</div>
+                    <div class="rank-sub">${v.pedidos} pedido${v.pedidos!==1?'s':''} · ${v.unidades} unid. · ${esc(v.codigo)}</div>
+                </div>
+                <div class="rank-val">${money(v.ganancia)}<span>ganancia</span></div>
+            </div>`;
+        });
+    }
 
     el.innerHTML = html;
 }
