@@ -442,7 +442,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         </button>
         <div class="sidebar-sep"></div>
-        <button class="sidebar-btn" onclick="openRvndr()" title="Revendedores">
+        <button class="sidebar-btn" onclick="openRvndr()" title="Info Rvndr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </button>
         <button class="sidebar-btn" onclick="this.blur();loadData()" title="Actualizar">
@@ -513,8 +513,15 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
         <!-- VIEW: PEDIDOS NUEVOS -->
         <div class="view active" id="view-pedidos">
-            <div class="section-sub">Pedidos con pago confirmado, esperando ser enviados a la lista de preparación.</div>
-            <div id="pedidos-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            <div class="section-sub">Pedidos de revendedores, según su estado real en index(1).html.</div>
+            <div class="subtabs">
+                <button class="subtab active" id="ptab-pendiente" onclick="switchPedidosTab('pendiente')">🟡 Pendientes <span class="cnt" id="pcnt-pendiente">0</span></button>
+                <button class="subtab" id="ptab-aprobado" onclick="switchPedidosTab('aprobado')">🔵 Aprobados <span class="cnt" id="pcnt-aprobado">0</span></button>
+                <button class="subtab" id="ptab-confirmado" onclick="switchPedidosTab('confirmado')">🟢 Confirmados <span class="cnt" id="pcnt-confirmado">0</span></button>
+            </div>
+            <div class="subpane active" id="ppane-pendiente"></div>
+            <div class="subpane" id="ppane-aprobado"></div>
+            <div class="subpane" id="ppane-confirmado"></div>
         </div>
 
         <!-- VIEW: LISTA DE PEDIDOS -->
@@ -912,9 +919,23 @@ async function fetchJson(url, opts) {
         const t = setTimeout(() => ctrl.abort(), 12000);
         const res = await fetch(url, { ...(opts||{}), signal: ctrl.signal });
         clearTimeout(t);
-        if (!res.ok) return null;
+        if (!res.ok) {
+            // 🔧 FIX: antes esto devolvía null sin ningún detalle — "no se
+            // pudo guardar" sin decir por qué. Ahora se intenta leer el
+            // cuerpo del error (si el Worker lo manda) y se deja
+            // disponible en window._lastFetchError para diagnosticar.
+            let detalle = '';
+            try { detalle = await res.text(); } catch(_) {}
+            window._lastFetchError = { url, status: res.status, detalle };
+            console.warn('fetchJson error', res.status, url, detalle);
+            return null;
+        }
         return await res.json().catch(() => null);
-    } catch(_) { return null; }
+    } catch(e) {
+        window._lastFetchError = { url, status: 0, detalle: String(e && e.message || e) };
+        console.warn('fetchJson excepción', url, e);
+        return null;
+    }
 }
 
 async function resolveVendor(codigo) {
@@ -1074,24 +1095,53 @@ const ESTADO_REAL_LABEL = {
     confirmado: { txt: '🟢 Confirmado', bg: '#dcfce7', color: '#166534', border: '#bbf7d0' },
 };
 
+let activePedidosTab = 'pendiente';
+function switchPedidosTab(t) {
+    activePedidosTab = t;
+    document.querySelectorAll('#view-pedidos .subtab').forEach(b => b.classList.toggle('active', b.id === 'ptab-'+t));
+    document.querySelectorAll('#view-pedidos .subpane').forEach(p => p.classList.toggle('active', p.id === 'ppane-'+t));
+}
+
+// 🔧 REESTRUCTURADO POR COMPLETO: antes todo se mezclaba en una sola
+// lista sin separar por estado. Ahora hay 3 pestañas — Pendientes,
+// Aprobados, Confirmados — calcadas del ciclo real de index(1).html:
+//   Pendiente  = aprobado en index(1).html, todavía sin confirmar
+//   Aprobado   = confirmado en index(1).html (lista "Pedidos Confirmados"), sin pagar
+//   Confirmado = pagado con éxito ("Enviar a precio mayorista")
+// Dentro de cada pestaña, se sigue agrupando por Revendedor → Categoría.
 function renderPedidosView() {
-    const el = document.getElementById('pedidos-content');
-    if (!panelGestion.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Sin pedidos todavía</h3><p>Acá van a aparecer los pedidos apenas los revendedores los aprueben en su panel.</p></div>`;
+    document.getElementById('pcnt-pendiente').textContent  = panelGestion.filter(g => g.estadoReal === 'pendiente').length;
+    document.getElementById('pcnt-aprobado').textContent   = panelGestion.filter(g => g.estadoReal === 'aprobado').length;
+    document.getElementById('pcnt-confirmado').textContent = panelGestion.filter(g => g.estadoReal === 'confirmado').length;
+    document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
+
+    ['pendiente','aprobado','confirmado'].forEach(estado => renderPedidosTabPane(estado));
+}
+
+function renderPedidosTabPane(estado) {
+    const el = document.getElementById('ppane-' + estado);
+    if (!el) return;
+    const gsDelEstado = panelGestion.filter(g => g.estadoReal === estado);
+
+    if (!gsDelEstado.length) {
+        const msgs = {
+            pendiente:  ['🟡','Sin pedidos pendientes','Acá van a aparecer los pedidos apenas un revendedor los apruebe en index(1).html, antes de confirmarlos.'],
+            aprobado:   ['🔵','Sin pedidos aprobados','Acá aparecen los pedidos que el revendedor ya confirmó en "Pedidos Confirmados" de index(1).html, esperando su pago.'],
+            confirmado: ['🟢','Sin pedidos confirmados','Acá aparecen los pedidos que el revendedor ya pagó con éxito vía "Enviar a precio mayorista".'],
+        };
+        const [icon, titulo, sub] = msgs[estado];
+        el.innerHTML = `<div class="empty"><div class="empty-icon">${icon}</div><h3>${titulo}</h3><p>${sub}</p></div>`;
         return;
     }
 
-    // Agrupar por revendedor, y dentro de cada uno, por categoría.
     const porVendedor = {};
-    panelGestion.forEach(g => {
+    gsDelEstado.forEach(g => {
         const k = g.codigoVendedor || '—';
         if (!porVendedor[k]) porVendedor[k] = {};
         const cat = g.categoria || 'multishop';
         if (!porVendedor[k][cat]) porVendedor[k][cat] = [];
         porVendedor[k][cat].push(g);
     });
-
-    document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
 
     let html = '';
     Object.entries(porVendedor).forEach(([codigo, categorias]) => {
@@ -1107,9 +1157,8 @@ function renderPedidosView() {
                 <span class="vendor-qty">${totalPedidosVendedor} pedido${totalPedidosVendedor!==1?'s':''} · ${totalUnidVendedor} unid.</span>
             </div>`;
 
-        // Una cinta colapsable por CATEGORÍA dentro de este revendedor.
         Object.entries(categorias).forEach(([cat, gs]) => {
-            const catId = `catv-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+            const catId = `catv-${estado}-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
             const totalUnidCat = gs.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
             const totalMayoristaCat = gs.reduce((s,g) => s + Number(g.costoTotal||0), 0);
             html += `<div class="ribbon" id="${catId}" style="margin-bottom:8px;margin-left:14px">
@@ -1172,7 +1221,8 @@ function panelGestionCard(g) {
                 <div class="order-foot">
                     <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total mayorista: <strong>${money(g.costoTotal)}</strong></div>
                     <div class="actions">
-                        ${yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
+                        ${g.estadoReal !== 'confirmado' ? `<span class="status-chip s-espera">Esperando el pago del revendedor para poder prepararlo</span>` :
+                          yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
                         <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${g.pedidoId}','retirar')">🏪 Pasar a retirar</button>
                         <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`}
                         <button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>
@@ -1262,7 +1312,7 @@ async function marcarComoEliminadoManual(pedidoId, codigoVendedor) {
         renderRevmesView();
         toast('Pedido sincronizado y quitado del panel', true);
     } else {
-        toast('No se pudo sincronizar — probá de nuevo', 'err');
+        toast('No se pudo sincronizar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
     }
 }
 
@@ -1445,6 +1495,49 @@ function cats_key(c) { return ['calzados','perfumes','belleza','bazar','jugueter
 // éxito) — pendientes y aprobados-sin-pagar no suman todavía a la
 // plata real, aunque sí se los ve en la vista de Pedidos.
 // ═══════════════════════════════════════════════════════════
+// 🔧 NUEVO: esta versión incluye TODOS los revendedores con actividad,
+// sin importar el estado del pedido (pendiente/aprobado/confirmado) —
+// la usa "Info Rvndr" para el contador y el listado, que deben mostrar
+// a TODOS los revendedores de la plataforma, no solo a los que ya
+// tuvieron un pago confirmado. La ganancia/facturación que muestra acá
+// es sobre TODOS sus pedidos (útil para verlos a todos), mientras que
+// vendorAggregates() (más abajo) sigue siendo la fuente de la verdad
+// para Estadísticas/Ganancias, que sí deben ser solo de lo pagado.
+function vendorAggregatesTodos() {
+    const map = {};
+    panelGestion.forEach(g => {
+        const k = g.codigoVendedor || '—';
+        if (!map[k]) map[k] = { codigo: k, pedidos: 0, unidades: 0, facturacion: 0, ganancia: 0, costo: 0, items: {} };
+        const m = map[k];
+        m.pedidos++;
+        m.facturacion += g.total;
+        let ganPedido = 0, costoPedido = 0;
+        (g.items||[]).forEach(it => {
+            const qty = Number(it.cantidad || 1);
+            m.unidades += qty;
+            const key = (it.nombre||'—').trim();
+            m.items[key] = (m.items[key] || 0) + qty;
+            const eco = itemEconomiaReal(it, g.categoria);
+            ganPedido += eco.ganancia;
+            costoPedido += eco.costoOriginal;
+        });
+        m.ganancia += (g.items && g.items.length) ? ganPedido : (g.gananciaTotal || 0);
+        m.costo    += (g.items && g.items.length) ? costoPedido : (g.costoTotal || 0);
+    });
+    ranking.forEach(r => {
+        const k = r.codigoVendedor;
+        if (!map[k]) map[k] = { codigo: k, pedidos: r.cantidadPedidos, unidades: r.cantidadVentas, facturacion: 0, ganancia: r.totalGananciasVendedor, costo: 0, items: {} };
+    });
+    // También incluir revendedores que solo tengan clientes registrados
+    // (sin ningún pedido en panelGestion todavía) — igual deben contar y
+    // aparecer en el listado.
+    CLIENTES_TODOS.forEach(c => {
+        const k = String(c.codigoVendedor||'').toUpperCase();
+        if (k && !map[k]) map[k] = { codigo: k, pedidos: 0, unidades: 0, facturacion: 0, ganancia: 0, costo: 0, items: {} };
+    });
+    return Object.values(map);
+}
+
 function vendorAggregates() {
     const map = {};
     panelGestion.filter(g => g.estadoReal === 'confirmado').forEach(g => {
@@ -1501,16 +1594,21 @@ function renderStatsView() {
     const vendors = vendorAggregates();
     const products = productAggregates();
     const estrella = products[0];
+    const pagados = panelGestion.filter(g => g.estadoReal === 'confirmado');
 
-    const totalPedidos = panelGestion.filter(g => g.estadoReal === 'confirmado').length;
+    const totalPedidos = pagados.length;
     const totalUnid = vendors.reduce((s,v)=>s+v.unidades,0) || pedidos.reduce((s,p)=>s+p.items.reduce((a,i)=>a+i.cantidad,0),0);
     const totalFact = vendors.reduce((s,v)=>s+v.facturacion,0) || pedidos.reduce((s,p)=>s+p.total,0);
+    // 🔧 FIX: "Ganancia total" y "Ganancia por pedido" se calculaban pero
+    // nunca se mostraban en ningún lado del panel — era la estadística
+    // más importante que faltaba, tal como se pidió.
     const totalGan  = vendors.reduce((s,v)=>s+v.ganancia,0);
+    const totalInv  = vendors.reduce((s,v)=>s+v.costo,0) || totalFact;
+    const gananciaPorPedido = totalPedidos ? (totalGan / totalPedidos) : 0;
     const revendedoresActivos = vendors.filter(v => v.pedidos > 0).length;
 
     let html = '';
 
-    // Barra de acciones: exportar PDF (solo habilitado el día 1 de cada mes, hora Bs. As.)
     const primero = esPrimeroDeMesBA();
     html += `<div style="display:flex;justify-content:flex-end;margin-bottom:14px">
         <button class="btn-head" ${primero ? '' : 'disabled style="opacity:.45;cursor:not-allowed"'} onclick="${primero ? 'descargarEstadisticasPDF()' : ''}" title="${primero ? 'Descargar el resumen del mes en PDF' : 'Disponible solo el día 1 de cada mes (hora Buenos Aires)'}">
@@ -1519,11 +1617,18 @@ function renderStatsView() {
         </button>
     </div>`;
 
-    // KPI dashboard row
+    // 🔧 NUEVO: "Ganancia total" y "Ganancia por pedido" bien arriba y
+    // destacadas — son las estadísticas más importantes de todo el panel.
+    html += `<div class="dash-grid" style="margin-bottom:14px">
+        ${kpiCard('💚','Mi ganancia total', money(totalGan), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.3)', 'ganancias')}
+        ${kpiCard('🧾','Ganancia por pedido', money(gananciaPorPedido), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.25)')}
+    </div>`;
+
     html += `<div class="dash-grid">
         ${kpiCard('📦','Pedidos confirmados', totalPedidos, 'var(--blue-pale)', 'var(--blue)', 'rgba(0,102,255,.25)', 'lista')}
         ${kpiCard('🧮','Unidades vendidas', totalUnid, 'var(--purple-pale)', 'var(--purple)', 'rgba(139,92,246,.25)')}
-        ${kpiCard('💰','Facturación total', money(totalFact), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.25)')}
+        ${kpiCard('💰','Facturación total', money(totalFact), 'var(--blue-pale)', 'var(--blue)', 'rgba(0,102,255,.25)')}
+        ${kpiCard('📉','Inversión total', money(totalInv), 'var(--amber-pale)', 'var(--amber)', 'rgba(245,158,11,.25)')}
         ${kpiCard('👥','Revendedores activos', revendedoresActivos, 'var(--amber-pale)', 'var(--amber)', 'rgba(245,158,11,.25)', 'revmes')}
     </div>`;
 
@@ -1537,6 +1642,11 @@ function renderStatsView() {
             </div>
         </div>`;
     }
+
+    // 🔧 NUEVO: Ganancia por período — Semana / Quincena / Mes / Año,
+    // exactamente el mismo criterio que usa index(1).html, pero acá es
+    // MI ganancia real (precio mayorista cobrado − mi costo de proveedor).
+    html += renderGananciaPorPeriodo(pagados);
 
     // Charts row: facturación (line) + progreso donut
     html += `<div class="charts-row">
@@ -1580,6 +1690,50 @@ function renderStatsView() {
     renderDonutAprobacion();
     renderVendorBarChart(vendors);
     renderCategoriaPie(vendors, products);
+}
+
+// Ganancia MÍA (dueño de la plataforma) agrupada por período — semana,
+// quincena, mes, año — usando la fecha de pago real de cada registro
+// confirmado. Se muestra como cintas colapsables, igual que index(1).html.
+function renderGananciaPorPeriodo(pagados) {
+    const ahora = Date.now();
+    const periodos = [
+        { l: 'Semana',   d: 7 },
+        { l: 'Quincena', d: 15 },
+        { l: 'Mes',      d: 30 },
+        { l: 'Año',      d: 365 },
+    ];
+    const gananciaEnRango = (start, end) => pagados
+        .filter(g => (g.fechaPago || g.fecha) >= start && (g.fechaPago || g.fecha) < end)
+        .reduce((s, g) => {
+            let gan = 0;
+            (g.items||[]).forEach(it => { gan += itemEconomiaReal(it, g.categoria).ganancia; });
+            return s + ((g.items && g.items.length) ? gan : (g.gananciaTotal || 0));
+        }, 0);
+
+    let html = `<div class="section-block"><h2 class="section-title">💚 Mi ganancia por período</h2><div class="mini-list">`;
+    periodos.forEach((p, i) => {
+        const cur  = gananciaEnRango(ahora - p.d*86400000, ahora + 86400000);
+        const prev = gananciaEnRango(ahora - p.d*2*86400000, ahora - p.d*86400000);
+        const delta = prev ? ((cur-prev)/prev*100) : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += `<div class="ribbon" id="gp-rib-${i}">
+            <div class="ribbon-head" onclick="toggleRibbonEl('gp-rib-${i}')">
+                <div class="ribbon-main"><span class="r-name">${p.l}</span></div>
+                <div class="ribbon-meta">
+                    <span class="r-date" style="font-weight:700;color:var(--green)">${money(cur)}</span>
+                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <div class="ribbon-body"><div class="ribbon-inner">
+                <div class="ship-row">Ganancia del período: <strong>${money(cur)}</strong></div>
+                <div class="ship-row">Período anterior: <strong>${money(prev)}</strong></div>
+                <div class="ship-row">Variación: <strong style="color:${delta>=0?'var(--green)':'var(--red)'}">${sign}${delta.toFixed(1)}%</strong></div>
+            </div></div>
+        </div>`;
+    });
+    html += `</div></div>`;
+    return html;
 }
 
 function kpiCard(icon, label, value, pale, color, glow, gotoView) {
@@ -1894,7 +2048,7 @@ async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
     if (res && res.ok) {
         toast(nuevoEnStock ? 'Producto repuesto en todas las tiendas' : 'Producto quitado de todas las tiendas', true);
     } else {
-        toast('No se pudo guardar el cambio de stock', 'err');
+        toast('No se pudo guardar el stock: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
     }
 }
 
@@ -2012,7 +2166,7 @@ function renderRvndrShell() {
 function renderRvndrLista(filter) {
     const wrap = document.getElementById('rvndr-lista-wrap');
     if (!wrap) return;
-    const vendors = vendorAggregates().filter(v => v.codigo && v.codigo !== '—').sort((a,b)=>b.ganancia-a.ganancia);
+    const vendors = vendorAggregatesTodos().filter(v => v.codigo && v.codigo !== '—').sort((a,b)=>b.ganancia-a.ganancia);
     const q = (filter||'').toLowerCase().trim();
     const filtered = q ? vendors.filter(v => vendorLabel(v.codigo).toLowerCase().includes(q) || v.codigo.toLowerCase().includes(q)) : vendors;
 
@@ -2072,13 +2226,17 @@ function toggleRvndrExpand(codigo) {
 
 function abrirRvndrMasInfo(codigo) {
     activeRvndrCode = codigo;
-    const v = vendorAggregates().find(x => x.codigo === codigo) || { codigo, pedidos:0, unidades:0, facturacion:0, ganancia:0, items:{} };
+    const v = vendorAggregatesTodos().find(x => x.codigo === codigo) || { codigo, pedidos:0, unidades:0, facturacion:0, ganancia:0, costo:0, items:{} };
+    const vConfirmado = vendorAggregates().find(x => x.codigo === codigo) || { pedidos:0, ganancia:0, costo:0 };
     const nombre = vendorLabel(codigo);
     const info = vendorCache[codigo] || {};
     document.getElementById('rvdet-titulo').textContent = nombre;
 
+    // Categoría más vendida — se mira TODA su actividad (no solo lo
+    // pagado), para que el dato tenga sentido incluso si todavía no hay
+    // ningún pedido confirmado.
     const porCategoria = {};
-    panelGestion.filter(g => g.codigoVendedor === codigo && g.estadoReal === 'confirmado').forEach(g => {
+    panelGestion.filter(g => g.codigoVendedor === codigo).forEach(g => {
         porCategoria[g.categoria] = (porCategoria[g.categoria] || 0) + 1;
     });
     const catTop = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1])[0];
@@ -2113,10 +2271,12 @@ function abrirRvndrMasInfo(codigo) {
 
         <h2 class="section-title" style="font-size:13px">Estadísticas de ventas</h2>
         <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:8px">
-            <div class="kpi"><div class="kpi-lbl">Pedidos pagados</div><div class="kpi-val">${v.pedidos}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Unidades</div><div class="kpi-val">${v.unidades}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Inversión (mayorista)</div><div class="kpi-val" style="color:var(--blue)">${money(v.costo || v.facturacion)}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Mi ganancia</div><div class="kpi-val" style="color:var(--green)">${money(v.ganancia)}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${v.pedidos}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Unidades totales</div><div class="kpi-val">${v.unidades}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Pedidos pagados</div><div class="kpi-val" style="color:var(--green)">${vConfirmado.pedidos}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Mi ganancia (pagada)</div><div class="kpi-val" style="color:var(--green)">${money(vConfirmado.ganancia)}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Inversión total (mayorista)</div><div class="kpi-val" style="color:var(--blue)">${money(v.costo || v.facturacion)}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Facturación total</div><div class="kpi-val">${money(v.facturacion)}</div></div>
         </div>
         ${catTop ? `<div class="estrella-card" style="margin-bottom:18px">
             <div class="estrella-icon">${catIcon(catTop[0])}</div>
