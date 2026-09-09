@@ -272,14 +272,15 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 /* 🔧 NUEVO: puntos de color con animación de pulso (estilo radar) para
    reemplazar los emojis de colores — solo pulsa cuando esa opción tiene
    pedidos adentro. */
-.dot-status { position: relative; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display:inline-block; }
+.dot-status { position: relative; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display:inline-block; box-shadow: 0 0 0 2px rgba(255,255,255,.06), 0 0 6px 1px currentColor; color: inherit; }
+.dot-status.pulsing { box-shadow: 0 0 0 2px rgba(255,255,255,.08), 0 0 8px 2px currentColor; }
 .dot-status.pulsing::before {
-    content: ''; position: absolute; inset: -6px; border-radius: 50%;
-    background: inherit; opacity: .55; animation: dotPulse 1.6s ease-out infinite;
+    content: ''; position: absolute; inset: -5px; border-radius: 50%;
+    background: inherit; opacity: .45; animation: dotPulse 1.8s ease-out infinite;
 }
 @keyframes dotPulse {
-    0%   { transform: scale(0.4); opacity: .55; }
-    100% { transform: scale(2.4); opacity: 0; }
+    0%   { transform: scale(0.5); opacity: .5; }
+    100% { transform: scale(2.6); opacity: 0; }
 }
 
 /* Cintas de estado apiladas (Pendientes/Aprobados/Confirmados) y sus
@@ -1251,7 +1252,7 @@ function renderPedidosView() {
         html += `<div class="estado-ribbon" id="${ribbonId}">
             <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
                 <div class="estado-head-left">
-                    <span class="dot-status ${hayPedidos ? 'pulsing' : ''}" style="background:${ESTADO_DOT_COLOR[estado]}"></span>
+                    <span class="dot-status ${hayPedidos ? 'pulsing' : ''}" style="background:${ESTADO_DOT_COLOR[estado]};color:${ESTADO_DOT_COLOR[estado]}"></span>
                     <span class="estado-title">${ESTADO_TITULOS[estado]}</span>
                     <span class="cnt">${gsDelEstado.length}</span>
                 </div>
@@ -1688,7 +1689,7 @@ function renderSeccionLista(key, titulo, gs, sub, renderFn) {
     return `<div class="estado-ribbon" id="${ribbonId}">
         <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
             <div class="estado-head-left">
-                <span class="dot-status ${gs.length ? 'pulsing' : ''}" style="background:${gs.length ? '#3968f6' : '#8b93a7'}"></span>
+                <span class="dot-status ${gs.length ? 'pulsing' : ''}" style="background:${gs.length ? '#3968f6' : '#8b93a7'};color:${gs.length ? '#3968f6' : '#8b93a7'}"></span>
                 <span class="estado-title">${titulo}</span>
                 <span class="cnt">${gs.length}</span>
             </div>
@@ -1823,7 +1824,7 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
     return `<div class="estado-ribbon" id="${ribbonId}">
         <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
             <div class="estado-head-left">
-                <span class="dot-status ${paraEjecutar.length ? 'pulsing' : ''}" style="background:${paraEjecutar.length ? '#0ac97a' : '#8b93a7'}"></span>
+                <span class="dot-status ${paraEjecutar.length ? 'pulsing' : ''}" style="background:${paraEjecutar.length ? '#0ac97a' : '#8b93a7'};color:${paraEjecutar.length ? '#0ac97a' : '#8b93a7'}"></span>
                 <span class="estado-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Enviar Pedidos</span>
                 <span class="cnt">${paraEjecutar.length}</span>
             </div>
@@ -2028,17 +2029,31 @@ function renderStatsView() {
     // "Ver más ›" abajo) — ahora son cintas chicas y clickeables, número
     // al lado del texto, sin nada de ganancia acá (eso va escondido al
     // final, en su propia cinta).
-    html += statRow('📦', 'Pedidos confirmados', totalPedidos, 'lista');
-    html += statRow('🧮', 'Unidades vendidas', totalUnid);
-    html += statRow('💰', 'Facturación total', money(totalFact));
-    html += statRow('📉', 'Inversión total', money(totalInv));
-    html += statRow('👥', 'Revendedores activos', revendedoresActivos, 'revmes');
+    // "Pedidos confirmados" se despliega mostrando el desglose por categoría.
+    const porCategoriaConfirmados = {};
+    pagados.forEach(g => { porCategoriaConfirmados[g.categoria] = (porCategoriaConfirmados[g.categoria]||0) + 1; });
+    const detallePedidosConfirmados = Object.keys(porCategoriaConfirmados).length
+        ? Object.entries(porCategoriaConfirmados).sort((a,b)=>b[1]-a[1]).map(([cat,n]) =>
+            `<div class="ship-row">${catIcon(cat)} ${CAT_LABELS[cat]||cat}: <strong>${n}</strong></div>`).join('')
+        : `<div class="ship-row" style="color:var(--text3)">Todavía no hay pedidos confirmados.</div>`;
+
+    // "Revendedores activos" se despliega mostrando quiénes son.
+    const vendorsActivos = vendors.filter(v => v.pedidos > 0).sort((a,b)=>b.pedidos-a.pedidos);
+    const detalleRevendedoresActivos = vendorsActivos.length
+        ? vendorsActivos.map(v => `<div class="ship-row">${esc(vendorLabel(v.codigo))} — <strong>${v.pedidos}</strong> pedido${v.pedidos!==1?'s':''}</div>`).join('')
+        : `<div class="ship-row" style="color:var(--text3)">Todavía no hay revendedores con pedidos confirmados.</div>`;
+
+    html += statRow(ICO_PEDIDOS, 'Pedidos confirmados', totalPedidos, detallePedidosConfirmados);
+    html += statRow(ICO_UNIDADES, 'Unidades vendidas', totalUnid);
+    html += statRow(ICO_FACTURACION, 'Facturación total', money(totalFact));
+    html += statRow(ICO_INVERSION, 'Inversión total', money(totalInv));
+    html += statRow(ICO_REVENDEDORES, 'Revendedores activos', revendedoresActivos, detalleRevendedoresActivos);
 
     if (estrella) {
         html += `<div class="estrella-card">
             <div class="estrella-icon">${catIcon(estrella.categoria)}</div>
             <div>
-                <div class="estrella-lab">⭐ Producto estrella</div>
+                <div class="estrella-lab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Producto estrella</div>
                 <div class="estrella-name">${esc(estrella.nombre)}</div>
                 <div class="estrella-sub">${estrella.cantidad} unidades vendidas entre todos los revendedores</div>
             </div>
@@ -2077,7 +2092,7 @@ function renderStatsView() {
 
     // Race chart: top products
     html += `<div class="section-block">
-        <h2 class="section-title">🏁 Productos más vendidos <span style="font-size:11px;font-weight:600;color:var(--text3)">(carrera de ventas — suma de todos los revendedores)</span></h2>
+        <h2 class="section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="4"/><path d="M6 15V4l12 4-12 4"/><line x1="6" y1="20" x2="6" y2="15"/></svg>Productos más vendidos <span style="font-size:11px;font-weight:600;color:var(--text3)">(carrera de ventas — suma de todos los revendedores)</span></h2>
         <div class="race-wrap" id="race-wrap"></div>
     </div>`;
 
@@ -2090,23 +2105,27 @@ function renderStatsView() {
     html += `<div class="estado-ribbon" id="mis-ganancias-ribbon">
         <div class="estado-head" onclick="toggleEstadoRibbon('mis-ganancias-ribbon')">
             <div class="estado-head-left">
-                <span class="dot-status" style="background:#0ac97a"></span>
-                <span class="estado-title">💚 Mis Ganancias</span>
+                <span class="dot-status" style="background:#0ac97a;color:#0ac97a"></span>
+                <span class="estado-title">${ICO_GANANCIA} Mis Ganancias</span>
             </div>
             <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <div class="estado-body"><div class="estado-inner">
             <p class="section-sub" style="margin-top:0">Precio de venta = precio mayorista que me paga cada revendedor. Precio de costo = lo que a mí me cobra mi proveedor real (Worker restoprecios.tuweb.workers.dev). La diferencia es mi ganancia.</p>
-            ${statRow('💚', 'Mi ganancia total', money(totalGan))}
-            ${statRow('🧾', 'Ganancia por pedido', money(gananciaPorPedido))}
-            ${statRow('💰', 'Facturación (precio de venta)', money(totalFact))}
-            ${statRow('📉', 'Mi costo real (restoprecios)', money(totalInv))}
-            ${statRow('📐', 'Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%')}
+            ${statRow(ICO_FACTURACION, 'Facturación (precio de venta)', money(totalFact))}
+            ${statRow(ICO_INVERSION, 'Mi costo real (restoprecios)', money(totalInv))}
+            ${statRow(ICO_MARGEN, 'Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%')}
+            ${statRow(ICO_RECIBO, 'Ganancia por pedido', money(gananciaPorPedido))}
             ${renderGananciaPorPeriodo(pagados)}
             ${PRODUCTOS_SIN_RESTOPRECIOS.size ? `<div class="ship-block" style="margin-top:10px;border-color:rgba(245,158,11,.3)">
                 <div class="ship-row" style="color:var(--amber);font-weight:700">⚠️ ${PRODUCTOS_SIN_RESTOPRECIOS.size} producto${PRODUCTOS_SIN_RESTOPRECIOS.size!==1?'s':''} sin precio real en restoprecios</div>
                 <div class="ship-row" style="font-size:11px;color:var(--text3)">Para esos, la ganancia se calculó con una estimación de respaldo — no es el dato exacto.</div>
             </div>` : ''}
+            <!-- 🔧 FIX: "Mi ganancia total" siempre AL FINAL de todo el
+                 contenido de esta cinta, nunca primero. -->
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                ${statRow(ICO_GANANCIA, 'Mi ganancia total', money(totalGan))}
+            </div>
         </div></div>
     </div>`;
 
@@ -2126,11 +2145,45 @@ function renderStatsView() {
 // cuadros gigantes (ícono arriba, número al medio, "Ver más ›" abajo)
 // por una cinta chica con el número al lado del texto, igual de prolija
 // que el resto del panel.
-function statRow(icon, label, value, gotoView) {
-    return `<div class="rank-row" ${gotoView ? `onclick="switchView('${gotoView}')"` : 'style="cursor:default"'}>
-        <div class="rank-pos" style="font-size:18px">${icon}</div>
-        <div class="rank-body"><div class="rank-name" style="font-weight:600">${label}</div></div>
-        <div class="rank-val" style="color:var(--text)">${value}</div>
+// 🔧 FIX: antes, tocar estas filas navegaba a OTRA sección del panel
+// (switchView) — eso estaba mal, nunca debe sacar al usuario de
+// Estadísticas. Ahora, si hay un detalle para mostrar, se despliega
+// hacia abajo dentro de la misma fila (como una cinta); si no hay nada
+// más que mostrar, la fila queda simple, sin click.
+let _statRowSeq = 0;
+// 🔧 FIX: los emojis de colores (📦🧮💰📉👥💚🧾📐) hacían que el panel
+// pareciera de dibujos animados — se reemplazan por íconos de línea,
+// igual de profesionales que los del sidebar.
+const ICO_PEDIDOS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
+const ICO_UNIDADES = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>';
+const ICO_FACTURACION = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+const ICO_INVERSION = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>';
+const ICO_REVENDEDORES = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+const ICO_GANANCIA = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+const ICO_RECIBO = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+const ICO_MARGEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.7-2.7L7 14.3"/></svg>';
+
+function statRow(icon, label, value, detalleHtml) {
+    if (!detalleHtml) {
+        return `<div class="rank-row" style="cursor:default">
+            <div class="rank-pos" style="display:flex;align-items:center;justify-content:center;color:var(--text3)">${icon}</div>
+            <div class="rank-body"><div class="rank-name" style="font-weight:600">${label}</div></div>
+            <div class="rank-val" style="color:var(--text)">${value}</div>
+        </div>`;
+    }
+    const id = 'statrow-' + (_statRowSeq++);
+    return `<div class="ribbon" id="${id}">
+        <div class="ribbon-head" onclick="toggleRibbonEl('${id}')" style="cursor:pointer">
+            <div class="ribbon-main">
+                <span style="display:flex;color:var(--text3)">${icon}</span>
+                <span class="r-name" style="font-weight:600">${label}</span>
+            </div>
+            <div class="ribbon-meta">
+                <span class="r-date" style="font-weight:700;color:var(--text);font-size:13px">${value}</span>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+        <div class="ribbon-body"><div class="ribbon-inner">${detalleHtml}</div></div>
     </div>`;
 }
 
