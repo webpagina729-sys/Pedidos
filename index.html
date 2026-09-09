@@ -773,6 +773,39 @@ const WHATSAPP_NUMS = {
 };
 const CAT_LABELS = { calzados: 'Calzados Importados', perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', multishop: 'Multishop' };
 
+// 🔧 NUEVO: mínimo de entrega por categoría — mismos valores que se le
+// muestran al revendedor en index.html/mas-categorias.html ("Monto
+// mínimo"). Calzados es la única excepción: se mide en UNIDADES, no en $.
+const MINIMO_ENTREGA_CATEGORIA = { perfumes: 150000, belleza: 150000, bazar: 150000, jugueteria: 150000, libreria: 150000, multishop: 250000 };
+const MINIMO_UNIDADES_CALZADOS = 12;
+
+// El pedido "supera el mínimo de entrega" (por categoría) Y lleva más de
+// 48hs pendiente — condición para poder enviarle un seguimiento al
+// revendedor por WhatsApp.
+function superaMinimoYVencido48hs(g) {
+    if (g.estadoReal !== 'pendiente') return false;
+    const horasPendiente = (Date.now() - (Number(g.fecha) || 0)) / 3600000;
+    if (horasPendiente < 48) return false;
+    if (g.categoria === 'calzados') {
+        const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
+        return totalU >= MINIMO_UNIDADES_CALZADOS;
+    }
+    const minimo = MINIMO_ENTREGA_CATEGORIA[g.categoria];
+    if (minimo == null) return false;
+    return (Number(g.costoTotal) || 0) >= minimo;
+}
+
+// Abre WhatsApp del revendedor con el mensaje de seguimiento — cantidad
+// = precio mayorista del pedido (lo que me paga), ganancia = la ganancia
+// PROPIA del revendedor en ese pedido (precio a su cliente − mayorista),
+// tal cual figura en su panel index(1).html.
+function enviarSeguimientoRevendedor(codigo, cantidadMayorista, gananciaRevendedor) {
+    const wa = vendorWa(codigo);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const msg = `Hola como estas? Tenés un pedido de $${Math.round(cantidadMayorista).toLocaleString('es-AR')} pendiente! Podes organizarlo y obtener $${Math.round(gananciaRevendedor).toLocaleString('es-AR')} de ganancia!\nAtte: Servi de RW`;
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
 // 🔧 NUEVO: catálogo completo de productos (extraído de index.html y
 // mas-categorias.html) para poder buscarlos y togglear su stock GLOBAL
 // desde este panel — afecta a TODOS los revendedores a la vez.
@@ -1338,7 +1371,7 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
                 </div>
             </div>
             <div class="ribbon-body"><div class="ribbon-inner" style="padding:10px 12px">
-                ${gsCat.map(g => panelGestionCard(g)).join('')}
+                ${gsCat.map(g => panelGestionContenido(g)).join('')}
             </div></div>
         </div>`;
     }).join('');
@@ -1346,6 +1379,59 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
 
 // Tarjeta de un pedido individual de panelGestion (usa el estado REAL de
 // index(1).html, precio mayorista mío y economía real vs. restoprecios).
+// 🔧 FIX: antes panelGestionCard() era OTRA cinta colapsable más (4to
+// nivel: estado > revendedor > categoría > pedido) — había que tocar la
+// categoría para revelarla, y DESPUÉS tocar el pedido de nuevo para
+// recién ahí ver los productos. Eso hacía que pareciera "todo abierto"
+// cuando en realidad faltaba un clic más. Ahora la categoría es el
+// ÚLTIMO nivel: al tocarla, el pedido se ve directo, sin una cinta extra
+// adentro.
+function panelGestionContenido(g) {
+    const fecha = ba(g.fecha);
+    const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
+    const estLbl = ESTADO_REAL_LABEL[g.estadoReal] || ESTADO_REAL_LABEL.pendiente;
+    const estadoBadge = `<span class="badge-estado-pago" style="background:${estLbl.bg};color:${estLbl.color};border:1px solid ${estLbl.border};border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">${estLbl.txt}</span>`;
+
+    const rows = (g.items||[]).map(it => `<tr>
+        <td><div class="prod-name">${esc(it.nombre)}</div></td>
+        <td class="qty-num">${it.cantidad}</td>
+        <td class="price-cell">${money(it.costoUnitario ?? it.precioMayorista ?? it.precio ?? 0)}</td>
+    </tr>`).join('');
+
+    const stop = 'event.stopPropagation();';
+    const yaEnLista = lsGetLista()[g.pedidoId];
+    return `<div class="pedido-block" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px">
+                <span class="r-name">Pedido #${String(g.pedidoId).slice(-8).toUpperCase()}</span>
+                ${estadoBadge}
+            </div>
+            <span class="r-date">${fecha}</span>
+        </div>
+        <table class="prod-table">
+            <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Mayorista</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="order-foot">
+            <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total mayorista: <strong>${money(g.costoTotal)}</strong></div>
+            <div class="actions">
+                ${g.estadoReal === 'aprobado' ? `
+                <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pendiente de pago)</button>
+                <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>` : ''}
+                ${g.estadoReal === 'confirmado' ? (yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
+                <button class="btn-act btn-pago-verificado" onclick="${stop}marcarPagoVerificado('${g.pedidoId}')">✅ Pago Verificado</button>
+                <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pagada)</button>
+                <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>
+                <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${g.pedidoId}','retirar')">🏪 Pasar a retirar</button>
+                <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`) : ''}
+                ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">Esperando a que el revendedor confirme este pedido</span>
+                ${superaMinimoYVencido48hs(g) ? `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoRevendedor('${g.codigoVendedor}',${Number(g.costoTotal)||0},${Number(g.gananciaTotal)||0})">💬 Enviar seguimiento</button>` : ''}` : ''}
+                <button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>
+            </div>
+        </div>
+    </div>`;
+}
+
 function panelGestionCard(g) {
     const fecha = ba(g.fecha);
     const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
@@ -2001,6 +2087,85 @@ function productAggregates() {
     return Object.values(prods).sort((a,b) => b.cantidad - a.cantidad);
 }
 
+// 🔧 NUEVO: mismo agregado que productAggregates(), pero separado por
+// categoría — para la sección "Productos más vendidos por categoría".
+function productAggregatesPorCategoria() {
+    const porCat = {};
+    productAggregates().forEach(p => {
+        const cat = p.categoria || 'multishop';
+        if (!porCat[cat]) porCat[cat] = [];
+        porCat[cat].push(p);
+    });
+    return porCat;
+}
+
+let PROD_CAT_MOSTRADOS = {}; // categoria -> cuántos productos se muestran (de a 10)
+
+function renderProductosPorCategoria() {
+    const porCat = productAggregatesPorCategoria();
+    const categorias = Object.keys(CAT_LABELS).filter(c => porCat[c] && porCat[c].length);
+
+    if (!categorias.length) {
+        return `<div class="empty" style="padding:20px 10px"><div class="empty-icon">${ICO_PEDIDOS}</div><p>Todavía no hay ventas confirmadas para armar este ranking.</p></div>`;
+    }
+
+    return categorias.map(cat => {
+        const productos = porCat[cat];
+        const ribbonId = 'prodcat-' + cat;
+        if (!PROD_CAT_MOSTRADOS[cat]) PROD_CAT_MOSTRADOS[cat] = 10;
+        const mostrados = PROD_CAT_MOSTRADOS[cat];
+        const visibles = productos.slice(0, mostrados);
+        const hayMas = mostrados < productos.length;
+        const max = productos[0].cantidad || 1;
+
+        const filas = visibles.map((p, i) => `
+            <div class="race-row">
+                <div class="race-rank">${i+1}</div>
+                <div class="race-icon">${catIcon(p.categoria)}</div>
+                <div class="race-body">
+                    <div class="race-top"><span class="race-name">${esc(p.nombre)}</span><span class="race-val">${p.cantidad} u.</span></div>
+                    <div class="race-track"><div class="race-fill" style="width:${Math.max(4,(p.cantidad/max*100))}%"></div></div>
+                </div>
+            </div>`).join('');
+
+        return `<div class="ribbon" id="${ribbonId}" style="margin-bottom:10px">
+            <div class="ribbon-head" onclick="toggleRibbonEl('${ribbonId}')" style="cursor:pointer">
+                <div class="ribbon-main">
+                    <span style="display:flex;color:var(--text3)">${catIcon(cat)}</span>
+                    <span class="r-name">${CAT_LABELS[cat]}</span>
+                    <span class="r-code">${productos.length} producto${productos.length!==1?'s':''}</span>
+                </div>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ribbon-body"><div class="ribbon-inner">
+                <div class="race-wrap" id="${ribbonId}-lista" style="padding:0">${filas}</div>
+                ${hayMas ? `<button type="button" onclick="event.stopPropagation();verMasProductosPorCategoria('${cat}')" style="display:block;margin:8px auto 0;background:none;border:none;color:var(--blue,#0b5fff);font-size:11.5px;font-weight:700;cursor:pointer;padding:4px">Ver más ▾</button>` : ''}
+            </div></div>
+        </div>`;
+    }).join('');
+}
+
+// Despliega 10 productos más de esa categoría puntual, con animación de
+// aparición — sin recolapsar la cinta ni afectar a las demás categorías.
+function verMasProductosPorCategoria(cat) {
+    PROD_CAT_MOSTRADOS[cat] = (PROD_CAT_MOSTRADOS[cat] || 10) + 10;
+    const wrap = document.getElementById('prod-por-cat-wrap');
+    if (!wrap) return;
+    // Recordar qué cintas estaban abiertas, para no cerrarlas al re-pintar.
+    const abiertas = Array.from(wrap.querySelectorAll('.ribbon.expanded')).map(r => r.id);
+    wrap.innerHTML = renderProductosPorCategoria();
+    abiertas.forEach(id => document.getElementById(id)?.classList.add('expanded'));
+    const lista = document.getElementById('prodcat-' + cat + '-lista');
+    if (lista) {
+        const nuevas = Array.from(lista.querySelectorAll('.race-row')).slice(-10);
+        nuevas.forEach((el, i) => {
+            el.style.opacity = '0'; el.style.transform = 'translateY(6px)';
+            el.style.transition = 'opacity .3s ease, transform .3s ease';
+            setTimeout(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, 20 + i * 20);
+        });
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
 // VIEW: ESTADÍSTICAS
 // ═══════════════════════════════════════════════════════════
@@ -2116,6 +2281,14 @@ function renderStatsView() {
     html += `<div class="section-block">
         <h2 class="section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="4"/><path d="M6 15V4l12 4-12 4"/><line x1="6" y1="20" x2="6" y2="15"/></svg>Productos más vendidos <span style="font-size:11px;font-weight:600;color:var(--text3)">(carrera de ventas — suma de todos los revendedores)</span></h2>
         <div class="race-wrap" id="race-wrap"></div>
+    </div>`;
+
+    // 🔧 NUEVO: Productos más vendidos POR CATEGORÍA — una cinta
+    // clickeable por categoría, con sus productos de a 10, y un texto
+    // chico "Ver más" debajo que despliega 10 más hacia abajo al tocarlo.
+    html += `<div class="section-block">
+        <h2 class="section-title">Productos más vendidos por categoría</h2>
+        <div id="prod-por-cat-wrap">${renderProductosPorCategoria()}</div>
     </div>`;
 
     // 🔧 FIX: "Mis Ganancias" va AL FINAL DE TODO, escondida — no debe
