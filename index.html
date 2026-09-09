@@ -244,19 +244,29 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .vendor-qty { margin-left: auto; font-size: 11px; color: var(--text3); font-weight:600; }
 
 /* ── ORDER RIBBON ── */
-.ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 9px; overflow: hidden; animation: fadeIn .25s ease; }
+.ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; animation: fadeIn .25s ease; position: relative; }
 .ribbon:hover { border-color: var(--border2); }
-.ribbon-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg2); cursor: pointer; flex-wrap: wrap; gap: 8px; }
-.ribbon-main { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 1; }
-.r-name { font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.r-code { background: var(--surface2); color: var(--text3); font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
-.ribbon-meta { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
-.r-date { font-size: 10.5px; color: var(--text3); }
+.ribbon-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg2); cursor: pointer; gap: 8px; }
+.ribbon-main { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.r-name { font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-code { background: var(--surface2); color: var(--text3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.ribbon-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.r-date { font-size: 11px; color: var(--text3); }
 .r-caret { width: 14px; height: 14px; color: var(--text3); transition: transform .25s; flex-shrink: 0; }
 .ribbon.expanded .r-caret { transform: rotate(180deg); }
 .ribbon-body { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-.ribbon.expanded .ribbon-body { max-height: 1400px; }
-.ribbon-inner { padding: 15px 16px; border-top: 1px solid var(--border); }
+.ribbon.expanded .ribbon-body { max-height: 3000px; }
+.ribbon-inner { padding: 16px 18px; border-top: 1px solid var(--border); overflow-x: hidden; }
+/* Pedidos anidados (dentro de una categoría o de otra cinta) quedan
+   encuadrados, distinguiéndose del fondo — igual que en index(1).html. */
+.tab-pane .ribbon, .ribbon-body .ribbon {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    box-shadow: 0 1px 5px rgba(0,0,0,.22);
+}
+.tab-pane .ribbon .ribbon-head, .ribbon-body .ribbon .ribbon-head {
+    background: rgba(255,255,255,.03);
+}
 .status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; }
 
 /* 🔧 NUEVO: puntos de color con animación de pulso (estilo radar) para
@@ -1997,9 +2007,8 @@ function renderStatsView() {
     const totalPedidos = pagados.length;
     const totalUnid = vendors.reduce((s,v)=>s+v.unidades,0) || pedidos.reduce((s,p)=>s+p.items.reduce((a,i)=>a+i.cantidad,0),0);
     const totalFact = vendors.reduce((s,v)=>s+v.facturacion,0) || pedidos.reduce((s,p)=>s+p.total,0);
-    // 🔧 FIX: "Ganancia total" y "Ganancia por pedido" se calculaban pero
-    // nunca se mostraban en ningún lado del panel — era la estadística
-    // más importante que faltaba, tal como se pidió.
+    // Precio de VENTA (lo que me paga el revendedor, mayorista) menos mi
+    // COSTO real (Worker restoprecios) = mi ganancia real.
     const totalGan  = vendors.reduce((s,v)=>s+v.ganancia,0);
     const totalInv  = vendors.reduce((s,v)=>s+v.costo,0) || totalFact;
     const gananciaPorPedido = totalPedidos ? (totalGan / totalPedidos) : 0;
@@ -2015,20 +2024,15 @@ function renderStatsView() {
         </button>
     </div>`;
 
-    // 🔧 NUEVO: "Ganancia total" y "Ganancia por pedido" bien arriba y
-    // destacadas — son las estadísticas más importantes de todo el panel.
-    html += `<div class="dash-grid" style="margin-bottom:14px">
-        ${kpiCard('💚','Mi ganancia total', money(totalGan), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.3)', 'ganancias')}
-        ${kpiCard('🧾','Ganancia por pedido', money(gananciaPorPedido), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.25)')}
-    </div>`;
-
-    html += `<div class="dash-grid">
-        ${kpiCard('📦','Pedidos confirmados', totalPedidos, 'var(--blue-pale)', 'var(--blue)', 'rgba(0,102,255,.25)', 'lista')}
-        ${kpiCard('🧮','Unidades vendidas', totalUnid, 'var(--purple-pale)', 'var(--purple)', 'rgba(139,92,246,.25)')}
-        ${kpiCard('💰','Facturación total', money(totalFact), 'var(--blue-pale)', 'var(--blue)', 'rgba(0,102,255,.25)')}
-        ${kpiCard('📉','Inversión total', money(totalInv), 'var(--amber-pale)', 'var(--amber)', 'rgba(245,158,11,.25)')}
-        ${kpiCard('👥','Revendedores activos', revendedoresActivos, 'var(--amber-pale)', 'var(--amber)', 'rgba(245,158,11,.25)', 'revmes')}
-    </div>`;
+    // 🔧 FIX: antes eran cuadros gigantes (ícono arriba, número al medio,
+    // "Ver más ›" abajo) — ahora son cintas chicas y clickeables, número
+    // al lado del texto, sin nada de ganancia acá (eso va escondido al
+    // final, en su propia cinta).
+    html += statRow('📦', 'Pedidos confirmados', totalPedidos, 'lista');
+    html += statRow('🧮', 'Unidades vendidas', totalUnid);
+    html += statRow('💰', 'Facturación total', money(totalFact));
+    html += statRow('📉', 'Inversión total', money(totalInv));
+    html += statRow('👥', 'Revendedores activos', revendedoresActivos, 'revmes');
 
     if (estrella) {
         html += `<div class="estrella-card">
@@ -2040,11 +2044,6 @@ function renderStatsView() {
             </div>
         </div>`;
     }
-
-    // 🔧 NUEVO: Ganancia por período — Semana / Quincena / Mes / Año,
-    // exactamente el mismo criterio que usa index(1).html, pero acá es
-    // MI ganancia real (precio mayorista cobrado − mi costo de proveedor).
-    html += renderGananciaPorPeriodo(pagados);
 
     // Charts row: facturación (line) + progreso donut
     html += `<div class="charts-row">
@@ -2063,7 +2062,8 @@ function renderStatsView() {
         </div>
     </div>`;
 
-    // Bar chart: pedidos por revendedor (top 8)
+    // Bar chart: pedidos por revendedor (top 8) — muestra ganancia en el
+    // eje del gráfico solamente, no como número suelto en la pantalla.
     html += `<div class="charts-row">
         <div class="chart-card">
             <h4>Ganancia por revendedor <span>top 8</span></h4>
@@ -2081,23 +2081,33 @@ function renderStatsView() {
         <div class="race-wrap" id="race-wrap"></div>
     </div>`;
 
-    // 🔧 NUEVO: sección dedicada "Mis Ganancias" al final de todo —
-    // deja explícito el cálculo: precio de VENTA = precio mayorista que
-    // me paga el revendedor; precio de COSTO = lo que a MÍ me cobra mi
-    // proveedor real, según el Worker restoprecios.tuweb.workers.dev.
-    html += `<div class="section-block">
-        <h2 class="section-title">💚 Mis Ganancias</h2>
-        <p class="section-sub" style="margin-top:-6px">Precio de venta = precio mayorista que me paga cada revendedor. Precio de costo = lo que a mí me cobra mi proveedor real (Worker restoprecios.tuweb.workers.dev). La diferencia es mi ganancia.</p>
-        <div class="dash-grid">
-            ${kpiCard('💰','Facturación (precio de venta)', money(totalFact), 'var(--blue-pale)', 'var(--blue)', 'rgba(0,102,255,.25)')}
-            ${kpiCard('📉','Mi costo real (restoprecios)', money(totalInv), 'var(--amber-pale)', 'var(--amber)', 'rgba(245,158,11,.25)')}
-            ${kpiCard('💚','Mi ganancia', money(totalGan), 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.3)')}
-            ${kpiCard('📐','Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%', 'var(--green-pale)', 'var(--green)', 'rgba(0,201,110,.25)')}
+    // 🔧 FIX: "Mis Ganancias" va AL FINAL DE TODO, escondida — no debe
+    // haber ningún rastro de ganancia arriba. Es una cinta colapsable,
+    // cerrada por defecto; recién al tocarla se ve el detalle completo.
+    // Cálculo: precio de VENTA = precio mayorista que me paga el
+    // revendedor; precio de COSTO = lo que a mí me cobra mi proveedor
+    // real (Worker restoprecios.tuweb.workers.dev).
+    html += `<div class="estado-ribbon" id="mis-ganancias-ribbon">
+        <div class="estado-head" onclick="toggleEstadoRibbon('mis-ganancias-ribbon')">
+            <div class="estado-head-left">
+                <span class="dot-status" style="background:#0ac97a"></span>
+                <span class="estado-title">💚 Mis Ganancias</span>
+            </div>
+            <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        ${PRODUCTOS_SIN_RESTOPRECIOS.size ? `<div class="ship-block" style="margin-top:10px;border-color:rgba(245,158,11,.3)">
-            <div class="ship-row" style="color:var(--amber);font-weight:700">⚠️ ${PRODUCTOS_SIN_RESTOPRECIOS.size} producto${PRODUCTOS_SIN_RESTOPRECIOS.size!==1?'s':''} sin precio real en restoprecios</div>
-            <div class="ship-row" style="font-size:11px;color:var(--text3)">Para esos, la ganancia se calculó con una estimación de respaldo — no es el dato exacto.</div>
-        </div>` : ''}
+        <div class="estado-body"><div class="estado-inner">
+            <p class="section-sub" style="margin-top:0">Precio de venta = precio mayorista que me paga cada revendedor. Precio de costo = lo que a mí me cobra mi proveedor real (Worker restoprecios.tuweb.workers.dev). La diferencia es mi ganancia.</p>
+            ${statRow('💚', 'Mi ganancia total', money(totalGan))}
+            ${statRow('🧾', 'Ganancia por pedido', money(gananciaPorPedido))}
+            ${statRow('💰', 'Facturación (precio de venta)', money(totalFact))}
+            ${statRow('📉', 'Mi costo real (restoprecios)', money(totalInv))}
+            ${statRow('📐', 'Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%')}
+            ${renderGananciaPorPeriodo(pagados)}
+            ${PRODUCTOS_SIN_RESTOPRECIOS.size ? `<div class="ship-block" style="margin-top:10px;border-color:rgba(245,158,11,.3)">
+                <div class="ship-row" style="color:var(--amber);font-weight:700">⚠️ ${PRODUCTOS_SIN_RESTOPRECIOS.size} producto${PRODUCTOS_SIN_RESTOPRECIOS.size!==1?'s':''} sin precio real en restoprecios</div>
+                <div class="ship-row" style="font-size:11px;color:var(--text3)">Para esos, la ganancia se calculó con una estimación de respaldo — no es el dato exacto.</div>
+            </div>` : ''}
+        </div></div>
     </div>`;
 
     el.innerHTML = html;
@@ -2112,6 +2122,18 @@ function renderStatsView() {
 // Ganancia MÍA (dueño de la plataforma) agrupada por período — semana,
 // quincena, mes, año — usando la fecha de pago real de cada registro
 // confirmado. Se muestra como cintas colapsables, igual que index(1).html.
+// 🔧 NUEVO: fila de estadística compacta y clickeable — reemplaza los
+// cuadros gigantes (ícono arriba, número al medio, "Ver más ›" abajo)
+// por una cinta chica con el número al lado del texto, igual de prolija
+// que el resto del panel.
+function statRow(icon, label, value, gotoView) {
+    return `<div class="rank-row" ${gotoView ? `onclick="switchView('${gotoView}')"` : 'style="cursor:default"'}>
+        <div class="rank-pos" style="font-size:18px">${icon}</div>
+        <div class="rank-body"><div class="rank-name" style="font-weight:600">${label}</div></div>
+        <div class="rank-val" style="color:var(--text)">${value}</div>
+    </div>`;
+}
+
 function renderGananciaPorPeriodo(pagados) {
     const ahora = Date.now();
     const periodos = [
@@ -2128,7 +2150,7 @@ function renderGananciaPorPeriodo(pagados) {
             return s + ((g.items && g.items.length) ? gan : (g.gananciaTotal || 0));
         }, 0);
 
-    let html = `<div class="section-block"><h2 class="section-title">💚 Mi ganancia por período</h2><div class="mini-list">`;
+    let html = `<div class="section-sub" style="font-weight:700;color:var(--text2);margin:14px 0 8px">Mi ganancia por período</div><div class="mini-list">`;
     periodos.forEach((p, i) => {
         const cur  = gananciaEnRango(ahora - p.d*86400000, ahora + 86400000);
         const prev = gananciaEnRango(ahora - p.d*2*86400000, ahora - p.d*86400000);
@@ -2149,7 +2171,7 @@ function renderGananciaPorPeriodo(pagados) {
             </div></div>
         </div>`;
     });
-    html += `</div></div>`;
+    html += `</div>`;
     return html;
 }
 
