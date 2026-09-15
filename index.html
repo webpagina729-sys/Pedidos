@@ -255,7 +255,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .r-caret { width: 14px; height: 14px; color: var(--text3); transition: transform .25s; flex-shrink: 0; }
 .ribbon.expanded .r-caret { transform: rotate(180deg); }
 .ribbon-body { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-.ribbon.expanded .ribbon-body { max-height: 3000px; }
+.ribbon.expanded > .ribbon-body { max-height: 3000px; }
 .ribbon-inner { padding: 16px 18px; border-top: 1px solid var(--border); overflow-x: hidden; }
 /* Pedidos anidados (dentro de una categoría o de otra cinta) quedan
    encuadrados, distinguiéndose del fondo — igual que en index(1).html. */
@@ -765,7 +765,6 @@ const WORKER_CLIENTE = 'https://workerwebcliente.tuweb.workers.dev';
 const S_KEY  = 'rw_admin_session_v1';
 const L_KEY  = 'rw_lista_pedidos_v1';      // { [pedidoId]: {tipoEntrega, addedAt} }
 const DEL_KEY = 'rw_admin_deleted_v1';     // [pedidoId,...]
-const SENT_KEY = 'rw_categorias_enviadas_v1'; // { [categoria]: lastSentISO }
 
 const WHATSAPP_NUMS = {
     calzados:  '5491126805111',
@@ -862,8 +861,8 @@ function lsGetLista() { try { return JSON.parse(localStorage.getItem(L_KEY) || '
 function lsSetLista(o) { localStorage.setItem(L_KEY, JSON.stringify(o)); }
 function lsGetDeleted() { try { return JSON.parse(localStorage.getItem(DEL_KEY) || '[]'); } catch(_) { return []; } }
 function lsAddDeleted(id) { const d = lsGetDeleted(); if (!d.includes(id)) { d.push(id); localStorage.setItem(DEL_KEY, JSON.stringify(d.slice(-800))); } }
-function lsGetSent() { try { return JSON.parse(localStorage.getItem(SENT_KEY) || '{}'); } catch(_) { return {}; } }
-function lsSetSent(cat) { const s = lsGetSent(); s[cat] = new Date().toISOString(); localStorage.setItem(SENT_KEY, JSON.stringify(s)); }
+// 🧹 LIMPIEZA: se eliminaron lsGetSent()/lsSetSent() — un par de
+// funciones abandonadas, sin ningún llamado externo real.
 
 // ═══════════════════════════════════════════════════════════
 // CATEGORIZACIÓN
@@ -1448,57 +1447,9 @@ function panelGestionContenido(g) {
     </div>`;
 }
 
-function panelGestionCard(g) {
-    const fecha = ba(g.fecha);
-    const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
-    const estLbl = ESTADO_REAL_LABEL[g.estadoReal] || ESTADO_REAL_LABEL.pendiente;
-    const estadoBadge = `<span class="badge-estado-pago" style="background:${estLbl.bg};color:${estLbl.color};border:1px solid ${estLbl.border};border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">${estLbl.txt}</span>`;
-
-    const rows = (g.items||[]).map(it => `<tr>
-        <td><div class="prod-name">${esc(it.nombre)}</div></td>
-        <td class="qty-num">${it.cantidad}</td>
-        <td class="price-cell">${money(it.costoUnitario ?? it.precioMayorista ?? it.precio ?? 0)}</td>
-    </tr>`).join('');
-
-    const stop = 'event.stopPropagation();';
-    const yaEnLista = lsGetLista()[g.pedidoId];
-    return `<div class="ribbon" id="oc-${g.pedidoId}" style="margin-bottom:8px">
-        <div class="ribbon-head" onclick="toggleRibbon('${g.pedidoId}')">
-            <div class="ribbon-main">
-                <span class="r-name">Pedido #${String(g.pedidoId).slice(-8).toUpperCase()}</span>
-                ${estadoBadge}
-            </div>
-            <div class="ribbon-meta">
-                <span class="r-date">${fecha}</span>
-                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-        </div>
-        <div class="ribbon-body">
-            <div class="ribbon-inner">
-                <table class="prod-table">
-                    <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Mayorista</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <div class="order-foot">
-                    <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total mayorista: <strong>${money(g.costoTotal)}</strong></div>
-                    <div class="actions">
-                        ${g.estadoReal === 'aprobado' ? `
-                        <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pendiente de pago)</button>
-                        <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>` : ''}
-                        ${g.estadoReal === 'confirmado' ? (yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
-                        <button class="btn-act btn-pago-verificado" onclick="${stop}marcarPagoVerificado('${g.pedidoId}')">✅ Pago Verificado</button>
-                        <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pagada)</button>
-                        <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>
-                        <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${g.pedidoId}','retirar')">🏪 Pasar a retirar</button>
-                        <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`) : ''}
-                        ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">Esperando a que el revendedor confirme este pedido</span>` : ''}
-                        <button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>`;
-}
+// 🧹 LIMPIEZA: se eliminó panelGestionCard() — era la versión vieja de 4
+// niveles (mencionada en el comentario de arriba), reemplazada por
+// panelGestionContenido(). Nunca se llamaba desde ningún lado.
 
 // ═══════════════════════════════════════════════════════════
 // FACTURAS "REVENDE WAYS → REVENDEDOR" (con marca de agua según estado)
@@ -1619,61 +1570,9 @@ function pagoYaVerificado(pedidoId) {
     try { return JSON.parse(localStorage.getItem('pagosVerificados') || '[]').includes(pedidoId); } catch(_) { return false; }
 }
 
-function pedidoCard(p) {
-    const fecha = ba(p.fecha);
-    const totalU = p.items.reduce((s,i)=>s+i.cantidad,0);
-    const cli = p.cliente || {};
-    const cliNombre = fullName(cli) || cli.nombre || '';
-    const hasEnvio = cliNombre || cli.telefono || cli.direccion;
-    const esPendiente = p.estadoPago === 'PENDIENTE';
-    const estadoBadge = esPendiente
-        ? `<span class="badge-estado-pago" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">🟡 Pendiente de pago</span>`
-        : `<span class="badge-estado-pago" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">🟢 Pago aprobado</span>`;
-    const envioBlock = hasEnvio ? `
-        <div class="ship-block">
-            ${cliNombre ? `<div class="ship-row"><strong>${esc(cliNombre)}</strong> <span style="color:var(--text3)">(cliente del revendedor)</span></div>` : ''}
-            ${cli.telefono ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(cli.telefono)}</div>` : ''}
-            ${cli.direccion ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(cli.direccion)}</div>` : ''}
-        </div>` : '';
-
-    const rows = p.items.map(it => `<tr>
-        <td><div class="prod-name">${esc(it.nombre)}</div></td>
-        <td class="qty-num">${it.cantidad}</td>
-        <td class="price-cell">${money(it.precio)}</td>
-    </tr>`).join('');
-
-    const stop = 'event.stopPropagation();';
-    return `<div class="ribbon" id="oc-${p.id}">
-        <div class="ribbon-head" onclick="toggleRibbon('${p.id}')">
-            <div class="ribbon-main">
-                <span class="r-name">Pedido #${String(p.id).slice(-8).toUpperCase()}</span>
-                <span class="status-chip s-pendiente">Nuevo</span>
-                ${estadoBadge}
-            </div>
-            <div class="ribbon-meta">
-                <span class="r-date">${fecha}</span>
-                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-        </div>
-        <div class="ribbon-body">
-            <div class="ribbon-inner">
-                ${envioBlock}
-                <table class="prod-table">
-                    <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <div class="order-foot">
-                    <div class="foot-meta"><strong>${p.items.length}</strong> prod. · <strong>${totalU}</strong> unid. · Total: <strong>${money(p.total)}</strong></div>
-                    <div class="actions">
-                        <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${p.id}','retirar')">🏪 Pasar a retirar</button>
-                        <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${p.id}','domicilio')">🏠 Recibir a domicilio</button>
-                        <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}')">Eliminar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>`;
-}
+// 🧹 LIMPIEZA: se eliminó pedidoCard() — versión vieja de una estructura
+// de datos anterior (p.estadoPago, p.total, p.cliente directo), de antes
+// de la reestructuración a panelGestion. Sin ningún llamado.
 
 function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle('expanded'); }
 function toggleRibbonEl(fullId) { document.getElementById(fullId)?.classList.toggle('expanded'); }
@@ -1711,14 +1610,9 @@ function enviarALista(id, tipoEntrega) {
     renderListaView();
 }
 
-function quitarDeLista(id) {
-    const lista = lsGetLista();
-    delete lista[id];
-    lsSetLista(lista);
-    toast('Pedido devuelto a "Pedidos nuevos"', true);
-    renderPedidosView();
-    renderListaView();
-}
+// 🧹 LIMPIEZA: se eliminó quitarDeLista() — de una versión anterior de
+// "lista de pedidos", sin ningún botón que la llame en la estructura
+// actual (locales/enviados/para ejecutar).
 
 // ═══════════════════════════════════════════════════════════
 // ELIMINAR
@@ -2441,14 +2335,8 @@ function renderGananciaPorPeriodo(pagados) {
     return html;
 }
 
-function kpiCard(icon, label, value, pale, color, glow, gotoView) {
-    return `<div class="kpi-card" style="--k-pale:${pale};--k-color:${color};--k-glow:${glow}${gotoView?';cursor:pointer':''}" ${gotoView?`onclick="switchView('${gotoView}')"`:''}>
-        <div class="kpi-top"><div class="kpi-icon">${icon}</div></div>
-        <div class="kpi-num">${value}</div>
-        <div class="kpi-lab">${label}</div>
-        ${gotoView ? `<div class="kpi-more">Ver más <span>›</span></div>` : ''}
-    </div>`;
-}
+// 🧹 LIMPIEZA: se eliminó kpiCard() — reemplazada por statRow() en las
+// estadísticas actuales, sin ningún llamado.
 
 function renderRaceChart(products) {
     const wrap = document.getElementById('race-wrap');
