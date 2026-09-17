@@ -771,12 +771,12 @@ const WHATSAPP_NUMS = {
     perfumes:  '5491157951826',
     multishop: '5491157951826'
 };
-const CAT_LABELS = { calzados: 'Calzados Importados', perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', multishop: 'Multishop' };
+const CAT_LABELS = { calzados: 'Calzados Importados', perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', lenceria: 'Conjuntos/Lencería', multishop: 'Multishop' };
 
 // 🔧 NUEVO: mínimo de entrega por categoría — mismos valores que se le
 // muestran al revendedor en index.html/mas-categorias.html ("Monto
 // mínimo"). Calzados es la única excepción: se mide en UNIDADES, no en $.
-const MINIMO_ENTREGA_CATEGORIA = { perfumes: 150000, belleza: 150000, bazar: 150000, jugueteria: 150000, libreria: 150000, multishop: 250000 };
+const MINIMO_ENTREGA_CATEGORIA = { perfumes: 150000, belleza: 150000, bazar: 150000, jugueteria: 150000, libreria: 150000, lenceria: 150000, multishop: 250000 };
 const MINIMO_UNIDADES_CALZADOS = 12;
 
 // El pedido "supera el mínimo de entrega" (por categoría) Y lleva más de
@@ -876,6 +876,7 @@ function catOf(items, nichoHint) {
         if (n === 'bazar') return 'bazar';
         if (n === 'jugueteria' || n === 'juguetería') return 'jugueteria';
         if (n === 'libreria' || n === 'librería') return 'libreria';
+        if (n === 'lenceria' || n === 'lencería' || n.includes('lencer') || n.includes('conjunto')) return 'lenceria';
         if (n === 'multishop' || n.includes('multi')) return 'multishop';
     }
     const nm = i => (i.nombre || '').toUpperCase();
