@@ -732,6 +732,16 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Nombre del botón de acción</label>
             <input type="text" id="aviso-boton" class="rvndr-search" style="margin-bottom:16px" placeholder="Ej: Ver más (opcional)">
 
+            <button class="btn-act" style="margin-bottom:6px" onclick="mostrarFormImagenAviso()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px;margin-right:3px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar imagen
+            </button>
+            <div id="aviso-imagen-form" style="display:none;gap:6px;align-items:center;margin-bottom:8px">
+                <input type="text" id="aviso-imagen-input" class="rvndr-search" style="margin-bottom:0;flex:1" placeholder="Nombre del archivo (ej: promo.png)">
+                <button class="modal-confirm-btn" style="padding:8px 14px;font-size:12px;width:auto" onclick="guardarImagenAviso()">Guardar</button>
+            </div>
+            <div id="aviso-imagen-actual" style="font-size:12px;color:var(--text2);margin-bottom:16px"></div>
+
             <div id="aviso-actual-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
 
             <button class="btn-head btn-rvndr" style="width:100%;justify-content:center" onclick="publicarAviso()">Publicar aviso</button>
@@ -1981,10 +1991,16 @@ async function guardarWhatsappProveedores() {
 // ═══════════════════════════════════════════════════════
 // AVISOS (para index.html / index(1).html)
 // ═══════════════════════════════════════════════════════
+const AVISOS_REPO_BASE = 'https://raw.githubusercontent.com/webpagina729-sys/Avisos/main/';
+let avisoImagenActual = '';
+
 async function abrirPanelAvisos() {
     document.getElementById('avisos-config-modal').classList.add('show');
     const info = document.getElementById('aviso-actual-info');
     info.textContent = 'Cargando aviso actual...';
+    avisoImagenActual = '';
+    document.getElementById('aviso-imagen-form').style.display = 'none';
+    document.getElementById('aviso-imagen-actual').innerHTML = '';
     const res = await fetchJson(WORKER_ESTADOS + '/api/aviso');
     const aviso = res && res.ok ? res.aviso : null;
     if (aviso) {
@@ -1993,12 +2009,39 @@ async function abrirPanelAvisos() {
         document.getElementById('aviso-texto').value = aviso.texto || '';
         document.getElementById('aviso-enlace').value = aviso.enlace || '';
         document.getElementById('aviso-boton').value = aviso.textoBoton || '';
+        avisoImagenActual = aviso.imagen || '';
+        _renderAvisoImagenActual();
         info.textContent = aviso.publicado
             ? `Hay un aviso publicado (${ba(aviso.timestamp)}). Al publicar de nuevo, se reemplaza y vuelve a mostrarse a todos.`
             : `Último aviso guardado sin publicar (${ba(aviso.timestamp)}).`;
     } else {
         info.textContent = 'Todavía no hay ningún aviso guardado.';
     }
+}
+
+function mostrarFormImagenAviso() {
+    const form = document.getElementById('aviso-imagen-form');
+    form.style.display = 'flex';
+    document.getElementById('aviso-imagen-input').value = avisoImagenActual;
+    document.getElementById('aviso-imagen-input').focus();
+}
+
+function guardarImagenAviso() {
+    const valor = document.getElementById('aviso-imagen-input').value.trim();
+    avisoImagenActual = valor;
+    document.getElementById('aviso-imagen-form').style.display = 'none';
+    _renderAvisoImagenActual();
+}
+
+function _renderAvisoImagenActual() {
+    const cont = document.getElementById('aviso-imagen-actual');
+    if (!avisoImagenActual) { cont.innerHTML = ''; return; }
+    const url = AVISOS_REPO_BASE + avisoImagenActual;
+    cont.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
+        <img src="${url}" alt="${esc(avisoImagenActual)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">
+        <span>${esc(avisoImagenActual)}</span>
+        <button class="rvndr-close" style="position:static" onclick="avisoImagenActual='';_renderAvisoImagenActual()" title="Quitar imagen">✕</button>
+    </div>`;
 }
 
 async function publicarAviso() {
@@ -2012,7 +2055,7 @@ async function publicarAviso() {
     const res = await fetchJson(WORKER_ESTADOS + '/api/aviso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ titulo, subtitulo, texto, enlace, textoBoton, publicado: true })
+        body: JSON.stringify({ titulo, subtitulo, texto, enlace, textoBoton, imagen: avisoImagenActual, publicado: true })
     });
     if (res && res.ok) {
         toast('Aviso publicado — ya se va a mostrar a los revendedores', true);
