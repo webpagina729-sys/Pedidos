@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Revende Ways | Panel de Pedidos</title>
@@ -694,14 +695,37 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
 <!-- ══ MODAL CONFIGURAR WHATSAPP DE PROVEEDORES POR CATEGORÍA ══ -->
 <div class="rvndr-overlay" id="wa-config-modal">
-    <div class="rvndr-box" style="max-width:480px">
+    <div class="rvndr-box" style="max-width:480px;position:relative">
         <div class="rvndr-head">
             <h3>WhatsApp de proveedores</h3>
             <button class="rvndr-close" onclick="document.getElementById('wa-config-modal').classList.remove('show')">✕</button>
         </div>
         <div class="rvndr-body" id="wa-config-body"></div>
+
+        <!-- 🔧 NUEVO: overlay de "Guardando..." — tapa todo el modal
+             mientras se procesa el guardado, para que quede claro que
+             SÍ está haciendo algo (antes no daba ninguna señal). -->
+        <div id="wa-guardando-overlay" style="display:none;position:absolute;inset:0;background:rgba(15,15,20,.75);backdrop-filter:blur(4px);border-radius:inherit;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:5">
+            <div style="font-size:14px;font-weight:700;color:#fff">
+                Guardando<span class="wa-guardando-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.wa-guardando-dots span {
+    opacity: .2;
+    animation: waGuardandoDotFade 1.2s infinite;
+}
+.wa-guardando-dots span:nth-child(1) { animation-delay: 0s; }
+.wa-guardando-dots span:nth-child(2) { animation-delay: .2s; }
+.wa-guardando-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes waGuardandoDotFade {
+    0%, 60%, 100% { opacity: .2; }
+    30% { opacity: 1; }
+}
+</style>
 
 <!-- ══ MODAL AVISOS (para index.html / index(1).html) ══ -->
 <div class="rvndr-overlay" id="avisos-config-modal">
@@ -745,6 +769,31 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <div id="aviso-actual-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
 
             <button class="btn-head btn-rvndr" style="width:100%;justify-content:center" onclick="publicarAviso()">Publicar aviso</button>
+            <button class="btn-act" style="width:100%;justify-content:center;margin-top:8px" onclick="abrirAvisosPublicados()">Avisos Publicados</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL AVISOS PUBLICADOS (historial: volver a publicar / eliminar) ══ -->
+<div class="rvndr-overlay" id="avisos-lista-modal">
+    <div class="rvndr-box" style="max-width:480px">
+        <div class="rvndr-head">
+            <h3>📢 Avisos Publicados</h3>
+            <button class="rvndr-close" onclick="document.getElementById('avisos-lista-modal').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body" id="avisos-lista-body"></div>
+    </div>
+</div>
+
+<!-- ══ CONFIRMACIÓN: ELIMINAR AVISO PARA SIEMPRE ══ -->
+<div class="modal-overlay" id="aviso-eliminar-modal">
+    <div class="modal-box">
+        <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m0 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></div>
+        <h3>¿Eliminar este aviso?</h3>
+        <p>Desaparece para siempre — esta acción no se puede deshacer.</p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="document.getElementById('aviso-eliminar-modal').classList.remove('show')">Cancelar</button>
+            <button class="modal-confirm-btn" onclick="confirmarEliminarAvisoPublicado()">Eliminar</button>
         </div>
     </div>
 </div>
@@ -1958,6 +2007,18 @@ async function ejecutarPedido(codigo, categoria) {
 
 // ── Configuración de WhatsApp de proveedores por categoría (sidebar) ──
 async function abrirConfigWhatsappProveedores() {
+    document.getElementById('wa-config-modal').classList.add('show');
+    // 🔧 NUEVO: antes de mostrar el formulario (que puede redirigir a
+    // dónde van los pedidos mayoristas de cada categoría), se exige pasar
+    // la verificación de Turnstile — mismo widget que ya se usa en el
+    // login del resto del sitio.
+    document.getElementById('wa-config-body').innerHTML = `
+        <p style="font-size:12.5px;color:var(--text2);margin:0 0 14px">Verificá que sos vos antes de continuar.</p>
+        <div class="cf-turnstile" id="turnstile-wa-config" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-callback="_onTurnstileWaConfigOk"></div>
+    `;
+}
+
+async function _onTurnstileWaConfigOk() {
     await cargarWhatsappProveedores();
     const cats = Object.keys(CAT_LABELS);
     document.getElementById('wa-config-body').innerHTML = cats.map(c => `
@@ -1969,23 +2030,39 @@ async function abrirConfigWhatsappProveedores() {
             </div>
         </div>`).join('') + `
         <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:6px" onclick="guardarWhatsappProveedores()">Guardar números</button>`;
-    document.getElementById('wa-config-modal').classList.add('show');
 }
 
 async function guardarWhatsappProveedores() {
-    const cats = Object.keys(CAT_LABELS);
-    for (const c of cats) {
-        const input = document.getElementById('wa-cfg-' + c);
-        const digitos = (input?.value || '').replace(/\D/g, '');
-        const numero = digitos ? '549' + digitos : '';
-        WHATSAPP_PROVEEDORES[c] = numero;
-        await fetchJson(WORKER_ESTADOS + '/api/whatsapp-proveedores', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-            body: JSON.stringify({ categoria: c, numero })
-        });
+    const overlay = document.getElementById('wa-guardando-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    try {
+        const cats = Object.keys(CAT_LABELS);
+        let huboError = false;
+        for (const c of cats) {
+            const input = document.getElementById('wa-cfg-' + c);
+            const digitos = (input?.value || '').replace(/\D/g, '');
+            const numero = digitos ? '549' + digitos : '';
+            const res = await fetchJson(WORKER_ESTADOS + '/api/whatsapp-proveedores', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({ categoria: c, numero })
+            });
+            if (res && res.ok) {
+                WHATSAPP_PROVEEDORES[c] = numero;
+            } else {
+                huboError = true;
+            }
+        }
+        if (huboError) {
+            toast('Algunos números no se pudieron guardar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
+        } else {
+            toast('Números de WhatsApp guardados', true);
+            document.getElementById('wa-config-modal').classList.remove('show');
+        }
+    } finally {
+        // 🔧 pase lo que pase (éxito, error, excepción), el overlay de
+        // "Guardando..." siempre se saca al final.
+        if (overlay) overlay.style.display = 'none';
     }
-    toast('Números de WhatsApp guardados', true);
-    document.getElementById('wa-config-modal').classList.remove('show');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2062,6 +2139,72 @@ async function publicarAviso() {
         document.getElementById('avisos-config-modal').classList.remove('show');
     } else {
         toast('No se pudo publicar el aviso: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
+    }
+}
+
+let avisoAEliminarId = null;
+
+async function abrirAvisosPublicados() {
+    document.getElementById('avisos-lista-modal').classList.add('show');
+    const body = document.getElementById('avisos-lista-body');
+    body.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando avisos...</p></div>';
+
+    const res = await fetchJson(WORKER_ESTADOS + '/api/avisos-lista');
+    const avisos = (res && res.ok && res.avisos) || [];
+    if (!avisos.length) {
+        body.innerHTML = '<p style="font-size:13px;color:var(--text2)">Todavía no publicaste ningún aviso.</p>';
+        return;
+    }
+    body.innerHTML = avisos.map(a => `
+        <div style="border:1px solid var(--border2);border-radius:9px;padding:10px 12px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <strong style="font-size:13.5px;flex:1">${esc(a.titulo)}</strong>
+                ${a.esActivo ? '<span style="font-size:11px;font-weight:700;color:var(--green);background:var(--green-pale,#e8f9ee);padding:2px 8px;border-radius:10px">Activo</span>' : ''}
+            </div>
+            ${a.subtitulo ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px">${esc(a.subtitulo)}</div>` : ''}
+            <div style="font-size:11.5px;color:var(--text2);margin-bottom:8px">${ba(a.timestamp)}</div>
+            <div style="display:flex;gap:8px">
+                <button class="btn-act" style="flex:1;justify-content:center" onclick="republicarAvisoPublicado('${a.id}')">Volver a publicar</button>
+                <button class="btn-act btn-del" style="flex:1;justify-content:center" onclick="pedirEliminarAvisoPublicado('${a.id}')">Eliminar</button>
+            </div>
+        </div>`).join('');
+}
+
+async function republicarAvisoPublicado(id) {
+    const res = await fetchJson(WORKER_ESTADOS + '/api/aviso-republicar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id })
+    });
+    if (res && res.ok) {
+        toast('Aviso vuelto a publicar — ya se les muestra de nuevo a los revendedores', true);
+        abrirAvisosPublicados(); // refrescar la lista (nueva entrada, nuevo "Activo")
+    } else {
+        toast('No se pudo volver a publicar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
+    }
+}
+
+function pedirEliminarAvisoPublicado(id) {
+    avisoAEliminarId = id;
+    document.getElementById('aviso-eliminar-modal').classList.add('show');
+}
+
+async function confirmarEliminarAvisoPublicado() {
+    const id = avisoAEliminarId;
+    document.getElementById('aviso-eliminar-modal').classList.remove('show');
+    if (!id) return;
+
+    const res = await fetchJson(WORKER_ESTADOS + '/api/aviso-eliminar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id })
+    });
+    avisoAEliminarId = null;
+    if (res && res.ok) {
+        toast('Aviso eliminado para siempre', true);
+        abrirAvisosPublicados(); // refrescar la lista
+    } else {
+        toast('No se pudo eliminar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
     }
 }
 
