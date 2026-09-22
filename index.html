@@ -786,6 +786,15 @@ const WORKER_PAGOS = 'https://workerpagos.tuweb.workers.dev';
 // Pagado) — sin esto, pedidos.html no tenía forma de saber en qué estado
 // real está cada pedido dentro del panel privado de cada revendedor.
 const WORKER_ESTADOS = 'https://panelgestionestados.tuweb.workers.dev';
+// 🔒 FIX CRÍTICO: cuando se protegieron con verificarAdminKey los
+// endpoints que escriben en panelgestionestados (stock global, variantes
+// globales, WhatsApp de proveedores) — para que "cualquiera" no pudiera
+// modificarlos sin pasar por este panel — nunca se actualizó este
+// archivo para ENVIAR esa clave. Resultado: esas 3 funciones quedaron
+// rotas (401 No autorizado) desde ese momento, aunque antes funcionaban
+// bien. pedidos.html es el único cliente autorizado a escribir ahí, así
+// que corresponde que la envíe en cada petición de escritura.
+const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
 const WORKER_CLIENTE = 'https://workerwebcliente.tuweb.workers.dev';
 const S_KEY  = 'rw_admin_session_v1';
 const L_KEY  = 'rw_lista_pedidos_v1';      // { [pedidoId]: {tipoEntrega, addedAt} }
@@ -1922,7 +1931,7 @@ async function guardarWhatsappProveedores() {
         const numero = digitos ? '549' + digitos : '';
         WHATSAPP_PROVEEDORES[c] = numero;
         await fetchJson(WORKER_ESTADOS + '/api/whatsapp-proveedores', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
             body: JSON.stringify({ categoria: c, numero })
         });
     }
@@ -2778,7 +2787,7 @@ async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
     renderStockLista();
     const res = await fetchJson(WORKER_ESTADOS + '/api/stock-global', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
         body: JSON.stringify({ catalogo, productId, enStock: nuevoEnStock })
     });
     if (res && res.ok) {
@@ -2838,11 +2847,11 @@ function abrirVariantesModal(catalogo, productId) {
     }).join('');
 
     document.getElementById('variantes-modal-grupos').innerHTML = gruposHtml || '<p style="font-size:13px;color:var(--text-light)">Este producto no tiene variantes.</p>';
-    document.getElementById('variantes-modal').classList.add('active');
+    document.getElementById('variantes-modal').classList.add('show');
 }
 
 function cerrarVariantesModal() {
-    document.getElementById('variantes-modal').classList.remove('active');
+    document.getElementById('variantes-modal').classList.remove('show');
 }
 
 function mostrarFormNuevaVariante(campo) {
@@ -2868,11 +2877,11 @@ function pedirEliminarVariante(campo, valor) {
     varianteAEliminar = { ...variantesModalActual, campo, valor };
     document.getElementById('variante-del-titulo').textContent = `¿Eliminar ${etiqueta.toLowerCase()}?`;
     document.getElementById('variante-del-texto').textContent = `"${valor}" va a desaparecer del catálogo de todos los revendedores y de la tienda de sus clientes. Lo podés volver a agregar cuando quieras.`;
-    document.getElementById('variante-del-modal').classList.add('active');
+    document.getElementById('variante-del-modal').classList.add('show');
 }
 
 function cerrarVarianteDelModal() {
-    document.getElementById('variante-del-modal').classList.remove('active');
+    document.getElementById('variante-del-modal').classList.remove('show');
     varianteAEliminar = null;
 }
 
@@ -2893,7 +2902,7 @@ async function _guardarListaVariante(catalogo, productId, campo, listaNueva) {
     VARIANTES_GLOBAL_DATA[catalogo][String(productId)][campo] = listaNueva;
     const res = await fetchJson(WORKER_ESTADOS + '/api/variantes-global', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
         body: JSON.stringify({ catalogo, productId, tipo: campo, lista: listaNueva })
     });
     if (res && res.ok) {
