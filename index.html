@@ -557,6 +557,9 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <button class="sidebar-btn" onclick="abrirConfigWhatsappProveedores()" title="Configurar WhatsApp de proveedores">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
+        <button class="sidebar-btn" onclick="abrirPanelAvisos()" title="Avisos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a2 2 0 1 1-3.2 2.4"/></svg>
+        </button>
     </aside>
     <div class="app-main">
     <header class="topbar" id="topbar2" style="display:flex;position:static;margin-bottom:6px">
@@ -697,6 +700,42 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <button class="rvndr-close" onclick="document.getElementById('wa-config-modal').classList.remove('show')">✕</button>
         </div>
         <div class="rvndr-body" id="wa-config-body"></div>
+    </div>
+</div>
+
+<!-- ══ MODAL AVISOS (para index.html / index(1).html) ══ -->
+<div class="rvndr-overlay" id="avisos-config-modal">
+    <div class="rvndr-box" style="max-width:480px">
+        <div class="rvndr-head">
+            <h3>📢 Avisos</h3>
+            <button class="rvndr-close" onclick="document.getElementById('avisos-config-modal').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body">
+            <p style="font-size:12.5px;color:var(--text2);margin:0 0 14px">
+                Se muestra una única vez, como un modal, a cada revendedor
+                en index.html e index(1).html — hasta que lo cierre o toque
+                el botón de acción. Cada vez que publicás uno nuevo, vuelve
+                a mostrarse aunque ya hayan visto uno anterior.
+            </p>
+            <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Título *</label>
+            <input type="text" id="aviso-titulo" class="rvndr-search" style="margin-bottom:12px" placeholder="Título del aviso">
+
+            <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Subtítulo</label>
+            <input type="text" id="aviso-subtitulo" class="rvndr-search" style="margin-bottom:12px" placeholder="Subtítulo (opcional)">
+
+            <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Texto</label>
+            <textarea id="aviso-texto" class="rvndr-search" style="margin-bottom:12px;min-height:90px;resize:vertical" placeholder="Texto del aviso (opcional)"></textarea>
+
+            <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Enlace del botón de acción</label>
+            <input type="text" id="aviso-enlace" class="rvndr-search" style="margin-bottom:12px" placeholder="https://... (opcional)">
+
+            <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Nombre del botón de acción</label>
+            <input type="text" id="aviso-boton" class="rvndr-search" style="margin-bottom:16px" placeholder="Ej: Ver más (opcional)">
+
+            <div id="aviso-actual-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
+
+            <button class="btn-head btn-rvndr" style="width:100%;justify-content:center" onclick="publicarAviso()">Publicar aviso</button>
+        </div>
     </div>
 </div>
 
@@ -1937,6 +1976,50 @@ async function guardarWhatsappProveedores() {
     }
     toast('Números de WhatsApp guardados', true);
     document.getElementById('wa-config-modal').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════
+// AVISOS (para index.html / index(1).html)
+// ═══════════════════════════════════════════════════════
+async function abrirPanelAvisos() {
+    document.getElementById('avisos-config-modal').classList.add('show');
+    const info = document.getElementById('aviso-actual-info');
+    info.textContent = 'Cargando aviso actual...';
+    const res = await fetchJson(WORKER_ESTADOS + '/api/aviso');
+    const aviso = res && res.ok ? res.aviso : null;
+    if (aviso) {
+        document.getElementById('aviso-titulo').value = aviso.titulo || '';
+        document.getElementById('aviso-subtitulo').value = aviso.subtitulo || '';
+        document.getElementById('aviso-texto').value = aviso.texto || '';
+        document.getElementById('aviso-enlace').value = aviso.enlace || '';
+        document.getElementById('aviso-boton').value = aviso.textoBoton || '';
+        info.textContent = aviso.publicado
+            ? `Hay un aviso publicado (${ba(aviso.timestamp)}). Al publicar de nuevo, se reemplaza y vuelve a mostrarse a todos.`
+            : `Último aviso guardado sin publicar (${ba(aviso.timestamp)}).`;
+    } else {
+        info.textContent = 'Todavía no hay ningún aviso guardado.';
+    }
+}
+
+async function publicarAviso() {
+    const titulo = document.getElementById('aviso-titulo').value.trim();
+    if (!titulo) { toast('El título es obligatorio', 'err'); return; }
+    const subtitulo = document.getElementById('aviso-subtitulo').value.trim();
+    const texto = document.getElementById('aviso-texto').value.trim();
+    const enlace = document.getElementById('aviso-enlace').value.trim();
+    const textoBoton = document.getElementById('aviso-boton').value.trim();
+
+    const res = await fetchJson(WORKER_ESTADOS + '/api/aviso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ titulo, subtitulo, texto, enlace, textoBoton, publicado: true })
+    });
+    if (res && res.ok) {
+        toast('Aviso publicado — ya se va a mostrar a los revendedores', true);
+        document.getElementById('avisos-config-modal').classList.remove('show');
+    } else {
+        toast('No se pudo publicar el aviso: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
