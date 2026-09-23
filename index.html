@@ -545,6 +545,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <button class="sidebar-btn" onclick="openRvndr()" title="Info Rvndr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </button>
+        <button class="sidebar-btn" style="position:relative" onclick="abrirReclamos()" title="Reclamos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span id="reclamos-badge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--red,#f43f5e);color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center">0</span>
+        </button>
         <button class="sidebar-btn" onclick="this.blur();loadData()" title="Actualizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -785,6 +789,17 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- ══ MODAL RECLAMOS (cambios y devoluciones, desde devolucion.html) ══ -->
+<div class="rvndr-overlay" id="reclamos-modal">
+    <div class="rvndr-box" style="max-width:640px">
+        <div class="rvndr-head">
+            <h3>🧾 Reclamos</h3>
+            <button class="rvndr-close" onclick="document.getElementById('reclamos-modal').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body" id="reclamos-body"></div>
+    </div>
+</div>
+
 <!-- ══ CONFIRMACIÓN: ELIMINAR AVISO PARA SIEMPRE ══ -->
 <div class="modal-overlay" id="aviso-eliminar-modal">
     <div class="modal-box">
@@ -884,6 +899,10 @@ const WORKER_PAGOS = 'https://workerpagos.tuweb.workers.dev';
 // Pagado) — sin esto, pedidos.html no tenía forma de saber en qué estado
 // real está cada pedido dentro del panel privado de cada revendedor.
 const WORKER_ESTADOS = 'https://panelgestionestados.tuweb.workers.dev';
+// 🔧 NUEVO: reclamos (cambios y devoluciones) desde devolucion.html
+// viven en datosderevendedor, junto con el resto de los datos del
+// revendedor y sus pedidos personales.
+const WORKER_RECLAMOS = 'https://datosderevendedor.tuweb.workers.dev';
 // 🔒 FIX CRÍTICO: cuando se protegieron con verificarAdminKey los
 // endpoints que escriben en panelgestionestados (stock global, variantes
 // globales, WhatsApp de proveedores) — para que "cualquiera" no pudiera
@@ -1264,6 +1283,7 @@ async function loadData() {
         fetchJson(WORKER_ESTADOS + '/api/estados-pedidos'),
         fetchJson(WORKER_CLIENTE + '/clientes')
     ]);
+    actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
 
     ESTADOS_CONFIRMADOS = (estadosRes && estadosRes.ok && estadosRes.confirmados) || {};
     ESTADOS_PAGADOS     = (estadosRes && estadosRes.ok && estadosRes.pagados) || {};
@@ -2205,6 +2225,109 @@ async function confirmarEliminarAvisoPublicado() {
         abrirAvisosPublicados(); // refrescar la lista
     } else {
         toast('No se pudo eliminar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+// RECLAMOS (cambios y devoluciones, desde devolucion.html)
+// ═══════════════════════════════════════════════════════
+const ESTADOS_RECLAMO = ['Pendiente','En revisión','Información solicitada','Aprobado','Rechazado','Resuelto'];
+let RECLAMOS_CACHE = [];
+
+async function abrirReclamos() {
+    document.getElementById('reclamos-modal').classList.add('show');
+    const body = document.getElementById('reclamos-body');
+    body.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando reclamos...</p></div>';
+
+    const res = await fetchJson(WORKER_RECLAMOS + '/api/listar-reclamos');
+    RECLAMOS_CACHE = (res && res.ok && res.reclamos) || [];
+    renderReclamosLista();
+
+    // Al abrir el panel se consideran todos "vistos" — el badge se apaga.
+    const noVistos = RECLAMOS_CACHE.filter(r => !r.visto);
+    if (noVistos.length) {
+        for (const r of noVistos) {
+            fetchJson(WORKER_RECLAMOS + '/api/actualizar-reclamo', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: r.id, campos: { visto: true } })
+            });
+        }
+    }
+    actualizarBadgeReclamos(0);
+}
+
+function renderReclamosLista() {
+    const body = document.getElementById('reclamos-body');
+    if (!RECLAMOS_CACHE.length) {
+        body.innerHTML = '<p style="font-size:13px;color:var(--text2)">Todavía no llegó ningún reclamo.</p>';
+        return;
+    }
+    body.innerHTML = RECLAMOS_CACHE.map(r => `
+        <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+                <strong style="font-size:13.5px">#${String(r.id).slice(-8).toUpperCase()}</strong>
+                <span style="font-size:11px;color:var(--text2)">${ba(r.fechaCreacion)}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 14px;font-size:12.5px;margin-bottom:10px">
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Revendedor</span>${esc(r.codigoRevendedor)}</div>
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Pedido</span>${esc(r.numeroPedido)}</div>
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Acción</span>${esc(r.accion)}</div>
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Categoría</span>${esc(r.categoria)}</div>
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Unidades</span>${esc(String(r.cantidad))}</div>
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Recepción</span>${esc(r.fechaRecepcion)}</div>
+            </div>
+            <div style="font-size:12.5px;margin-bottom:4px"><strong>Producto:</strong> ${esc(r.producto)}</div>
+            <div style="font-size:12.5px;margin-bottom:4px"><strong>Motivo:</strong> ${esc(r.motivo)}</div>
+            <div style="font-size:12.5px;margin-bottom:8px"><strong>Descripción:</strong> ${esc(r.descripcion)}</div>
+            ${(r.evidencias||[]).length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+                ${r.evidencias.map(u => `<img src="${u}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer" onclick="window.open('${u}','_blank')">`).join('')}
+            </div>` : ''}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <select id="reclamo-estado-${r.id}" style="flex:1;min-width:140px">
+                    ${ESTADOS_RECLAMO.map(e => `<option ${e === r.estado ? 'selected' : ''}>${e}</option>`).join('')}
+                </select>
+                <input id="reclamo-obs-${r.id}" placeholder="Observaciones internas" value="${esc(r.observacionesInternas||'')}" style="flex:2;min-width:160px">
+                <button class="btn-act" onclick="guardarEstadoReclamo('${r.id}')">Guardar</button>
+            </div>
+        </div>`).join('');
+}
+
+async function guardarEstadoReclamo(id) {
+    const estado = document.getElementById('reclamo-estado-' + id).value;
+    const observacionesInternas = document.getElementById('reclamo-obs-' + id).value;
+    const campos = { estado, observacionesInternas };
+    const reclamo = RECLAMOS_CACHE.find(r => r.id === id);
+    if (['Aprobado', 'Rechazado', 'Resuelto'].includes(estado) && reclamo && !reclamo.fechaResolucion) {
+        campos.fechaResolucion = Date.now();
+    }
+    const res = await fetchJson(WORKER_RECLAMOS + '/api/actualizar-reclamo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, campos })
+    });
+    if (res && res.ok) {
+        toast('Reclamo actualizado', true);
+        if (reclamo) Object.assign(reclamo, campos);
+    } else {
+        toast('No se pudo guardar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión'), 'err');
+    }
+}
+
+// Actualiza el numerito rojo sobre el ícono de Reclamos. Llamado al
+// cargar el panel (ver loadData) y cada vez que se abre/cierra la lista.
+async function actualizarBadgeReclamos(cantidadForzada) {
+    const badge = document.getElementById('reclamos-badge');
+    if (!badge) return;
+    let cantidad = cantidadForzada;
+    if (cantidad === undefined) {
+        const res = await fetchJson(WORKER_RECLAMOS + '/api/listar-reclamos');
+        const reclamos = (res && res.ok && res.reclamos) || [];
+        cantidad = reclamos.filter(r => !r.visto).length;
+    }
+    if (cantidad > 0) {
+        badge.textContent = cantidad > 99 ? '99+' : String(cantidad);
+        badge.style.display = 'block';
+    } else {
+        badge.style.display = 'none';
     }
 }
 
