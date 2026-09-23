@@ -1281,7 +1281,11 @@ async function loadData() {
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
         fetchJson(WORKER_ESTADOS + '/api/estados-pedidos'),
-        fetchJson(WORKER_CLIENTE + '/clientes')
+        // 🔧 FIX: este endpoint se protegió con la misma clave de admin que
+        // el resto de los datos sensibles ("Solo pedidos.html usa esta
+        // vista completa"), pero nunca se actualizó esta llamada para
+        // enviarla — quedó devolviendo 401 en cada carga del panel.
+        fetchJson(WORKER_CLIENTE + '/clientes', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } })
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
 
@@ -2844,14 +2848,14 @@ function renderVendorBarChart(vendors) {
 function renderCategoriaPie(vendors, products) {
     const ctx = document.getElementById('canvas-cat-pie');
     if (!ctx) return;
-    const cats = { calzados:0, perfumes:0, belleza:0, bazar:0, jugueteria:0, libreria:0, multishop:0 };
+    const cats = { calzados:0, perfumes:0, belleza:0, bazar:0, jugueteria:0, libreria:0, lenceria:0, suplementos:0, multishop:0 };
     panelGestion.filter(g => g.estadoReal === 'confirmado').forEach(g => { if (cats[g.categoria] !== undefined) cats[g.categoria]++; });
     Chart.getChart(ctx)?.destroy();
     new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
-        data: { labels: ['Calzados Importados','Perfumería','Belleza y Cuidado Personal','Bazar','Juguetería','Librería','Multishop'], datasets: [{
-            data: [cats.calzados, cats.perfumes, cats.belleza, cats.bazar, cats.jugueteria, cats.libreria, cats.multishop],
-            backgroundColor: ['#0066ff','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#00c96e'], borderWidth: 0
+        data: { labels: ['Calzados Importados','Perfumería','Belleza y Cuidado Personal','Bazar','Juguetería','Librería','Conjuntos/Lencería','Salud/Suplementos','Multishop'], datasets: [{
+            data: [cats.calzados, cats.perfumes, cats.belleza, cats.bazar, cats.jugueteria, cats.libreria, cats.lenceria, cats.suplementos, cats.multishop],
+            backgroundColor: ['#0066ff','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f43f5e','#a855f7','#00c96e'], borderWidth: 0
         }]},
         options: { responsive:true, maintainAspectRatio:false,
             plugins: { legend:{ position:'bottom', labels:{ color:'#9aa0b4', font:{size:11}, boxWidth:10, padding:12 } } } }
