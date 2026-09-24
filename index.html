@@ -764,9 +764,16 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px;margin-right:3px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Agregar imagen
             </button>
-            <div id="aviso-imagen-form" style="display:none;gap:6px;align-items:center;margin-bottom:8px">
-                <input type="text" id="aviso-imagen-input" class="rvndr-search" style="margin-bottom:0;flex:1" placeholder="Nombre del archivo (ej: promo.png)">
-                <button class="modal-confirm-btn" style="padding:8px 14px;font-size:12px;width:auto" onclick="guardarImagenAviso()">Guardar</button>
+            <div id="aviso-imagen-form" style="display:none;flex-direction:column;gap:6px;margin-bottom:8px">
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="text" id="aviso-imagen-input" class="rvndr-search" style="margin-bottom:0;flex:1" placeholder="Nombre del archivo (ej: promo.png)" oninput="_actualizarVistaPreviaImagenAviso()">
+                    <button class="modal-confirm-btn" style="padding:8px 14px;font-size:12px;width:auto" onclick="guardarImagenAviso()">Guardar</button>
+                </div>
+                <!-- 🔧 NUEVO: vista previa en vivo — se actualiza a medida
+                     que se escribe el nombre del archivo, sin necesidad de
+                     tocar "Guardar" primero, para confirmar que el nombre
+                     escrito corresponde a una imagen real del repositorio. -->
+                <div id="aviso-imagen-preview-vivo" style="font-size:12px;color:var(--text2)"></div>
             </div>
             <div id="aviso-imagen-actual" style="font-size:12px;color:var(--text2);margin-bottom:16px"></div>
 
@@ -988,6 +995,7 @@ let ESTADOS_CONFIRMADOS = {};
 let ESTADOS_PAGADOS = {};
 let ESTADOS_ELIMINADOS = {};   // pedidoId -> true, si se eliminó/no se aprobó en index(1).html
 let CLIENTES_TODOS = [];   // clientes de TODOS los revendedores (workerwebcliente /clientes)
+let REVENDEDORES_TODOS = []; // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan pedidos o no
 
 // ═══════════════════════════════════════════════════════════
 // UTILIDADES
@@ -1276,7 +1284,7 @@ async function loadData() {
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
     document.getElementById('revmes-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando ranking...</p></div>';
 
-    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes] = await Promise.all([
+    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes] = await Promise.all([
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
@@ -1285,7 +1293,11 @@ async function loadData() {
         // el resto de los datos sensibles ("Solo pedidos.html usa esta
         // vista completa"), pero nunca se actualizó esta llamada para
         // enviarla — quedó devolviendo 401 en cada carga del panel.
-        fetchJson(WORKER_CLIENTE + '/clientes', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } })
+        fetchJson(WORKER_CLIENTE + '/clientes', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
+        // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan
+        // pedidos o no — antes "Info Rvndr" solo conocía a los que ya
+        // tenían algún pedido/cliente.
+        fetchJson(WORKER_ESTADOS + '/api/listar-revendedores')
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
 
@@ -1293,6 +1305,25 @@ async function loadData() {
     ESTADOS_PAGADOS     = (estadosRes && estadosRes.ok && estadosRes.pagados) || {};
     ESTADOS_ELIMINADOS  = (estadosRes && estadosRes.ok && estadosRes.eliminados) || {};
     CLIENTES_TODOS      = (clientesRes && clientesRes.ok && Array.isArray(clientesRes.clientes)) ? clientesRes.clientes : [];
+    REVENDEDORES_TODOS  = (revendedoresRes && revendedoresRes.ok && Array.isArray(revendedoresRes.revendedores)) ? revendedoresRes.revendedores : [];
+    // 🔧 NUEVO: workerpagos (usado por resolveVendor/vendorCache) nunca
+    // devolvió sexo/provincia/ciudad/codigoPostal/cuitRevendedor/
+    // fechaNacimiento/legalAceptacionId/fechaAceptacionLegales/
+    // terminosCondicionesAceptado/politicaPrivacidadAceptado — quedaban
+    // siempre "Sin datos" aunque SÍ existieran en Firestore. Se completan
+    // acá con lo que trae /api/listar-revendedores, sin pisar los campos
+    // que resolveVendor ya haya cargado.
+    REVENDEDORES_TODOS.forEach(r => {
+        if (!r.codigoVendedor) return;
+        const key = r.codigoVendedor.toUpperCase();
+        vendorCache[key] = Object.assign({}, r, vendorCache[key] || {}, {
+            // Estos 2 SIEMPRE deben venir del registro completo (fuente
+            // de verdad real) — si vendorCache ya tuviera un valor viejo
+            // o undefined, no debe ganarle a este dato fresco.
+            terminosCondicionesAceptado: r.terminosCondicionesAceptado,
+            politicaPrivacidadAceptado: r.politicaPrivacidadAceptado,
+        });
+    });
 
     const deleted = new Set(lsGetDeleted());
 
@@ -2125,6 +2156,24 @@ function mostrarFormImagenAviso() {
     form.style.display = 'flex';
     document.getElementById('aviso-imagen-input').value = avisoImagenActual;
     document.getElementById('aviso-imagen-input').focus();
+    _actualizarVistaPreviaImagenAviso();
+}
+
+// 🔧 NUEVO: mientras se escribe el nombre del archivo, se muestra la
+// imagen correspondiente en vivo, sin tener que tocar "Guardar" primero —
+// así se puede confirmar que el nombre escrito corresponde a una imagen
+// real que ya está subida al repositorio, antes de publicar el aviso.
+function _actualizarVistaPreviaImagenAviso() {
+    const cont = document.getElementById('aviso-imagen-preview-vivo');
+    if (!cont) return;
+    const nombre = (document.getElementById('aviso-imagen-input').value || '').trim();
+    if (!nombre) { cont.innerHTML = ''; return; }
+    const url = AVISOS_REPO_BASE + nombre;
+    cont.innerHTML = `<img src="${url}" alt="${esc(nombre)}"
+        style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block"
+        onload="this.nextElementSibling.style.display='none'"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <span style="display:none;color:#ef4444;font-size:11px;">No se encontró ninguna imagen con ese nombre en el repositorio.</span>`;
 }
 
 function guardarImagenAviso() {
@@ -2383,6 +2432,12 @@ function vendorAggregatesTodos() {
     // aparecer en el listado.
     CLIENTES_TODOS.forEach(c => {
         const k = String(c.codigoVendedor||'').toUpperCase();
+        if (k && !map[k]) map[k] = { codigo: k, pedidos: 0, unidades: 0, facturacion: 0, ganancia: 0, costo: 0, items: {} };
+    });
+    // 🔧 NUEVO: revendedores recién registrados, sin ningún pedido NI
+    // cliente todavía — antes eran invisibles para "Info Rvndr".
+    REVENDEDORES_TODOS.forEach(r => {
+        const k = String(r.codigoVendedor||'').toUpperCase();
         if (k && !map[k]) map[k] = { codigo: k, pedidos: 0, unidades: 0, facturacion: 0, ganancia: 0, costo: 0, items: {} };
     });
     return Object.values(map);
@@ -3188,6 +3243,20 @@ async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
     });
     if (res && res.ok) {
         toast(nuevoEnStock ? 'Producto repuesto en todas las tiendas' : 'Producto quitado de todas las tiendas', true);
+        // 🔧 NUEVO: registrar el cambio para que el revendedor vea un
+        // aviso con la imagen del producto al entrar a esta categoría.
+        // No mandamos la imagen desde acá — pedidos.html no tiene los
+        // repos de imágenes de cada categoría — cada archivo la resuelve
+        // con su propio catálogo local al mostrar el aviso.
+        const producto = (CATALOGO_PRODUCTOS_GLOBAL[catalogo] || []).find(p => p.id === productId);
+        fetchJson(WORKER_ESTADOS + '/api/cambios-stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({
+                catalogo, tipo: 'producto', accion: nuevoEnStock ? 'agregado' : 'quitado',
+                productId, productNombre: producto ? producto.nombre : ''
+            })
+        }).catch(() => {});
     } else {
         toast('No se pudo guardar el stock: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
     }
@@ -3264,7 +3333,7 @@ async function confirmarNuevaVariante(campo) {
     const listaBase = producto[campo] || [];
     const activos = _listaActivaVariante(catalogo, productId, campo, listaBase);
     if (activos.includes(valor)) { toast('Esa variante ya está activa', 'err'); return; }
-    await _guardarListaVariante(catalogo, productId, campo, [...activos, valor]);
+    await _guardarListaVariante(catalogo, productId, campo, [...activos, valor], 'agregado', valor, producto?.nombre);
     abrirVariantesModal(catalogo, productId);
 }
 
@@ -3288,11 +3357,16 @@ async function confirmarEliminarVariante() {
     const listaBase = producto[campo] || [];
     const activos = _listaActivaVariante(catalogo, productId, campo, listaBase);
     cerrarVarianteDelModal();
-    await _guardarListaVariante(catalogo, productId, campo, activos.filter(v => v !== valor));
+    await _guardarListaVariante(catalogo, productId, campo, activos.filter(v => v !== valor), 'quitado', valor, producto?.nombre);
     abrirVariantesModal(catalogo, productId);
 }
 
-async function _guardarListaVariante(catalogo, productId, campo, listaNueva) {
+// 🔧 NUEVO: accion/valorCambiado/productNombre son opcionales — si se
+// pasan, además de guardar la lista completa (como siempre), se registra
+// el cambio puntual para que el revendedor vea un aviso con la imagen
+// del producto al entrar a esta categoría. Sin ellos, se comporta
+// exactamente igual que antes.
+async function _guardarListaVariante(catalogo, productId, campo, listaNueva, accion, valorCambiado, productNombre) {
     if (!VARIANTES_GLOBAL_DATA[catalogo]) VARIANTES_GLOBAL_DATA[catalogo] = {};
     if (!VARIANTES_GLOBAL_DATA[catalogo][String(productId)]) VARIANTES_GLOBAL_DATA[catalogo][String(productId)] = {};
     VARIANTES_GLOBAL_DATA[catalogo][String(productId)][campo] = listaNueva;
@@ -3303,6 +3377,16 @@ async function _guardarListaVariante(catalogo, productId, campo, listaNueva) {
     });
     if (res && res.ok) {
         toast('Cambios guardados — ya se ven en todas las tiendas', true);
+        if (accion) {
+            fetchJson(WORKER_ESTADOS + '/api/cambios-stock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({
+                    catalogo, tipo: 'variante', accion, productId,
+                    productNombre: productNombre || '', campo, valor: valorCambiado || ''
+                })
+            }).catch(() => {});
+        }
     } else {
         toast('No se pudo guardar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker de estados'), 'err');
     }
@@ -3336,6 +3420,9 @@ function todosLosCodigosVendedor() {
     pedidos.forEach(p => p.codigoVendedor && set.add(p.codigoVendedor));
     ranking.forEach(r => r.codigoVendedor && set.add(r.codigoVendedor));
     CLIENTES_TODOS.forEach(c => c.codigoVendedor && set.add(String(c.codigoVendedor).toUpperCase()));
+    // 🔧 NUEVO: revendedores registrados que todavía no tienen ningún
+    // pedido/cliente — antes eran directamente invisibles para "Info Rvndr".
+    REVENDEDORES_TODOS.forEach(r => r.codigoVendedor && set.add(String(r.codigoVendedor).toUpperCase()));
     set.delete('—'); set.delete('');
     return [...set];
 }
@@ -3425,7 +3512,20 @@ function renderRvndrLista(filter) {
     if (!wrap) return;
     const vendors = vendorAggregatesTodos().filter(v => v.codigo && v.codigo !== '—').sort((a,b)=>b.ganancia-a.ganancia);
     const q = (filter||'').toLowerCase().trim();
-    const filtered = q ? vendors.filter(v => vendorLabel(v.codigo).toLowerCase().includes(q) || v.codigo.toLowerCase().includes(q)) : vendors;
+    const filtered = q ? vendors.filter(v => {
+        if (vendorLabel(v.codigo).toLowerCase().includes(q) || v.codigo.toLowerCase().includes(q)) return true;
+        // 🔧 NUEVO: la búsqueda ahora también coincide con cualquiera de
+        // los datos del revendedor (no solo nombre/código), tomados de
+        // vendorCache (ya completado con /api/listar-revendedores).
+        const info = vendorCache[v.codigo] || {};
+        const camposBuscables = [
+            info.codigoVendedor, info.nombre, info.apellido, info.sexo, info.email,
+            info.provincia, info.ciudad, info.codigoPostal, info.whatsappRevendedor,
+            info.cuitRevendedor, info.fechaNacimiento, info.legalAceptacionId,
+            info.fechaAceptacionLegales, info.uid,
+        ];
+        return camposBuscables.some(campo => campo && String(campo).toLowerCase().includes(q));
+    }) : vendors;
 
     if (!filtered.length) {
         wrap.innerHTML = `<div class="empty" style="padding:30px 10px"><div class="empty-icon">👤</div><h3>Sin resultados</h3></div>`;
@@ -3511,13 +3611,23 @@ function abrirRvndrMasInfo(codigo) {
 
         <h2 class="section-title" style="font-size:13px">Datos del revendedor</h2>
         <div class="ship-block" style="margin-bottom:18px">
-            ${info.email ? `<div class="ship-row">✉️ ${esc(info.email)}</div>` : ''}
-            ${(info.whatsappRevendedor || info.telefono) ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(info.whatsappRevendedor || info.telefono)}</div>` : ''}
-            ${info.provincia || info.ciudad ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc([info.ciudad, info.provincia].filter(Boolean).join(', '))}</div>` : ''}
-            ${info.cuitRevendedor ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>CUIT: ${esc(info.cuitRevendedor)}</div>` : ''}
-            ${info.sexo ? `<div class="ship-row">Sexo: ${esc(info.sexo)}</div>` : ''}
-            ${info.nivel ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Nivel: ${esc(String(info.nivel))}</div>` : ''}
-            ${!info.email && !info.whatsappRevendedor && !info.telefono && !info.provincia && !info.cuitRevendedor ? `<div class="ship-row" style="color:var(--text3)">Sin más datos de contacto cargados.</div>` : ''}
+            <div class="ship-row">Código: <strong>${esc(info.codigoVendedor || codigo)}</strong></div>
+            <div class="ship-row">Nombre: <strong>${esc(info.nombre || '—')}</strong></div>
+            <div class="ship-row">Apellido: <strong>${esc(info.apellido || '—')}</strong></div>
+            <div class="ship-row">Sexo: <strong>${esc(info.sexo || '—')}</strong></div>
+            <div class="ship-row">Email: <strong>${esc(info.email || '—')}</strong></div>
+            <button class="btn-act" style="margin-top:6px" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.textContent=this.textContent==='Ver Más'?'Ver Menos':'Ver Más'">Ver Más</button>
+            <div style="display:none;margin-top:8px">
+                <div class="ship-row">Provincia: <strong>${esc(info.provincia || '—')}</strong></div>
+                <div class="ship-row">Ciudad: <strong>${esc(info.ciudad || '—')}</strong></div>
+                <div class="ship-row">Código Postal: <strong>${esc(info.codigoPostal || '—')}</strong></div>
+                <div class="ship-row">WhatsApp: <strong>${esc(info.whatsappRevendedor || '—')}</strong></div>
+                <div class="ship-row">CUIT: <strong>${esc(info.cuitRevendedor || '—')}</strong></div>
+                <div class="ship-row">Fecha de nacimiento: <strong>${esc(info.fechaNacimiento || '—')}</strong></div>
+                <div class="ship-row">ID de aceptación legal: <strong>${esc(info.legalAceptacionId || '—')}</strong></div>
+                <div class="ship-row">Fecha de aceptación legal: <strong>${esc(info.fechaAceptacionLegales || '—')}</strong></div>
+                <div class="ship-row">UID: <strong>${esc(info.uid || '—')}</strong></div>
+            </div>
         </div>
 
         <h2 class="section-title" style="font-size:13px">Aceptación de términos legales</h2>
