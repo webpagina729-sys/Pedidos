@@ -881,6 +881,24 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- 🔧 NUEVO: panel para pausar temporalmente una categoría completa del
+     stock global. Mientras está pausada, el botón "Comenzar próximo
+     pedido en este lugar" bloquea el acceso en index.html /
+     mas-categorias.html / lenceria.html / suplementos.html. -->
+<div class="modal-overlay" id="pausaCategoriaModal">
+    <div class="modal-box">
+        <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg></div>
+        <h3>Pausar <span id="pausaCategoriaNombre"></span></h3>
+        <p style="font-size:12.5px;">Mientras esté pausada, los revendedores van a ver un aviso al intentar entrar y no van a poder empezar pedidos nuevos en esta categoría.</p>
+        <label style="display:block;font-size:12.5px;text-align:left;margin:10px 0 4px;">¿Por cuántos días?</label>
+        <input type="number" id="pausaCategoriaDias" class="rvndr-search" style="margin-bottom:0" min="1" value="1">
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="cerrarPausaCategoriaModal()">Cancelar</button>
+            <button class="modal-confirm-btn" style="background:#f59e0b" onclick="confirmarPausaCategoria()">Frenar Temporalmente</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ GUIDE MODAL ══ -->
 <div class="guide-modal" id="guide-modal">
     <div class="guide-box" id="guide-box" style="left:20px;top:80px;width:340px">
@@ -3154,27 +3172,32 @@ const STOCK_CAT_LABELS = {
 };
 let STOCK_GLOBAL_DATA = {};
 let VARIANTES_GLOBAL_DATA = {};
+// 🔧 NUEVO: categorías frenadas temporalmente — { [catalogo]: { hasta, dias } }
+let CATEGORIAS_FRENADAS_DATA = {};
 let stockCatActual = 'perfumes';
 let stockShown = 20;
 
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar] = await Promise.all([
+    const [res, resVar, resFrenadas] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
+        fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
     ]);
     STOCK_GLOBAL_DATA = (res && res.ok && res.stock) || {};
     VARIANTES_GLOBAL_DATA = (resVar && resVar.ok && resVar.variantes) || {};
+    CATEGORIAS_FRENADAS_DATA = (resFrenadas && resFrenadas.ok && resFrenadas.frenadas) || {};
 
     let html = `<h2 class="section-title">📦 Stock global de la plataforma</h2>
         <p class="section-sub">Lo que se quita acá desaparece del catálogo de TODOS los revendedores, en index.html y mas-categorias.html. Es independiente del stock individual que cada revendedor gestiona para su propia tienda.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-            <select id="stock-cat-select" class="rvndr-search" style="max-width:260px;margin-bottom:0" onchange="stockCatActual=this.value;stockShown=20;renderStockLista()">
+            <select id="stock-cat-select" class="rvndr-search" style="max-width:260px;margin-bottom:0" onchange="stockCatActual=this.value;stockShown=20;renderStockPausaBar();renderStockLista()">
                 ${Object.entries(STOCK_CAT_LABELS).map(([k,l]) => `<option value="${k}" ${k===stockCatActual?'selected':''}>${l}</option>`).join('')}
             </select>
             <input id="stock-search-input" class="rvndr-search" style="flex:1;min-width:200px;margin-bottom:0" placeholder="Buscar producto por nombre..." autocomplete="off"/>
         </div>
+        <div id="stock-pausa-bar" style="margin-bottom:14px"></div>
         <div id="stock-lista-wrap"></div>`;
     el.innerHTML = html;
 
@@ -3182,6 +3205,7 @@ async function renderStockView() {
         stockShown = 20;
         renderStockLista();
     });
+    renderStockPausaBar();
     renderStockLista();
 }
 
@@ -3230,6 +3254,69 @@ function renderStockLista() {
         html += `<button class="btn-head" style="width:100%;justify-content:center;margin-top:10px" onclick="stockShown+=20;renderStockLista()">Ver más (${filtrados.length - stockShown} más)</button>`;
     }
     wrap.innerHTML = html;
+}
+
+// 🔧 NUEVO: barra de estado de pausa, al principio de cada categoría
+// dentro de "Stock global". Si la categoría está pausada, muestra hasta
+// cuándo y un botón para reactivarla ya mismo; si no, un botón para
+// pausarla.
+function renderStockPausaBar() {
+    const cont = document.getElementById('stock-pausa-bar');
+    if (!cont) return;
+    const info = CATEGORIAS_FRENADAS_DATA[stockCatActual];
+    const ahora = Date.now();
+    if (info && info.hasta > ahora) {
+        const fecha = new Date(info.hasta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        cont.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
+            <span style="font-size:12.5px;color:#c05621;">⏸️ Categoría pausada hasta el ${fecha}</span>
+            <button class="btn-act" style="flex-shrink:0" onclick="reactivarCategoriaAhora()">Reactivar ahora</button>
+        </div>`;
+    } else {
+        cont.innerHTML = `<button class="btn-head" onclick="abrirPanelPausaCategoria()">⏸️ Parar Temporalmente esta categoría</button>`;
+    }
+}
+
+function abrirPanelPausaCategoria() {
+    document.getElementById('pausaCategoriaNombre').textContent = STOCK_CAT_LABELS[stockCatActual] || stockCatActual;
+    document.getElementById('pausaCategoriaDias').value = 1;
+    document.getElementById('pausaCategoriaModal').classList.add('active');
+}
+
+function cerrarPausaCategoriaModal() {
+    document.getElementById('pausaCategoriaModal').classList.remove('active');
+}
+
+async function confirmarPausaCategoria() {
+    const dias = parseInt(document.getElementById('pausaCategoriaDias').value, 10);
+    if (!dias || dias < 1) { toast('Ingresá una cantidad de días válida', 'err'); return; }
+    cerrarPausaCategoriaModal();
+    const res = await fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ catalogo: stockCatActual, dias })
+    });
+    if (res && res.ok) {
+        CATEGORIAS_FRENADAS_DATA = res.frenadas;
+        toast(`Categoría pausada por ${dias} día${dias === 1 ? '' : 's'}`, true);
+        renderStockPausaBar();
+    } else {
+        toast('No se pudo pausar la categoría', 'err');
+    }
+}
+
+async function reactivarCategoriaAhora() {
+    const res = await fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ catalogo: stockCatActual, dias: 0 })
+    });
+    if (res && res.ok) {
+        CATEGORIAS_FRENADAS_DATA = res.frenadas;
+        toast('Categoría reactivada', true);
+        renderStockPausaBar();
+    } else {
+        toast('No se pudo reactivar la categoría', 'err');
+    }
 }
 
 async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
