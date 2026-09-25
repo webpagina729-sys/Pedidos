@@ -3279,11 +3279,11 @@ function renderStockPausaBar() {
 function abrirPanelPausaCategoria() {
     document.getElementById('pausaCategoriaNombre').textContent = STOCK_CAT_LABELS[stockCatActual] || stockCatActual;
     document.getElementById('pausaCategoriaDias').value = 1;
-    document.getElementById('pausaCategoriaModal').classList.add('active');
+    document.getElementById('pausaCategoriaModal').classList.add('show');
 }
 
 function cerrarPausaCategoriaModal() {
-    document.getElementById('pausaCategoriaModal').classList.remove('active');
+    document.getElementById('pausaCategoriaModal').classList.remove('show');
 }
 
 async function confirmarPausaCategoria() {
