@@ -2046,33 +2046,6 @@ function _generarFacturaProveedorPDF(pedidoId) {
     return doc;
 }
 
-function descargarFacturaProveedor(pedidoId) {
-    const doc = _generarFacturaProveedorPDF(pedidoId);
-    if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
-    doc.save(`Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`);
-    toast('Factura descargada', true);
-}
-
-async function compartirFacturaWhatsApp(pedidoId) {
-    const g = panelGestion.find(x => x.pedidoId === pedidoId);
-    const doc = _generarFacturaProveedorPDF(pedidoId);
-    if (!doc || !g) { toast('No se pudo generar la factura', 'err'); return; }
-    const blob = doc.output('blob');
-    const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
-    const wa = vendorWa(g.codigoVendedor);
-    const mensaje = g.estadoReal === 'confirmado' ? 'Te comparto tu factura ya pagada.' : 'Te comparto tu factura pendiente de pago.';
-    try {
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: filename, text: mensaje });
-            return;
-        }
-    } catch(e) { return; }
-    doc.save(filename);
-    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-    else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
-}
-
 // ═══════════════════════════════════════════════════════════
 // 🔧 NUEVO: variantes "por grupo" de la factura — el revendedor no paga
 // pedido por pedido, paga el TOTAL de todos los pedidos de sus clientes
@@ -2362,6 +2335,24 @@ function renderSeccionLista(key, titulo, gs, sub, renderFn) {
         ? Object.entries(porVendedor).map(([codigo, gsV]) => {
             const nombre = vendorLabel(codigo);
             const vId = `${ribbonId}-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+            // 🔧 FIX: acá también cada pedido individual traía su propio
+            // botón de "Factura" y "Compartir al revendedor" (mismo bug que
+            // ya se había resuelto en "Pedidos Nuevos") — el revendedor no
+            // paga pedido por pedido, paga el total de su categoría. Se
+            // agrupa por categoría + estado real (mismo criterio que
+            // renderFacturaGrupoFooter, reutilizada acá) y se muestra UN
+            // solo botón al final de cada grupo, con la suma de todos los
+            // pedidos de esa categoría+estado dentro de esta sección.
+            const porCatEstado = {};
+            gsV.forEach(g => {
+                const cat = g.categoria || 'multishop';
+                const est = g.estadoReal || 'pendiente';
+                const gk = cat + '|' + est;
+                (porCatEstado[gk] = porCatEstado[gk] || { cat, est, items: [] }).items.push(g);
+            });
+            const gruposHtml = Object.values(porCatEstado).map(({ cat, est, items }) =>
+                items.map(renderFn).join('') + renderFacturaGrupoFooter(items, est, codigo, cat)
+            ).join('');
             return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
                 <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
                     <div class="ribbon-main">
@@ -2375,7 +2366,7 @@ function renderSeccionLista(key, titulo, gs, sub, renderFn) {
                     </div>
                 </div>
                 <div class="ribbon-body"><div class="ribbon-inner">
-                    ${gsV.map(renderFn).join('')}
+                    ${gruposHtml}
                 </div></div>
             </div>`;
         }).join('')
@@ -2397,8 +2388,9 @@ function renderSeccionLista(key, titulo, gs, sub, renderFn) {
     </div>`;
 }
 
-// Pedido individual dentro de Pedidos Locales/Enviados — con factura +
-// compartir por WhatsApp al revendedor.
+// Pedido individual dentro de Pedidos Locales/Enviados — solo producto,
+// cantidad y total; la Factura y el Compartir al revendedor son por grupo
+// (categoría + estado), ver renderFacturaGrupoFooter en renderSeccionLista.
 function renderPedidoLocalEnviado(g) {
     const fecha = ba(g.fecha);
     const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
@@ -2419,10 +2411,6 @@ function renderPedidoLocalEnviado(g) {
             <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
             <div class="order-foot">
                 <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total: <strong>${money(g.total)}</strong></div>
-                <div class="actions">
-                    <button class="btn-act btn-pdf" onclick="event.stopPropagation();descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura</button>
-                    <button class="btn-act btn-wa" onclick="event.stopPropagation();compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>
-                </div>
             </div>
         </div></div>
     </div>`;
