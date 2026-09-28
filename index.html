@@ -1703,6 +1703,12 @@ async function loadData() {
     renderRevmesView();
     actualizarContadorRvndrHeader();
 
+    // 🔧 NUEVO: avisa a workerproveedores.tuweb.workers.dev de los pedidos
+    // recién "aprobados" para que el panel de proveedores (proveedores.html)
+    // los pueda mostrar como "Pendientes". Fire-and-forget: no bloquea el
+    // resto de la carga ni toca nada más acá (ver _notificarPedidosAprobadosAProveedores).
+    _notificarPedidosAprobadosAProveedores();
+
     // Avisar UNA vez por sesión si hay productos que no matchean contra
     // restoprecios (pedido explícito del dueño de la plataforma).
     if (PRODUCTOS_SIN_RESTOPRECIOS.size && !window._avisoRestopreciosMostrado) {
@@ -2627,6 +2633,54 @@ async function _enviarPedidoAWorkerProveedores({ pedidoId, codigo, categoria, no
         });
     } catch (e) {
         console.warn('No se pudo registrar el pedido en workerproveedores:', e);
+    }
+}
+
+// 🔧 NUEVO: sincroniza hacia workerproveedores.tuweb.workers.dev los
+// pedidos que llegan a estadoReal === 'aprobado' (aprobados en
+// index(1).html, todavía SIN pasar por "(Enviar factura y clasificar
+// pedido)"), para que el nuevo panel de proveedores (proveedores.html) los
+// pueda listar como "Pendientes". Es puramente aditivo:
+//   - Usa el mismo pedidoId como docId que ya usa
+//     enviarFacturaYClasificarPedido (vía _enviarPedidoAWorkerProveedores),
+//     así que cuando ese pedido se clasifique más adelante, el MISMO
+//     registro se sobreescribe con origen:'clasificacion_confirmado' y
+//     pasa a "Aprobados" en ese panel — no queda duplicado ni pisa nada.
+//   - No cambia ningún estado/botón/flujo de ESTE panel (pedidos.html):
+//     solo lee panelGestion (ya armado por loadData) y llama al mismo
+//     helper de POST que ya existe. Se llama de forma "fire-and-forget"
+//     (sin await en loadData) para no demorar el resto de la carga, y
+//     _enviarPedidoAWorkerProveedores ya atrapa sus propios errores.
+//   - Recuerda (localStorage, por navegador) qué pedidoId ya avisó, para
+//     no reenviar lo mismo en cada carga del panel — si dos navegadores
+//     lo reenvían igual no hay problema: es el mismo docId, se sobreescribe.
+const PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY = 'rw_pedidos_pendiente_proveedor_notificados_v1';
+function _yaNotificadoPendienteProveedor(pedidoId) {
+    try { return JSON.parse(localStorage.getItem(PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY) || '[]').includes(pedidoId); } catch(_) { return false; }
+}
+function _marcarNotificadoPendienteProveedor(pedidoId) {
+    try {
+        const set = new Set(JSON.parse(localStorage.getItem(PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY) || '[]'));
+        set.add(pedidoId);
+        localStorage.setItem(PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY, JSON.stringify([...set]));
+    } catch(_) {}
+}
+async function _notificarPedidosAprobadosAProveedores() {
+    try {
+        const pendientes = (panelGestion || []).filter(g => g.estadoReal === 'aprobado' && !_yaNotificadoPendienteProveedor(g.pedidoId));
+        for (const g of pendientes) {
+            const info = vendorCache[g.codigoVendedor] || {};
+            const nombre = vendorLabel(g.codigoVendedor);
+            const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) }));
+            const totalMayorista = totalMayoristaPedido(g);
+            await _enviarPedidoAWorkerProveedores({
+                pedidoId: g.pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
+                productos, totalMayorista, origen: 'aprobado_pendiente',
+            });
+            _marcarNotificadoPendienteProveedor(g.pedidoId);
+        }
+    } catch (e) {
+        console.warn('No se pudieron sincronizar los pedidos "aprobado" pendientes con workerproveedores:', e);
     }
 }
 
