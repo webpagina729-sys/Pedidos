@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Revende Ways | Panel de Pedidos</title>
@@ -899,16 +898,35 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- 🔒 NUEVO: prompt de re-verificación del PANEL_PIN (misma contraseña
+     del login del panel). Reemplaza al widget de Turnstile que quedaba
+     roto en "⚙️ WhatsApp de proveedores"; también lo usa "Mis Ganancias"
+     en Estadísticas. Ver pedirVerificacionPanelPin() / _confirmarPanelPin(). -->
+<div class="modal-overlay" id="panel-pin-modal">
+    <div class="modal-box">
+        <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <h3>Verificá que sos vos</h3>
+        <p style="font-size:12.5px;">Ingresá la contraseña del panel para continuar.</p>
+        <input type="password" id="panel-pin-input" class="rvndr-search" style="margin-bottom:0" placeholder="Contraseña" autocomplete="off" onkeydown="if(event.key==='Enter')_confirmarPanelPin()">
+        <p id="panel-pin-error" style="display:none;color:#f43f5e;font-size:12px;margin:8px 0 0;text-align:left"></p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="cerrarPanelPinModal()">Cancelar</button>
+            <button class="modal-confirm-btn" id="panel-pin-confirm-btn" onclick="_confirmarPanelPin()">Verificar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ GUIDE MODAL ══ -->
 <div class="guide-modal" id="guide-modal">
     <div class="guide-box" id="guide-box" style="left:20px;top:80px;width:340px">
         <h3>Guía rápida <button class="rvndr-close" onclick="closeGuide()">✕</button></h3>
         <ul>
             <li><strong>Pedidos nuevos:</strong> pagos confirmados esperando preparación. Elegí "Pasar a retirar" o "Recibir a domicilio" para moverlos a la lista.</li>
-            <li><strong>Lista de pedidos:</strong> separados por forma de entrega, y agrupados por categoría para pedirle mercadería al proveedor por WhatsApp.</li>
-            <li><strong>Estadísticas:</strong> métricas armadas con datos de todos los revendedores, y el ranking de productos más vendidos en formato carrera.</li>
+            <li><strong>Lista de pedidos:</strong> separados por forma de entrega, y agrupados por categoría + revendedor. Cada pedido individual muestra solo producto, cantidad, total mayorista y ganancia; al final de cada grupo hay un único botón "🧾 Factura" (Pendiente de pago o Pagada según el estado) y un único "💬 Compartir al revendedor", calculados con la suma de todos los pedidos del grupo. El botón "🗑️ Ya no existe / Sincronizar" sigue siendo por pedido individual y solo aparece en pendientes y aprobados (no en confirmados).</li>
+            <li><strong>Estadísticas:</strong> métricas armadas con datos de todos los revendedores, y el ranking de productos más vendidos en formato carrera. Al final está "Mis Ganancias", que pide la contraseña del panel cada vez que se abre.</li>
             <li><strong>Revendedor del mes:</strong> top 3 revendedores con opción de enviarles un regalo por WhatsApp.</li>
-            <li><strong>Rvndr:</strong> ranking completo de revendedores; tocá un nombre para ver su detalle.</li>
+            <li><strong>Rvndr:</strong> ranking completo de revendedores; tocá un nombre para ver su detalle. El acordeón "📊 Revendedores activos por Categorías" muestra, por categoría, qué revendedores tienen pedidos pendientes ahí y cuánto les falta para llegar al mínimo de entrega.</li>
+            <li><strong>⚙️ WhatsApp de proveedores:</strong> configurar el número por categoría ahora pide la contraseña del panel para confirmar que sos vos.</li>
         </ul>
     </div>
 </div>
@@ -938,6 +956,10 @@ const WORKER_RECLAMOS = 'https://datosderevendedor.tuweb.workers.dev';
 // que corresponde que la envíe en cada petición de escritura.
 const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
 const WORKER_CLIENTE = 'https://workerwebcliente.tuweb.workers.dev';
+// 🔧 NUEVO: guarda en Firestore TODO lo que se le manda al proveedor real
+// (producto + cantidad + datos del revendedor) — antes ese envío solo
+// abría WhatsApp con el mensaje armado y no quedaba ningún registro.
+const WORKER_PROVEEDORES = 'https://workerproveedores.tuweb.workers.dev';
 const S_KEY  = 'rw_admin_session_v1';
 const L_KEY  = 'rw_lista_pedidos_v1';      // { [pedidoId]: {tipoEntrega, addedAt} }
 const DEL_KEY = 'rw_admin_deleted_v1';     // [pedidoId,...]
@@ -955,6 +977,80 @@ const CAT_LABELS = { calzados: 'Calzados Importados', perfumes: 'Perfumería', b
 const MINIMO_ENTREGA_CATEGORIA = { perfumes: 150000, belleza: 150000, bazar: 150000, jugueteria: 150000, libreria: 150000, lenceria: 150000, suplementos: 150000, multishop: 250000 };
 const MINIMO_UNIDADES_CALZADOS = 12;
 
+// 🔧 NUEVO: total mayorista real de un pedido — reutiliza el mismo
+// cálculo correcto que ya usa panelGestionContenido() con
+// itemEconomiaReal(), en vez de depender de g.costoTotal (un campo que
+// nunca se calculaba ni se guardaba, y siempre quedaba en $0).
+function totalMayoristaPedido(g) {
+    return (g.items||[]).reduce((s, it) => s + itemEconomiaReal(it, g.categoria).precioCliente, 0);
+}
+
+const CATEGORIA_LABEL_OBJETIVO = {
+    perfumes: 'Perfumería', belleza: 'Belleza', bazar: 'Bazar', jugueteria: 'Juguetería',
+    libreria: 'Librería', lenceria: 'Lencería', suplementos: 'Suplementos', multishop: 'Más Categorías',
+};
+
+// Revendedores "activos" en cada categoría = con al menos un pedido
+// pendiente ahí (todavía no llegó al mínimo, o ya lo llegó pero no lo
+// confirmó). Se agrupa sumando el total mayorista de sus pedidos
+// pendientes de esa categoría, contra el objetivo de esa categoría.
+function revendedoresActivosPorCategoria() {
+    const porCategoria = {};
+    panelGestion.forEach(g => {
+        if (g.estadoReal !== 'pendiente') return;
+        const cat = g.categoria;
+        if (!cat) return;
+        if (!porCategoria[cat]) porCategoria[cat] = {};
+        if (!porCategoria[cat][g.codigoVendedor]) porCategoria[cat][g.codigoVendedor] = 0;
+        porCategoria[cat][g.codigoVendedor] += totalMayoristaPedido(g);
+    });
+    const resultado = {};
+    Object.keys(porCategoria).forEach(cat => {
+        const objetivo = MINIMO_ENTREGA_CATEGORIA[cat] || 0;
+        resultado[cat] = Object.entries(porCategoria[cat]).map(([codigo, total]) => ({
+            codigo, total,
+            objetivo,
+            faltante: Math.max(0, objetivo - total),
+        })).sort((a, b) => b.total - a.total);
+    });
+    return resultado;
+}
+
+function _toggleCategoriasActivas(btn) {
+    const cont = document.getElementById('categorias-activas-wrap');
+    const chev = btn.querySelector('.chev');
+    const abrir = cont.style.display === 'none';
+    if (abrir) renderCategoriasActivasAcordeon();
+    cont.style.display = abrir ? 'block' : 'none';
+    chev.style.transform = abrir ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function renderCategoriasActivasAcordeon() {
+    const cont = document.getElementById('categorias-activas-wrap');
+    if (!cont) return;
+    const datos = revendedoresActivosPorCategoria();
+    const categorias = Object.keys(CATEGORIA_LABEL_OBJETIVO).filter(c => datos[c] && datos[c].length);
+    if (!categorias.length) {
+        cont.innerHTML = `<p style="font-size:12.5px;color:var(--text2);padding:8px 4px;">Ningún revendedor tiene pedidos pendientes por ahora en ninguna categoría.</p>`;
+        return;
+    }
+    cont.innerHTML = categorias.map(cat => {
+        const lista = datos[cat];
+        return `<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden">
+            <button style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--gray-light);border:none;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text)" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                <span>${esc(CATEGORIA_LABEL_OBJETIVO[cat])}</span>
+                <span style="background:var(--primary);color:#fff;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px">${lista.length} activo${lista.length===1?'':'s'}</span>
+            </button>
+            <div style="display:none;padding:6px 10px">
+                ${lista.map(r => `<button style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:8px 6px;border:none;border-bottom:1px solid var(--border);background:none;cursor:pointer" onclick="abrirRvndrMasInfo('${r.codigo}')">
+                    <span style="font-size:12.5px;font-weight:600;color:var(--text)">${esc(vendorLabel(r.codigo))}</span>
+                    <span style="font-size:11.5px;color:${r.faltante > 0 ? 'var(--text2)' : '#22c55e'}">${money(r.total)} / ${money(r.objetivo)}${r.faltante > 0 ? ` · Faltan ${money(r.faltante)}` : ' · ¡Objetivo cumplido!'}</span>
+                </button>`).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
+
 // El pedido "supera el mínimo de entrega" (por categoría) Y lleva más de
 // 48hs pendiente — condición para poder enviarle un seguimiento al
 // revendedor por WhatsApp.
@@ -968,18 +1064,127 @@ function superaMinimoYVencido48hs(g) {
     }
     const minimo = MINIMO_ENTREGA_CATEGORIA[g.categoria];
     if (minimo == null) return false;
-    return (Number(g.costoTotal) || 0) >= minimo;
+    return totalMayoristaPedido(g) >= minimo;
 }
 
 // Abre WhatsApp del revendedor con el mensaje de seguimiento — cantidad
 // = precio mayorista del pedido (lo que me paga), ganancia = la ganancia
 // PROPIA del revendedor en ese pedido (precio a su cliente − mayorista),
 // tal cual figura en su panel index(1).html.
-function enviarSeguimientoRevendedor(codigo, cantidadMayorista, gananciaRevendedor) {
-    const wa = vendorWa(codigo);
+// 🔧 NUEVO: mensajes de seguimiento exactos por estado del pedido, cada
+// uno al número de WhatsApp específico de ese revendedor (vendorWa ya
+// resuelve eso correctamente — si no tiene whatsapp cargado, avisa y no
+// abre nada, en vez de abrir WhatsApp sin contacto preseleccionado).
+// 🔧 NUEVO: helper compartido por los 4 mensajes de seguimiento — manda
+// el mensaje SIEMPRE junto con la factura del revendedor (con su marca de
+// agua correspondiente), tal como lo pidió el dueño ("todo mensaje debe
+// salir junto con la factura del revendedor"). Intenta compartir el PDF
+// adjunto por WhatsApp (Web Share API); si el navegador no lo soporta,
+// descarga la factura igual y abre WhatsApp con el texto.
+async function _enviarMensajeConFactura(pedidoId, mensaje) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    const wa = vendorWa(g.codigoVendedor);
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
-    const msg = `Hola como estas? Tenés un pedido de $${Math.round(cantidadMayorista).toLocaleString('es-AR')} pendiente! Podes organizarlo y obtener $${Math.round(gananciaRevendedor).toLocaleString('es-AR')} de ganancia!\nAtte: Servi de RW`;
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
+    const doc = _generarFacturaProveedorPDF(pedidoId);
+    if (doc) {
+        const blob = doc.output('blob');
+        const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
+        try {
+            const file = new File([blob], filename, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: filename, text: mensaje });
+                return;
+            }
+        } catch(e) { /* cancelado — sigue por WhatsApp con el texto */ }
+        doc.save(filename);
+    }
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+function enviarSeguimientoRevendedor(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    const wa = vendorWa(g.codigoVendedor);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const nombreRevendedor = vendorLabel(g.codigoVendedor);
+    const numeroPedido = String(g.pedidoId).slice(-8).toUpperCase();
+    const montoSumado = Math.round(totalMayoristaPedido(g)).toLocaleString('es-AR');
+    const minimo = g.categoria === 'calzados' ? 0 : (MINIMO_ENTREGA_CATEGORIA[g.categoria] || 0);
+    const montoRestante = Math.round(Math.max(0, minimo - totalMayoristaPedido(g))).toLocaleString('es-AR');
+    const msg = `Hola ${nombreRevendedor} 👋
+
+Vimos que tu pedido #${numeroPedido} todavía se encuentra pendiente de pago.
+
+Actualmente llevás sumado hasta el momento $${montoSumado} y te faltan $${montoRestante} para completar el pedido.
+
+Recordá que una vez cumplido el objetivo y acreditado el pago mayorista podremos avanzar con la preparación y despacho de tu mercadería.
+
+💡 Te recomendamos aprovechar este momento para crear combos, promociones o publicaciones especiales que te ayuden a generar más ventas y alcanzar el objetivo más rápido.
+
+¡Vamos que falta muy poco para completar tu pedido! 🚀`;
+    _enviarMensajeConFactura(pedidoId, msg);
+}
+
+// Reenvía la boleta/factura pendiente con su propio mensaje (distinto del
+// seguimiento de arriba — este es para cuando ya se le mandó la factura
+// una vez y hay que recordársela).
+function enviarBoletaPendiente(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    const wa = vendorWa(g.codigoVendedor);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const nombreRevendedor = vendorLabel(g.codigoVendedor);
+    const numeroPedido = String(g.pedidoId).slice(-8).toUpperCase();
+    const minimo = g.categoria === 'calzados' ? 0 : (MINIMO_ENTREGA_CATEGORIA[g.categoria] || 0);
+    const montoRestante = Math.round(Math.max(0, minimo - totalMayoristaPedido(g))).toLocaleString('es-AR');
+    const msg = `Hola ${nombreRevendedor} 👋
+Te enviamos nuevamente la boleta correspondiente al pedido #${numeroPedido}.
+📦 Estado: Pendiente de pago
+💰 Monto pendiente: $${montoRestante}
+Cuanto antes completes el objetivo y hagas el pago mayorista, antes podremos procesar y despachar tu pedido.
+Una buena estrategia para llegar más rápido al objetivo es ofrecer promociones, descuentos por cantidad o combos de productos a tus clientes.
+¡Seguimos acompañándote en tus ventas! 🚀`;
+    _enviarMensajeConFactura(pedidoId, msg);
+}
+
+// Seguimiento para pedidos ya aprobados (esperando que el revendedor
+// pague a precio mayorista).
+function enviarSeguimientoAprobado(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    const wa = vendorWa(g.codigoVendedor);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const nombreRevendedor = vendorLabel(g.codigoVendedor);
+    const numeroPedido = String(g.pedidoId).slice(-8).toUpperCase();
+    const msg = `Hola ${nombreRevendedor} 👋
+Tu pedido #${numeroPedido} ya fue aprobado correctamente dentro de nuestro sistema ✅
+Actualmente el equipo se encuentra atento a que hagas el pago a precio mayorista y comenzar con la preparación para despacho.
+Te recomendamos aprovechar este tiempo para continuar promocionando tus productos y generando nuevas ventas.
+Apenas existan novedades sobre el envío te mantendremos informado.
+Gracias por confiar en Revende Ways 🚀
+Quedamos Atentos!`;
+    _enviarMensajeConFactura(pedidoId, msg);
+}
+
+// Seguimiento para pedidos ya confirmados (pago acreditado, listo para
+// preparar y despachar).
+function enviarSeguimientoConfirmado(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    const wa = vendorWa(g.codigoVendedor);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const nombreRevendedor = vendorLabel(g.codigoVendedor);
+    const numeroPedido = String(g.pedidoId).slice(-8).toUpperCase();
+    const msg = `Hola ${nombreRevendedor} 👋
+Te informamos que tu pedido #${numeroPedido} ha sido confirmado y procesado correctamente 📦✅
+Ya podés notificar a tus clientes y prepararte para concretar las entregas.
+
+Recordá que cada venta realizada es una oportunidad para generar nuevas recompras mediante promociones, combos y ofertas especiales.
+
+¡Muchos éxitos con tus próximas ventas! 🚀
+Equipo Revende Ways🦒`;
+    _enviarMensajeConFactura(pedidoId, msg);
 }
 
 // 🔧 NUEVO: catálogo completo de productos (extraído de index.html y
@@ -1019,6 +1224,18 @@ let REVENDEDORES_TODOS = []; // 🔧 NUEVO: TODOS los revendedores registrados (
 // UTILIDADES
 // ═══════════════════════════════════════════════════════════
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// 🔧 NUEVO: texto legible de la variante elegida (talle/variante/color),
+// tal cual la guarda tienda.html en cada item del carrito — usado en
+// "Enviar Pedidos"/"Pedidos Realizados" y en lo que se manda a
+// workerproveedores, para que el proveedor sepa exactamente qué variante
+// preparar (antes solo se mostraba el nombre del producto, sin variante).
+function _variantLabel(it) {
+    const partes = [];
+    if (it.talle) partes.push('Talle ' + it.talle);
+    if (it.variante) partes.push(it.variante);
+    if (it.color) partes.push(it.color);
+    return partes.join(' · ');
+}
 function ba(ms) {
     if (!ms) return '';
     return new Date(ms).toLocaleString('es-AR', { timeZone:'America/Argentina/Buenos_Aires', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -1076,6 +1293,36 @@ function catIcon(c) { return CAT_ICONS[c] || '<svg width="14" height="14" viewBo
 // se cae a la estimación por porcentaje/costo fijo de más abajo.
 // ═══════════════════════════════════════════════════════════
 const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
+// 🔧 NUEVO: respaldo de precio mayorista — el precio que le cobramos al
+// revendedor normalmente ya viene guardado en cada item del pedido
+// (congelado al momento de la compra), pero para pedidos viejos donde
+// ese dato faltara, se consulta directamente el Worker de precios
+// mayoristas como último recurso.
+let PRECIOS_MAYORISTAS_REVENDEDOR = {};
+(function cargarPreciosMayoristasRevendedor() {
+    try {
+        const cache = JSON.parse(localStorage.getItem('_preciosMayoristasRevendedorCache') || 'null');
+        if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
+            PRECIOS_MAYORISTAS_REVENDEDOR = cache.data;
+        }
+    } catch(_) {}
+    fetch('https://preciosmayoristasrevendedores.tuweb.workers.dev/api/products')
+        .then(r => r.json())
+        .then(productos => {
+            const mapa = {};
+            if (Array.isArray(productos)) {
+                productos.forEach(p => {
+                    if (p && p.name && typeof p.price === 'number') {
+                        mapa[String(p.name).trim().toUpperCase()] = p.price;
+                    }
+                });
+            }
+            PRECIOS_MAYORISTAS_REVENDEDOR = mapa;
+            try { localStorage.setItem('_preciosMayoristasRevendedorCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
+        })
+        .catch(() => {});
+})();
+
 let CATALOGO_PRECIOS_WORKER = {};
 (function cargarCatalogoPreciosWorker() {
     try {
@@ -1178,7 +1425,13 @@ const PRODUCTOS_SIN_RESTOPRECIOS = new Set();
 function itemEconomiaReal(it, categoria) {
     const qty = Number(it.cantidad || 1);
     // Lo que el revendedor me paga A MÍ por unidad (precio mayorista mío).
-    const precioMayoristaMio = Number(it.costoUnitario ?? it.precioMayorista ?? it.precioCosto ?? 0);
+    let precioMayoristaMio = Number(it.costoUnitario ?? it.precioMayorista ?? it.precioCosto ?? 0);
+    // 🔧 NUEVO: si el pedido es viejo y no trae ese dato guardado, se
+    // busca como respaldo en el Worker de precios mayoristas.
+    if (!precioMayoristaMio) {
+        const ref = PRECIOS_MAYORISTAS_REVENDEDOR[_limpiarNombreProducto(it.nombre)];
+        if (ref != null) precioMayoristaMio = Number(ref);
+    }
 
     let miCostoUnit = precioMayoristaRealPorNombre(it.nombre);
     if (miCostoUnit == null) {
@@ -1408,7 +1661,16 @@ async function loadData() {
                 // 🔧 NUEVO: identidad y elección de entrega del CLIENTE del
                 // revendedor (no confundir con cómo el revendedor recibe SU
                 // propio pedido mayorista, que es otro concepto aparte).
-                tipoEntregaCliente: (g.tipoEntrega || (g.envio && g.envio.tipoEntrega) || (g.cliente && g.cliente.tipoEntrega) || '').toLowerCase(),
+                // 🔧 FIX: workerwebcliente_worker_CORREGIDO.js guarda el campo
+                // como 'retiro'/'domicilio' (tal cual lo manda tienda.html), pero
+                // acá se comparaba contra 'retirar' — nunca coincidía, así que
+                // "Pedidos Locales" quedaba siempre vacío aunque hubiera pedidos
+                // de retiro por sucursal. Se normaliza 'retirar'→'retiro' para
+                // tolerar también esa variante si apareciera en algún registro viejo.
+                tipoEntregaCliente: (() => {
+                    const t = (g.tipoEntrega || (g.envio && g.envio.tipoEntrega) || (g.cliente && g.cliente.tipoEntrega) || '').toLowerCase();
+                    return t === 'retirar' ? 'retiro' : t;
+                })(),
                 cliente: g.clienteInfo || (typeof g.cliente === 'object' ? g.cliente : _parsearClienteString(g.cliente)) || g.envio || {},
             };
         });
@@ -1581,9 +1843,46 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
             </div>
             <div class="ribbon-body"><div class="ribbon-inner" style="padding:10px 12px">
                 ${gsCat.map(g => panelGestionContenido(g)).join('')}
+                ${renderFacturaGrupoFooter(gsCat, estado, codigo, cat)}
             </div></div>
         </div>`;
     }).join('');
+}
+
+// 🔧 NUEVO: footer de factura/compartir UNIFICADO por grupo (revendedor +
+// categoría + estado). Antes cada pedido individual del cliente tenía su
+// propio botón de "Factura" y "Compartir al revendedor" — pero el
+// revendedor no paga pedido por pedido, paga el total de la categoría. Por
+// eso ahora hay UN solo botón al final del grupo, que suma TODOS los
+// pedidos de esa categoría+revendedor+estado. Solo aplica a "aprobado"
+// (factura pendiente de pago) y "confirmado" (factura ya pagada) — en
+// "pendiente" el revendedor todavía no confirmó nada, no hay factura que
+// mostrar.
+function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
+    if (estado !== 'aprobado' && estado !== 'confirmado') return '';
+    let totalMayoristaGrupo = 0;
+    let totalGananciaGrupo = 0;
+    let totalUnidGrupo = 0;
+    gsCat.forEach(g => {
+        (g.items||[]).forEach(it => {
+            const eco = itemEconomiaReal(it, g.categoria);
+            totalMayoristaGrupo += eco.precioCliente;
+            totalGananciaGrupo += eco.ganancia;
+            totalUnidGrupo += Number(it.cantidad) || 1;
+        });
+    });
+    const stop = 'event.stopPropagation();';
+    const etiquetaFactura = estado === 'confirmado' ? '🧾 Factura (Pagada)' : '🧾 Factura (Pendiente de pago)';
+    return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
+        <div>
+            <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
+            <div class="foot-gain">+${money(totalGananciaGrupo)} de ganancia</div>
+        </div>
+        <div class="actions">
+            <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupo('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
+            <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsAppGrupo('${codigo}','${cat}','${estado}')">💬 Compartir al revendedor</button>
+        </div>
+    </div>`;
 }
 
 // Tarjeta de un pedido individual de panelGestion (usa el estado REAL de
@@ -1620,7 +1919,12 @@ function panelGestionContenido(g) {
     </tr>`).join('');
 
     const stop = 'event.stopPropagation();';
-    const yaEnLista = lsGetLista()[g.pedidoId];
+    // 🔧 FIX: antes esto miraba lsGetLista() (el mecanismo viejo de
+    // "Pasar a retirar"/"Recibir a domicilio", manual y ya sin uso real
+    // desde que Pedidos Locales/Enviados se clasifican solos según lo que
+    // eligió el cliente en tienda.html). Ahora el gate real es si ya se
+    // tocó "Enviar factura y clasificar pedido" (= pago verificado).
+    const yaEnLista = pagoYaVerificado(g.pedidoId);
     return `<div class="pedido-block" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:8px">
@@ -1640,17 +1944,17 @@ function panelGestionContenido(g) {
             </div>
             <div class="actions">
                 ${g.estadoReal === 'aprobado' ? `
-                <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pendiente de pago)</button>
-                <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>` : ''}
-                ${g.estadoReal === 'confirmado' ? (yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>` : `
-                <button class="btn-act btn-pago-verificado" onclick="${stop}marcarPagoVerificado('${g.pedidoId}')">✅ Pago Verificado</button>
-                <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedor('${g.pedidoId}')">🧾 Factura (Pagada)</button>
-                <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsApp('${g.pedidoId}')">💬 Compartir al revendedor</button>
-                <button class="btn-act btn-retirar" onclick="${stop}enviarALista('${g.pedidoId}','retirar')">🏪 Pasar a retirar</button>
-                <button class="btn-act btn-domicilio" onclick="${stop}enviarALista('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>`) : ''}
+                <button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoAprobado('${g.pedidoId}')">💬 Enviar seguimiento</button>
+                <button class="btn-act btn-wa" onclick="${stop}enviarBoletaPendiente('${g.pedidoId}')">🧾 Reenviar boleta pendiente</button>` : ''}
+                ${g.estadoReal === 'confirmado' ? (yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>
+                <button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoConfirmado('${g.pedidoId}')">💬 Enviar seguimiento</button>
+                ${!g.tipoEntregaCliente ? `<span class="status-chip s-espera" style="width:100%">⚠️ Sin forma de entrega detectada — clasificalo a mano:</span>
+                <button class="btn-act btn-retirar" onclick="${stop}asignarTipoEntregaManual('${g.pedidoId}','retiro')">🏪 Pasar a retirar</button>
+                <button class="btn-act btn-domicilio" onclick="${stop}asignarTipoEntregaManual('${g.pedidoId}','domicilio')">🏠 Recibir a domicilio</button>` : ''}` : `
+                <button class="btn-act btn-pago-verificado" onclick="${stop}enviarFacturaYClasificarPedido('${g.pedidoId}')">📤 (Enviar factura y clasificar pedido)</button>`) : ''}
                 ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">Esperando a que el revendedor confirme este pedido</span>
-                ${superaMinimoYVencido48hs(g) ? `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoRevendedor('${g.codigoVendedor}',${Number(g.costoTotal)||0},${Number(g.gananciaTotal)||0})">💬 Enviar seguimiento</button>` : ''}` : ''}
-                <button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>
+                ${superaMinimoYVencido48hs(g) ? `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoRevendedor('${g.pedidoId}')">💬 Enviar seguimiento</button>` : ''}` : ''}
+                ${g.estadoReal !== 'confirmado' ? `<button class="btn-act btn-del" title="Usar solo si este pedido ya fue eliminado en index(1).html y sigue apareciendo acá por desincronización" onclick="${stop}marcarComoEliminadoManual('${g.pedidoId}','${g.codigoVendedor}')">🗑️ Ya no existe / Sincronizar</button>` : ''}
             </div>
         </div>
     </div>`;
@@ -1713,13 +2017,20 @@ function _generarFacturaProveedorPDF(pedidoId) {
     doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
     y += 10;
     doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+    // 🔧 FIX: el total daba $0 porque usaba g.costoTotal, un campo que
+    // nunca se calculaba ni se guardaba en ningún lado — el mismo bug que
+    // ya se había arreglado en el panel (panelGestionContenido) usando
+    // itemEconomiaReal(), pero acá en la factura PDF nunca se aplicó el
+    // mismo arreglo. Ahora se calcula igual, sumando cada producto real.
+    let totalMayoristaFactura = 0;
     (g.items||[]).forEach(it => {
         if (y > H - 40) { doc.addPage(); y = 20; }
-        const precio = Number(it.costoUnitario ?? it.precioMayorista ?? it.precio ?? 0);
+        const eco = itemEconomiaReal(it, g.categoria);
+        totalMayoristaFactura += eco.precioCliente;
         doc.setFontSize(9.5);
         doc.text(String(it.nombre||'—').slice(0,50), 17, y);
         doc.text(String(it.cantidad||1), W-70, y);
-        doc.text('$'+precio.toLocaleString('es-AR'), W-17, y, { align:'right' });
+        doc.text('$'+Math.round(eco.precioCliente / Number(it.cantidad||1)).toLocaleString('es-AR'), W-17, y, { align:'right' });
         y += 7;
     });
 
@@ -1729,7 +2040,7 @@ function _generarFacturaProveedorPDF(pedidoId) {
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
     doc.text('TOTAL A PAGAR', W-86, y+7);
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
-    doc.text('$'+Math.round(g.costoTotal||0).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
+    doc.text('$'+Math.round(totalMayoristaFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
 
     _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
     return doc;
@@ -1762,6 +2073,101 @@ async function compartirFacturaWhatsApp(pedidoId) {
     else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
 }
 
+// ═══════════════════════════════════════════════════════════
+// 🔧 NUEVO: variantes "por grupo" de la factura — el revendedor no paga
+// pedido por pedido, paga el TOTAL de todos los pedidos de sus clientes
+// en una misma categoría (y mismo estado). Estas funciones juntan todos
+// los pedidos de panelGestion que matchean codigoVendedor+categoria+estado
+// y arman UNA sola factura consolidada con la suma de todos los productos.
+// ═══════════════════════════════════════════════════════════
+function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
+    const gs = panelGestion.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+    if (!gs.length || !window.jspdf) return null;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
+    const pagado = estado === 'confirmado';
+    const nombre = vendorLabel(codigo);
+    const info = vendorCache[codigo] || {};
+
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 0, W, 34, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Revende Ways', 14, 15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text(pagado ? 'Factura de compra a proveedor — PAGADA' : 'Factura de compra a proveedor — PENDIENTE DE PAGO', 14, 23);
+    doc.setFontSize(8);
+    doc.text(`${gs.length} pedido(s) · ${CAT_LABELS[categoria] || categoria}`, 14, 29);
+
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Facturado a:', 14, 46);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(nombre, 14, 53);
+    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
+    doc.text('Código: ' + codigo, 14, 65);
+
+    let y = 78;
+    doc.setFillColor(240,242,247);
+    doc.rect(14, y-6, W-28, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
+    y += 10;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+    let totalMayoristaFactura = 0;
+    gs.forEach(g => {
+        (g.items||[]).forEach(it => {
+            if (y > H - 40) { doc.addPage(); y = 20; }
+            const eco = itemEconomiaReal(it, g.categoria);
+            totalMayoristaFactura += eco.precioCliente;
+            doc.setFontSize(9.5);
+            doc.text(String(it.nombre||'—').slice(0,50), 17, y);
+            doc.text(String(it.cantidad||1), W-70, y);
+            doc.text('$'+Math.round(eco.precioCliente / Number(it.cantidad||1)).toLocaleString('es-AR'), W-17, y, { align:'right' });
+            y += 7;
+        });
+    });
+
+    y += 6;
+    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
+    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('TOTAL A PAGAR', W-86, y+7);
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+    doc.text('$'+Math.round(totalMayoristaFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
+
+    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
+    return doc;
+}
+
+function descargarFacturaProveedorGrupo(codigo, categoria, estado) {
+    const doc = _generarFacturaProveedorPDFGrupo(codigo, categoria, estado);
+    if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
+    doc.save(`Factura_Proveedor_${codigo}_${categoria}.pdf`);
+    toast('Factura descargada', true);
+}
+
+async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
+    const doc = _generarFacturaProveedorPDFGrupo(codigo, categoria, estado);
+    if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
+    const blob = doc.output('blob');
+    const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
+    const wa = vendorWa(codigo);
+    const mensaje = estado === 'confirmado' ? 'Te comparto tu factura ya pagada.' : 'Te comparto tu factura pendiente de pago.';
+    try {
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: filename, text: mensaje });
+            return;
+        }
+    } catch(e) { return; }
+    doc.save(filename);
+    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+}
+
 // "Pago Verificado" — confirma manualmente que el dinero llegó. No
 // cambia el estado real (eso lo determina index(1).html/Mercado Pago),
 // pero deja un aviso visual + mueve el pedido a la lista de "Enviar
@@ -1777,6 +2183,65 @@ async function marcarPagoVerificado(pedidoId) {
 }
 function pagoYaVerificado(pedidoId) {
     try { return JSON.parse(localStorage.getItem('pagosVerificados') || '[]').includes(pedidoId); } catch(_) { return false; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// "(Enviar factura y clasificar pedido)" — botón único de Pedidos
+// Confirmados que reemplaza al viejo "✅ Pago Verificado":
+//   1) Marca el pago como verificado (mueve el pedido a "Enviar Pedidos",
+//      clasificado por Revendedor → Categoría, con el detalle completo
+//      de productos+variante+cantidad, total mayorista y datos del
+//      revendedor — eso ya lo arma renderSeccionEnviarPedidos()).
+//   2) Manda ese mismo detalle a workerproveedores.tuweb.workers.dev,
+//      ANTES de redirigir a WhatsApp (queda guardado aunque el dueño no
+//      llegue a mandar el mensaje).
+//   3) Redirige directo al WhatsApp del revendedor con un agradecimiento
+//      y la factura ya paga.
+// ═══════════════════════════════════════════════════════════
+async function enviarFacturaYClasificarPedido(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    if (!confirm('¿Confirmás que el pago de este pedido ya se verificó? Se le va a enviar la factura pagada al revendedor y el pedido pasa a "Enviar Pedidos".')) return;
+
+    // 1) Marcar pago verificado (sin el confirm propio — ya se confirmó arriba).
+    const set = new Set(JSON.parse(localStorage.getItem('pagosVerificados') || '[]'));
+    set.add(pedidoId);
+    localStorage.setItem('pagosVerificados', JSON.stringify([...set]));
+
+    // 2) Mandar el detalle completo a workerproveedores.
+    const info = vendorCache[g.codigoVendedor] || {};
+    const nombre = vendorLabel(g.codigoVendedor);
+    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) }));
+    const totalMayorista = totalMayoristaPedido(g);
+    await _enviarPedidoAWorkerProveedores({
+        pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
+        productos, totalMayorista, origen: 'clasificacion_confirmado',
+    });
+
+    // 3) Compartir la factura pagada por WhatsApp con un agradecimiento.
+    const doc = _generarFacturaProveedorPDF(pedidoId);
+    const wa = vendorWa(g.codigoVendedor);
+    const mensaje = `¡Gracias por tu compra, ${nombre}! 🙌 Tu pago ya fue verificado — te comparto tu factura pagada. Ya estamos preparando tu pedido para enviarlo. ¡Cualquier consulta, estamos para ayudarte!`;
+    if (doc) {
+        const blob = doc.output('blob');
+        const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
+        try {
+            const file = new File([blob], filename, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: filename, text: mensaje });
+                toast('Pedido enviado, clasificado y factura compartida', true);
+                renderPedidosView(); renderListaView();
+                return;
+            }
+        } catch(e) { /* el usuario canceló el share nativo — sigue por WhatsApp abajo */ }
+        doc.save(filename);
+    }
+    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+
+    toast('Pedido enviado, clasificado y factura descargada', true);
+    renderPedidosView();
+    renderListaView();
 }
 
 // 🧹 LIMPIEZA: se eliminó pedidoCard() — versión vieja de una estructura
@@ -1810,11 +2275,18 @@ async function marcarComoEliminadoManual(pedidoId, codigoVendedor) {
     }
 }
 
-function enviarALista(id, tipoEntrega) {
-    const lista = lsGetLista();
-    lista[id] = { tipoEntrega, addedAt: Date.now() };
-    lsSetLista(lista);
-    toast(`Pedido enviado a "${tipoEntrega === 'retirar' ? 'Para retirar' : 'Para recibir'}"`, true);
+// 🔧 NUEVO: "Pedidos Locales"/"Pedidos Enviados" se clasifican SOLOS según
+// lo que el cliente eligió en tienda.html (g.tipoEntregaCliente, leído del
+// campo tipoEntrega que guarda workerwebcliente_worker_CORREGIDO.js). Para
+// pedidos viejos de ANTES de que ese campo existiera, tipoEntregaCliente
+// queda vacío y nunca aparecerían en ninguna de las dos secciones — este
+// botón manual es el respaldo para esos casos puntuales (ver el aviso
+// "Sin forma de entrega detectada" en la tarjeta del pedido confirmado).
+function asignarTipoEntregaManual(pedidoId, tipo) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido', 'err'); return; }
+    g.tipoEntregaCliente = tipo;
+    toast(`Pedido clasificado como "${tipo === 'retiro' ? 'Retira por sucursal' : 'Recibe a domicilio'}"`, true);
     renderPedidosView();
     renderListaView();
 }
@@ -1851,15 +2323,19 @@ function confirmDelete() {
 //   Enviar Pedidos   = pedidos con "Pago Verificado" tocado, listos
 //                      para pedirle la mercadería al proveedor por
 //                      WhatsApp, agrupados por Revendedor → Categoría.
+//   Pedidos Realizados = pedidos ya enviados/ejecutados al proveedor
+//                      (guardados en workerproveedores.tuweb.workers.dev),
+//                      debajo de "Enviar Pedidos" con una línea divisoria.
 // Mismo patrón visual de cintas apiladas que "Pedidos Nuevos".
 // ═══════════════════════════════════════════════════════════
 function renderListaView() {
     const wrap = document.getElementById('lista-estado-wrap');
     if (!wrap) return;
 
-    const locales  = panelGestion.filter(g => g.tipoEntregaCliente === 'retirar');
+    const locales  = panelGestion.filter(g => g.tipoEntregaCliente === 'retiro');
     const enviados = panelGestion.filter(g => g.tipoEntregaCliente === 'domicilio');
-    const paraEjecutar = panelGestion.filter(g => pagoYaVerificado(g.pedidoId));
+    const paraEjecutar = panelGestion.filter(g => pagoYaVerificado(g.pedidoId) && !pedidoYaRealizado(g.pedidoId));
+    const realizados = panelGestion.filter(g => pedidoYaRealizado(g.pedidoId));
 
     document.getElementById('cnt-lista').textContent = paraEjecutar.length;
 
@@ -1867,6 +2343,8 @@ function renderListaView() {
     html += renderSeccionLista('locales', '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21V13h6v8"/></svg>Pedidos Locales', locales, 'Clientes que eligieron "Retirar por sucursal" en tienda.html.', renderPedidoLocalEnviado);
     html += renderSeccionLista('enviados', '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Pedidos Enviados', enviados, 'Clientes que eligieron "Recibir a domicilio" en tienda.html.', renderPedidoLocalEnviado);
     html += renderSeccionEnviarPedidos(paraEjecutar);
+    html += `<div style="border-top:1px solid var(--border);margin:18px 0"></div>`;
+    html += renderSeccionPedidosRealizados(realizados);
 
     wrap.innerHTML = html;
 }
@@ -1954,7 +2432,7 @@ function renderPedidoLocalEnviado(g) {
 // sección (Locales o Enviados), en cintas por nombre y apellido.
 function abrirSusClientes(codigo, seccion) {
     const fuente = seccion === 'locales'
-        ? panelGestion.filter(g => g.tipoEntregaCliente === 'retirar' && g.codigoVendedor === codigo)
+        ? panelGestion.filter(g => g.tipoEntregaCliente === 'retiro' && g.codigoVendedor === codigo)
         : panelGestion.filter(g => g.tipoEntregaCliente === 'domicilio' && g.codigoVendedor === codigo);
 
     document.getElementById('susclientes-titulo').textContent = 'Clientes de ' + vendorLabel(codigo);
@@ -2009,7 +2487,7 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
                 const catId = `${vId}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
                 const totalU = gsCat.reduce((s,g)=>s+(g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0),0);
                 const info = vendorCache[codigo] || {};
-                const rows = gsCat.flatMap(g => g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
+                const rows = gsCat.flatMap(g => g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}${_variantLabel(it) ? `<div style="font-size:10.5px;color:var(--text2)">${esc(_variantLabel(it))}</div>` : ''}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
                 return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
                     <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
                         <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${CAT_LABELS[cat]||cat}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
@@ -2022,6 +2500,8 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
                             <div class="ship-row"><strong>${esc(nombre)}</strong></div>
                             ${(info.whatsappRevendedor||info.telefono) ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(info.whatsappRevendedor||info.telefono)}</div>` : ''}
                             ${(info.ciudad||info.provincia) ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc([info.ciudad,info.provincia].filter(Boolean).join(', '))}</div>` : ''}
+                            ${info.direccion ? `<div class="ship-row">${esc(info.direccion)}</div>` : ''}
+                            ${info.codigoPostal ? `<div class="ship-row">CP: ${esc(info.codigoPostal)}</div>` : ''}
                         </div>
                         <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:10px" onclick="ejecutarPedido('${codigo}','${cat}')">🚀 Ejecutar Pedido</button>
                     </div></div>
@@ -2051,58 +2531,239 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
     </div>`;
 }
 
+// "Pedidos Realizados" — pedidos que YA fueron enviados/ejecutados al
+// proveedor (marcados vía ejecutarPedido() o "Enviar factura y
+// clasificar pedido"), agrupados igual que "Enviar Pedidos" pero sin el
+// botón de ejecutar — es solo un historial de lo ya hecho.
+function renderSeccionPedidosRealizados(realizados) {
+    const ribbonId = 'lista-rib-realizados';
+    const porVendedor = {};
+    realizados.forEach(g => {
+        const k = g.codigoVendedor || '—';
+        (porVendedor[k] = porVendedor[k] || []).push(g);
+    });
+
+    const cuerpo = Object.keys(porVendedor).length
+        ? Object.entries(porVendedor).map(([codigo, gsV]) => {
+            const nombre = vendorLabel(codigo);
+            const vId = `realizado-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+            const porCategoria = {};
+            gsV.forEach(g => { (porCategoria[g.categoria] = porCategoria[g.categoria] || []).push(g); });
+            const subcintas = Object.entries(porCategoria).map(([cat, gsCat]) => {
+                const catId = `${vId}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+                const totalU = gsCat.reduce((s,g)=>s+(g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0),0);
+                const rows = gsCat.flatMap(g => g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}${_variantLabel(it) ? `<div style="font-size:10.5px;color:var(--text2)">${esc(_variantLabel(it))}</div>` : ''}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
+                return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
+                    <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
+                        <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${CAT_LABELS[cat]||cat}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
+                        <span class="status-chip s-lista">✅ Enviado al proveedor</span>
+                    </div>
+                    <div class="ribbon-body"><div class="ribbon-inner">
+                        <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
+                    </div></div>
+                </div>`;
+            }).join('');
+            return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
+                <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
+                    <div class="ribbon-main"><div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div><span class="r-name">${esc(nombre)}</span><span class="r-code">${gsV.length} pedido${gsV.length!==1?'s':''}</span></div>
+                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ribbon-body"><div class="ribbon-inner">${subcintas}</div></div>
+            </div>`;
+        }).join('')
+        : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">✅</div><p>Todavía no hay pedidos enviados al proveedor.</p></div>`;
+
+    return `<div class="estado-ribbon" id="${ribbonId}">
+        <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
+            <div class="estado-head-left">
+                <span class="dot-status" style="background:#8b93a7;color:#8b93a7"></span>
+                <span class="estado-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Pedidos Realizados</span>
+                <span class="cnt">${realizados.length}</span>
+            </div>
+            <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="estado-body"><div class="estado-inner">${cuerpo}</div></div>
+    </div>`;
+}
+
 let WHATSAPP_PROVEEDORES = {};
 async function cargarWhatsappProveedores() {
     const res = await fetchJson(WORKER_ESTADOS + '/api/whatsapp-proveedores');
     WHATSAPP_PROVEEDORES = (res && res.ok && res.numeros) || {};
 }
 
+// 🔧 NUEVO: registro de pedidos ya ejecutados/enviados al proveedor —
+// mueve el pedido de "Enviar Pedidos" a "Pedidos Realizados" (ver
+// renderListaView). Se guarda por pedidoId individual, aunque el envío
+// al proveedor haya sido un lote agrupado por categoría.
+const REALIZADOS_KEY = 'rw_pedidos_realizados_v1';
+function pedidoYaRealizado(pedidoId) {
+    try { return JSON.parse(localStorage.getItem(REALIZADOS_KEY) || '[]').includes(pedidoId); } catch(_) { return false; }
+}
+function marcarPedidosRealizados(pedidoIds) {
+    try {
+        const set = new Set(JSON.parse(localStorage.getItem(REALIZADOS_KEY) || '[]'));
+        pedidoIds.forEach(id => set.add(id));
+        localStorage.setItem(REALIZADOS_KEY, JSON.stringify([...set]));
+    } catch(_) {}
+}
+
+// Manda al Worker workerproveedores.tuweb.workers.dev el detalle completo
+// de lo que se le pide al proveedor (producto + cantidad + datos del
+// revendedor) — queda guardado en Firestore, no solo en el mensaje de
+// WhatsApp que se abre después. Si el Worker no responde, no bloquea el
+// envío por WhatsApp (que sigue siendo la vía real de contacto).
+async function _enviarPedidoAWorkerProveedores({ pedidoId, codigo, categoria, nombre, info, productos, totalMayorista, origen }) {
+    try {
+        await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({
+                pedidoId: pedidoId || null,
+                codigoVendedor: codigo,
+                nombreRevendedor: nombre,
+                categoria,
+                productos,
+                datosEnvio: {
+                    nombre: info.nombre || '',
+                    apellido: info.apellido || '',
+                    provincia: info.provincia || '',
+                    ciudad: info.ciudad || '',
+                    codigoPostal: info.codigoPostal || '',
+                    direccion: info.direccion || '',
+                    telefono: info.whatsappRevendedor || info.telefono || '',
+                },
+                totalMayorista: totalMayorista || 0,
+                origen: origen || 'enviar_pedidos',
+            }),
+        });
+    } catch (e) {
+        console.warn('No se pudo registrar el pedido en workerproveedores:', e);
+    }
+}
+
 async function ejecutarPedido(codigo, categoria) {
-    const gsCat = panelGestion.filter(g => g.codigoVendedor === codigo && g.categoria === categoria && pagoYaVerificado(g.pedidoId));
+    const gsCat = panelGestion.filter(g => g.codigoVendedor === codigo && g.categoria === categoria && pagoYaVerificado(g.pedidoId) && !pedidoYaRealizado(g.pedidoId));
     if (!gsCat.length) { toast('No hay productos para esta categoría', 'err'); return; }
     const nombre = vendorLabel(codigo);
     const info = vendorCache[codigo] || {};
+    // 🔧 FIX: se agrupaba solo por nombre de producto — dos pedidos del
+    // mismo producto pero con variantes distintas (ej. Talle S y Talle M)
+    // se sumaban como si fueran lo mismo, y el proveedor perdía cuál
+    // variante corresponde a cada cantidad.
     const prods = {};
-    gsCat.forEach(g => (g.items||[]).forEach(it => { prods[it.nombre.trim()] = (prods[it.nombre.trim()]||0) + Number(it.cantidad||1); }));
+    gsCat.forEach(g => (g.items||[]).forEach(it => {
+        const variante = _variantLabel(it);
+        const key = it.nombre.trim() + (variante ? ' | ' + variante : '');
+        if (!prods[key]) prods[key] = { nombre: it.nombre.trim(), variante, cantidad: 0 };
+        prods[key].cantidad += Number(it.cantidad||1);
+    }));
+    const productosLista = Object.values(prods).map(p => ({ nombre: p.nombre, cantidad: p.cantidad, variante: p.variante }));
+    let totalMayoristaLote = 0;
+    gsCat.forEach(g => { totalMayoristaLote += totalMayoristaPedido(g); });
 
     let msg = `Pedido para "REVENDE WAYS"\nCategoría: ${CAT_LABELS[categoria]||categoria}\nRevendedor: ${nombre}\n`;
     if (info.whatsappRevendedor || info.telefono) msg += `Tel: ${info.whatsappRevendedor || info.telefono}\n`;
     if (info.ciudad || info.provincia) msg += `Ubicación: ${[info.ciudad,info.provincia].filter(Boolean).join(', ')}\n`;
     msg += `\nProductos:\n`;
-    Object.entries(prods).forEach(([n,q]) => { msg += `${n}, Cantidad: ${q}\n`; });
+    Object.values(prods).forEach(p => { msg += `${p.nombre}${p.variante ? ' (' + p.variante + ')' : ''}, Cantidad: ${p.cantidad}\n`; });
     msg += `\nMuchas Gracias, quedo atento a su confirmación! Abrazo.`;
 
     const numero = WHATSAPP_PROVEEDORES[categoria] || WHATSAPP_NUMS[categoria] || WHATSAPP_NUMS.multishop;
     if (!numero) { toast('No hay un WhatsApp configurado para esta categoría — configuralo desde el ícono de engranaje del panel', 'err'); return; }
+
+    // 🔧 NUEVO: registrar el lote completo en workerproveedores ANTES de
+    // abrir WhatsApp, y mover estos pedidos a "Pedidos Realizados".
+    await _enviarPedidoAWorkerProveedores({
+        codigo, categoria, nombre, info,
+        productos: productosLista,
+        totalMayorista: totalMayoristaLote,
+        origen: 'enviar_pedidos',
+    });
+    marcarPedidosRealizados(gsCat.map(g => g.pedidoId));
+
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(msg)}`, '_blank');
-    toast('Pedido listo para enviar por WhatsApp', true);
+    toast('Pedido enviado al proveedor y movido a "Pedidos Realizados"', true);
+    renderListaView();
 }
 
 // ── Configuración de WhatsApp de proveedores por categoría (sidebar) ──
+// 🔒 NUEVO: antes de mostrar el formulario (que puede redirigir a dónde
+// van los pedidos mayoristas de cada categoría), se exige re-verificar
+// el PANEL_PIN (la misma contraseña del login del panel) — reemplaza al
+// widget de Turnstile que quedaba roto/imposible de completar acá.
 async function abrirConfigWhatsappProveedores() {
-    document.getElementById('wa-config-modal').classList.add('show');
-    // 🔧 NUEVO: antes de mostrar el formulario (que puede redirigir a
-    // dónde van los pedidos mayoristas de cada categoría), se exige pasar
-    // la verificación de Turnstile — mismo widget que ya se usa en el
-    // login del resto del sitio.
-    document.getElementById('wa-config-body').innerHTML = `
-        <p style="font-size:12.5px;color:var(--text2);margin:0 0 14px">Verificá que sos vos antes de continuar.</p>
-        <div class="cf-turnstile" id="turnstile-wa-config" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-callback="_onTurnstileWaConfigOk"></div>
-    `;
+    pedirVerificacionPanelPin(async () => {
+        document.getElementById('wa-config-modal').classList.add('show');
+        await cargarWhatsappProveedores();
+        const cats = Object.keys(CAT_LABELS);
+        document.getElementById('wa-config-body').innerHTML = cats.map(c => `
+            <div style="margin-bottom:14px">
+                <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">${catIcon(c)} ${CAT_LABELS[c]}</label>
+                <div style="display:flex;align-items:stretch;border:1px solid var(--border2);border-radius:9px;overflow:hidden">
+                    <span style="display:flex;align-items:center;padding:9px 10px;background:var(--bg2);font-size:12.5px;font-weight:700;color:var(--text2);white-space:nowrap">+549</span>
+                    <input type="tel" id="wa-cfg-${c}" value="${esc((WHATSAPP_PROVEEDORES[c]||'').replace(/^549/,''))}" placeholder="2395401234" style="flex:1;border:none;outline:none;padding:9px 10px;font-size:13px;background:transparent;color:var(--text)">
+                </div>
+            </div>`).join('') + `
+            <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:6px" onclick="guardarWhatsappProveedores()">Guardar números</button>`;
+    });
 }
 
-async function _onTurnstileWaConfigOk() {
-    await cargarWhatsappProveedores();
-    const cats = Object.keys(CAT_LABELS);
-    document.getElementById('wa-config-body').innerHTML = cats.map(c => `
-        <div style="margin-bottom:14px">
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">${catIcon(c)} ${CAT_LABELS[c]}</label>
-            <div style="display:flex;align-items:stretch;border:1px solid var(--border2);border-radius:9px;overflow:hidden">
-                <span style="display:flex;align-items:center;padding:9px 10px;background:var(--bg2);font-size:12.5px;font-weight:700;color:var(--text2);white-space:nowrap">+549</span>
-                <input type="tel" id="wa-cfg-${c}" value="${esc((WHATSAPP_PROVEEDORES[c]||'').replace(/^549/,''))}" placeholder="2395401234" style="flex:1;border:none;outline:none;padding:9px 10px;font-size:13px;background:transparent;color:var(--text)">
-            </div>
-        </div>`).join('') + `
-        <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:6px" onclick="guardarWhatsappProveedores()">Guardar números</button>`;
+// ── Re-verificación del PANEL_PIN dentro del panel ya logueado ──
+// Función compartida: muestra un prompt pidiendo la misma contraseña del
+// login (PANEL_PIN), la valida contra el Worker (_worker.js → POST
+// /__verify-pin, que NO toca la cookie de sesión existente) y solo si es
+// correcta ejecuta el callback. Usada por abrirConfigWhatsappProveedores
+// y por "Mis Ganancias" (abrirMisGanancias, en Estadísticas).
+let _panelPinOnSuccess = null;
+
+function pedirVerificacionPanelPin(onSuccess) {
+    _panelPinOnSuccess = onSuccess;
+    const input = document.getElementById('panel-pin-input');
+    const err = document.getElementById('panel-pin-error');
+    const btn = document.getElementById('panel-pin-confirm-btn');
+    if (input) input.value = '';
+    if (err) { err.style.display = 'none'; err.textContent = ''; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Verificar'; }
+    document.getElementById('panel-pin-modal')?.classList.add('show');
+    setTimeout(() => input?.focus(), 50);
+}
+
+function cerrarPanelPinModal() {
+    document.getElementById('panel-pin-modal')?.classList.remove('show');
+    _panelPinOnSuccess = null;
+}
+
+async function _confirmarPanelPin() {
+    const input = document.getElementById('panel-pin-input');
+    const err = document.getElementById('panel-pin-error');
+    const btn = document.getElementById('panel-pin-confirm-btn');
+    const pin = (input?.value || '').trim();
+    if (!pin) {
+        if (err) { err.textContent = 'Ingresá la contraseña.'; err.style.display = 'block'; }
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
+    try {
+        const res = await fetch('/__verify-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+            const cb = _panelPinOnSuccess;
+            _panelPinOnSuccess = null;
+            document.getElementById('panel-pin-modal')?.classList.remove('show');
+            if (cb) cb();
+        } else {
+            if (err) { err.textContent = data.error || 'Contraseña incorrecta'; err.style.display = 'block'; }
+        }
+    } catch (e) {
+        if (err) { err.textContent = 'Error de conexión'; err.style.display = 'block'; }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Verificar'; }
+    }
 }
 
 async function guardarWhatsappProveedores() {
@@ -2714,30 +3375,37 @@ function renderStatsView() {
     // Cálculo: precio de VENTA = precio mayorista que me paga el
     // revendedor; precio de COSTO = lo que a mí me cobra mi proveedor
     // real (Worker restoprecios.tuweb.workers.dev).
+    // 🔒 NUEVO: el contenido real de "Mis Ganancias" no se imprime en el
+    // DOM hasta que se verifica el PANEL_PIN (ver abrirMisGanancias /
+    // pedirVerificacionPanelPin más abajo) — se guarda en una variable y
+    // recién se inyecta al confirmar la contraseña, cada vez que se abre.
+    _misGananciasHtmlCache = `
+        <p class="section-sub" style="margin-top:0">Precio de venta = precio mayorista que me paga cada revendedor. Precio de costo = lo que a mí me cobra mi proveedor real (Worker restoprecios.tuweb.workers.dev). La diferencia es mi ganancia.</p>
+        ${statRow(ICO_FACTURACION, 'Facturación (precio de venta)', money(totalFact))}
+        ${statRow(ICO_INVERSION, 'Mi costo real (restoprecios)', money(totalInv))}
+        ${statRow(ICO_MARGEN, 'Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%')}
+        ${statRow(ICO_RECIBO, 'Ganancia por pedido', money(gananciaPorPedido))}
+        ${renderGananciaPorPeriodo(pagados)}
+        ${PRODUCTOS_SIN_RESTOPRECIOS.size ? `<div class="ship-block" style="margin-top:10px;border-color:rgba(245,158,11,.3)">
+            <div class="ship-row" style="color:var(--amber);font-weight:700">⚠️ ${PRODUCTOS_SIN_RESTOPRECIOS.size} producto${PRODUCTOS_SIN_RESTOPRECIOS.size!==1?'s':''} sin precio real en restoprecios</div>
+            <div class="ship-row" style="font-size:11px;color:var(--text3)">Para esos, la ganancia se calculó con una estimación de respaldo — no es el dato exacto.</div>
+        </div>` : ''}
+        <!-- 🔧 FIX: "Mi ganancia total" siempre AL FINAL de todo el
+             contenido de esta cinta, nunca primero. -->
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            ${statRow(ICO_GANANCIA, 'Mi ganancia total', money(totalGan))}
+        </div>
+    `;
     html += `<div class="estado-ribbon" id="mis-ganancias-ribbon">
-        <div class="estado-head" onclick="toggleEstadoRibbon('mis-ganancias-ribbon')">
+        <div class="estado-head" onclick="abrirMisGanancias()">
             <div class="estado-head-left">
                 <span class="dot-status" style="background:#0ac97a;color:#0ac97a"></span>
-                <span class="estado-title">${ICO_GANANCIA} Mis Ganancias</span>
+                <span class="estado-title">${ICO_GANANCIA} Mis Ganancias <span style="font-size:10px;font-weight:600;color:var(--text3)">🔒 pide contraseña</span></span>
             </div>
             <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        <div class="estado-body"><div class="estado-inner">
-            <p class="section-sub" style="margin-top:0">Precio de venta = precio mayorista que me paga cada revendedor. Precio de costo = lo que a mí me cobra mi proveedor real (Worker restoprecios.tuweb.workers.dev). La diferencia es mi ganancia.</p>
-            ${statRow(ICO_FACTURACION, 'Facturación (precio de venta)', money(totalFact))}
-            ${statRow(ICO_INVERSION, 'Mi costo real (restoprecios)', money(totalInv))}
-            ${statRow(ICO_MARGEN, 'Margen promedio', totalFact ? ((totalGan/totalFact)*100).toFixed(1)+'%' : '0%')}
-            ${statRow(ICO_RECIBO, 'Ganancia por pedido', money(gananciaPorPedido))}
-            ${renderGananciaPorPeriodo(pagados)}
-            ${PRODUCTOS_SIN_RESTOPRECIOS.size ? `<div class="ship-block" style="margin-top:10px;border-color:rgba(245,158,11,.3)">
-                <div class="ship-row" style="color:var(--amber);font-weight:700">⚠️ ${PRODUCTOS_SIN_RESTOPRECIOS.size} producto${PRODUCTOS_SIN_RESTOPRECIOS.size!==1?'s':''} sin precio real en restoprecios</div>
-                <div class="ship-row" style="font-size:11px;color:var(--text3)">Para esos, la ganancia se calculó con una estimación de respaldo — no es el dato exacto.</div>
-            </div>` : ''}
-            <!-- 🔧 FIX: "Mi ganancia total" siempre AL FINAL de todo el
-                 contenido de esta cinta, nunca primero. -->
-            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-                ${statRow(ICO_GANANCIA, 'Mi ganancia total', money(totalGan))}
-            </div>
+        <div class="estado-body"><div class="estado-inner" id="mis-ganancias-inner">
+            <p class="section-sub" style="margin:0">${MIS_GANANCIAS_PLACEHOLDER}</p>
         </div></div>
     </div>`;
 
@@ -2763,6 +3431,30 @@ function renderStatsView() {
 // Estadísticas. Ahora, si hay un detalle para mostrar, se despliega
 // hacia abajo dentro de la misma fila (como una cinta); si no hay nada
 // más que mostrar, la fila queda simple, sin click.
+// 🔒 NUEVO: "Mis Ganancias" pide re-verificar el PANEL_PIN cada vez que
+// se abre (ver pedirVerificacionPanelPin, definida más abajo junto con
+// el resto de las funciones compartidas de re-verificación del panel).
+const MIS_GANANCIAS_PLACEHOLDER = 'Tocá para verificar tu contraseña y ver el detalle.';
+let _misGananciasHtmlCache = '';
+
+function abrirMisGanancias() {
+    const ribbon = document.getElementById('mis-ganancias-ribbon');
+    const inner = document.getElementById('mis-ganancias-inner');
+    if (!ribbon) return;
+    if (ribbon.classList.contains('expanded')) {
+        // Ya estaba abierta: solo se cierra y se limpia el contenido del
+        // DOM — no hace falta re-verificar para OCULTAR datos, solo para
+        // volver a mostrarlos.
+        ribbon.classList.remove('expanded');
+        if (inner) inner.innerHTML = `<p class="section-sub" style="margin:0">${MIS_GANANCIAS_PLACEHOLDER}</p>`;
+        return;
+    }
+    pedirVerificacionPanelPin(() => {
+        if (inner) inner.innerHTML = _misGananciasHtmlCache;
+        ribbon.classList.add('expanded');
+    });
+}
+
 let _statRowSeq = 0;
 // 🔧 FIX: los emojis de colores (📦🧮💰📉👥💚🧾📐) hacían que el panel
 // pareciera de dibujos animados — se reemplazan por íconos de línea,
@@ -3579,6 +4271,15 @@ function renderRvndrShell() {
             </div>`).join('')}
         </div>`;
     }
+
+    // 🔧 NUEVO: "Revendedores activos por Categorías" — acordeón con
+    // cuántos revendedores tienen pedidos pendientes en cada categoría, y
+    // al tocar uno, su progreso real hacia el objetivo de esa categoría.
+    html += `<button class="btn-head" style="width:100%;justify-content:space-between;margin-bottom:10px" onclick="_toggleCategoriasActivas(this)">
+        <span>📊 Revendedores activos por Categorías</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="categorias-activas-wrap" style="display:none;margin-bottom:14px"></div>`;
 
     html += `<input class="rvndr-search" id="rvndr-search-input" placeholder="Buscar revendedor por nombre o apellido..." autocomplete="off"/>
         <div id="rvndr-lista-wrap"></div>`;
