@@ -3165,18 +3165,24 @@ async function guardarProveedor() {
     }
 }
 
-// 🔧 NUEVO: arma el enlace de proveedores.html para este proveedor y
-// abre el modal para copiarlo/mandarlo por WhatsApp. proveedores.html
-// vive en el mismo repositorio/dominio que este panel
-// (controldeplataforma.revendeways.shop), así que alcanza con
-// location.origin — no depende de ningún dominio hardcodeado. El id de
-// la URL es el MISMO id que ya usa PROVEEDORES_CONFIG (prov.id): es el
-// mismo valor que ahora viaja como "proveedorId" en cada pedido enviado
-// a workerproveedores (ver _enviarPedidoAWorkerProveedores), así que
-// proveedores.html puede resolver de qué proveedor se trata sin leer
-// el localStorage de este panel (dominios distintos).
+// 🔧 NUEVO: proveedores.html se comparte con cada proveedor externo bajo
+// su propio dominio público (pedidos.revendeways.shop), NO bajo
+// controldeplataforma.revendeways.shop (ese queda solo para el panel del
+// dueño, protegido por PANEL_PIN). Ambos dominios apuntan al mismo
+// proyecto/deploy, así que proveedores.html funciona igual en cualquiera
+// de los dos — acá se hardcodea el dominio público para que el enlace
+// generado sea siempre el que se comparte con proveedores.
+const DOMINIO_PANEL_PROVEEDORES = 'https://pedidos.revendeways.shop';
+
+// arma el enlace de proveedores.html para este proveedor y abre el modal
+// para copiarlo/mandarlo por WhatsApp. El id de la URL es el MISMO id
+// que ya usa PROVEEDORES_CONFIG (prov.id): es el mismo valor que ahora
+// viaja como "proveedorId" en cada pedido enviado a workerproveedores
+// (ver _enviarPedidoAWorkerProveedores), así que proveedores.html puede
+// resolver de qué proveedor se trata sin leer el localStorage de este
+// panel (dominios distintos).
 function _mostrarEnlaceProveedor(proveedor) {
-    const url = location.origin + '/proveedores.html?proveedor=' + encodeURIComponent(proveedor.id);
+    const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores.html?proveedor=' + encodeURIComponent(proveedor.id);
     document.getElementById('proveedor-enlace-nombre').textContent = proveedor.nombre;
     document.getElementById('proveedor-enlace-url').textContent = url;
     document.getElementById('proveedor-enlace-wa').href = 'https://wa.me/' + proveedor.numero + '?text=' + encodeURIComponent(`Hola ${proveedor.nombre}! Te paso el enlace a tu panel de pedidos de Revende Ways: ${url}`);
@@ -3210,7 +3216,7 @@ function enviarPanelAProveedor(id) {
     const p = PROVEEDORES_CONFIG.find(x => x.id === id);
     if (!p) { toast('No se encontró el proveedor', 'err'); return; }
     if (!p.numero) { toast('Este proveedor no tiene WhatsApp cargado', 'err'); return; }
-    const url = location.origin + '/proveedores.html?proveedor=' + encodeURIComponent(p.id);
+    const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores.html?proveedor=' + encodeURIComponent(p.id);
     const mensaje = `Hola ${p.nombre} acá te dejo todos los pedidos bien ordenados junto a la boleta de envío descargable de cada uno! Cualquier cosita me preguntas! \n${url}`;
     window.open(`https://wa.me/${p.numero}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
