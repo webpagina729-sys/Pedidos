@@ -1807,7 +1807,17 @@ async function loadData() {
     await Promise.all([...codes].map(c => resolveVendor(c)));
 
     document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
-    const tot = pedidos.length;
+    // 🔧 FIX: este contador usaba `pedidos.length` (lista cruda de
+    // workerpagos /api/pedidos, filtrada solo por estadoPago
+    // PENDIENTE/APROBADO) — una fuente totalmente distinta de la que
+    // realmente arma "Lista de Pedidos" (renderListaView, que usa
+    // panelGestion). Por eso el número no coincidía con lo que se veía
+    // en pantalla (podía marcar "(1 pedido)" con el panel vacío, o no
+    // bajar al eliminar en index(1).html). Ahora cuenta los pedidos
+    // distintos que realmente están en panelGestion — la misma fuente
+    // que arma todo lo visible — que ya excluye los eliminados
+    // (ESTADOS_ELIMINADOS, ver más arriba) y se refresca solo cada 60s.
+    const tot = new Set(panelGestion.map(g => g.pedidoId)).size;
     document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
 
     await cargarWhatsappProveedores();
