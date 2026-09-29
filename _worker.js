@@ -69,7 +69,16 @@ export default {
     // archivo, y ahora también el pausado por proveedor), así que queda
     // afuera del gate de PIN — el resto del dominio (pedidos.html y todo
     // lo demás) sigue exigiendo la contraseña exactamente igual que antes.
-    if (url.pathname === '/proveedores.html') {
+    //
+    // 🔧 FIX 2: "Workers Static Assets" sirve los .html con
+    // html_handling = "auto-trailing-slash" por defecto, que ANTES de
+    // llegar a env.ASSETS.fetch ya redirige /proveedores.html → /proveedores
+    // (sin extensión). Esa redirección la sigue el navegador con una
+    // segunda request, que vuelve a pasar por este mismo Worker — pero
+    // esta vez con url.pathname = '/proveedores' (sin ".html"), que no
+    // coincidía con el chequeo original y por eso terminaba cayendo igual
+    // en el gate de sesión. Por eso hay que exceptuar las DOS variantes.
+    if (url.pathname === '/proveedores.html' || url.pathname === '/proveedores') {
       return env.ASSETS.fetch(request);
     }
 
