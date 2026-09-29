@@ -340,6 +340,29 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .btn-outline { background:transparent; color:var(--text2); border:1px solid var(--border2); }
 .btn-outline:hover { border-color:var(--blue); color:var(--blue); }
 
+/* 🎨 Rediseño solicitado — SOLO estética de "WhatsApp de proveedores":
+   panel de fondo gris claro/medio, cada proveedor en una tarjeta blanca,
+   categoría al lado del nombre, botones compactos abajo (pausar/editar/
+   eliminar en blanco con contorno negro sutil a la izquierda, "Enviar
+   Panel" en verdes degradados a la derecha). Todo scopeado a #wa-config-*
+   para no afectar ningún otro botón/tarjeta del resto del panel, aunque
+   reutilicen las mismas clases .btn-act/.btn-del en otras partes. */
+#wa-config-modal .rvndr-box { background: #e7e9ec; }
+#wa-config-body { color: #1f2430; }
+#wa-config-body .prov-card { background: #fff; border: 1px solid #e2e4e9; border-radius: 12px; padding: 12px 13px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(20,20,30,.06); }
+#wa-config-body .prov-card-name-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
+#wa-config-body .prov-card-name-row strong { color: #12141a; font-size: 13.5px; }
+#wa-config-body .prov-cat-chip { display:inline-flex; align-items:center; gap:4px; background:#eef1f6; color:#3b4252; border:1px solid #dde1e8; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
+#wa-config-body .prov-cat-chip--empty { color:#8b93a3; }
+#wa-config-body .prov-pausado-chip { display:inline-flex; align-items:center; gap:4px; background:rgba(245,158,11,.12); color:#92400e; border:1px solid rgba(245,158,11,.35); font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; }
+#wa-config-body .prov-card-numero { font-size:12px; color:#5b6373; margin-bottom:10px; }
+#wa-config-body .prov-card-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+#wa-config-body .prov-card-actions-left { display:flex; align-items:center; gap:6px; }
+#wa-config-body .prov-btn-icon { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; background:#fff; color:#111318; border:1px solid rgba(0,0,0,.28); border-radius:8px; cursor:pointer; padding:0; transition: all .15s; }
+#wa-config-body .prov-btn-icon:hover { background:#f2f3f5; border-color:rgba(0,0,0,.45); }
+#wa-config-body .prov-btn-enviar { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,.4); font-family:var(--font); color:#fff; white-space:nowrap; background: linear-gradient(135deg, #16d17a, #0a7a44); box-shadow: 0 2px 8px rgba(10,138,63,.4), inset 0 1px 0 rgba(255,255,255,.2); transition: all .18s; }
+#wa-config-body .prov-btn-enviar:hover { background: linear-gradient(135deg, #1eeb8a, #0c8f4f); box-shadow: 0 3px 10px rgba(10,138,63,.55), inset 0 1px 0 rgba(255,255,255,.25); }
+
 .ship-block { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 12px; }
 .ship-row { margin-bottom: 4px; color: var(--text2); }
 .ship-row:last-child { margin-bottom: 0; }
@@ -1307,6 +1330,7 @@ let activeRvndrCode = null;
 let ESTADOS_CONFIRMADOS = {};
 let ESTADOS_PAGADOS = {};
 let ESTADOS_ELIMINADOS = {};   // pedidoId -> true, si se eliminó/no se aprobó en index(1).html
+let _autoRefreshPedidosTimer = null; // 🔧 NUEVO: ver loadData() — refresco automático cada 60s
 let CLIENTES_TODOS = [];   // clientes de TODOS los revendedores (workerwebcliente /clientes)
 let REVENDEDORES_TODOS = []; // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan pedidos o no
 
@@ -1806,6 +1830,17 @@ async function loadData() {
         window._avisoRestopreciosMostrado = true;
         console.warn('Productos sin match en restoprecios:', [...PRODUCTOS_SIN_RESTOPRECIOS]);
     }
+
+    // 🔧 NUEVO: el conteo "Lista de Pedidos (N)" (count-lbl) y todo lo
+    // demás ya excluye correctamente los pedidos que index(1).html marcó
+    // como eliminados (ver ESTADOS_ELIMINADOS más arriba) — pero solo en
+    // el momento en que loadData() se ejecuta. Si el dueño deja esta
+    // pestaña abierta y elimina un pedido desde index(1).html en otra
+    // pestaña, acá quedaba desactualizado hasta tocar "Actualizar" a
+    // mano. Con este auto-refresh cada 60s, se recalcula solo.
+    if (!_autoRefreshPedidosTimer) {
+        _autoRefreshPedidosTimer = setInterval(() => { loadData().catch(() => {}); }, 60000);
+    }
 }
 
 function vendorLabel(codigo) {
@@ -1880,13 +1915,20 @@ function renderPedidosView() {
         const gsDelEstado = panelGestion.filter(g => g.estadoReal === estado);
         const hayPedidos = gsDelEstado.length > 0;
         const ribbonId = 'estado-rib-' + estado;
+        // 🔧 NUEVO: el número al lado del título debe contar REVENDEDORES
+        // distintos (que es como se agrupa visualmente más abajo, ver
+        // renderRevendedoresAnidados), no la cantidad de filas de
+        // panelGestion — un mismo revendedor puede tener varios pedidos
+        // (de distintas categorías) en el mismo estado, y antes cada uno
+        // sumaba por separado al contador.
+        const revendedoresDelEstado = new Set(gsDelEstado.map(g => g.codigoVendedor || '—')).size;
 
         html += `<div class="estado-ribbon" id="${ribbonId}">
             <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
                 <div class="estado-head-left">
                     <span class="dot-status ${hayPedidos ? 'pulsing' : ''}" style="background:${ESTADO_DOT_COLOR[estado]};color:${ESTADO_DOT_COLOR[estado]}"></span>
                     <span class="estado-title">${ESTADO_TITULOS[estado]}</span>
-                    <span class="cnt">${gsDelEstado.length}</span>
+                    <span class="cnt">${revendedoresDelEstado}</span>
                 </div>
                 <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
@@ -2012,6 +2054,22 @@ const ICO_REENVIAR_FACTURA = '<svg width="13" height="13" viewBox="0 0 24 24" fi
 const ICO_ENVIAR_PANEL = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>';
 const ICO_PAUSAR_PANEL = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 const ICO_REANUDAR_PANEL = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+// 🔧 NUEVO: íconos para las tarjetas de "WhatsApp de proveedores"
+// (editar/eliminar) — SVG compactos, mismo criterio que el resto.
+const ICO_EDITAR_PROVEEDOR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>';
+const ICO_ELIMINAR_PROVEEDOR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+// 🔧 NUEVO: íconos SVG para "Info Rvndr" (reemplazan los emojis 🔥/👤/
+// 📊/📦/💰/✉️/✅/❌/🎁/🧑‍🤝‍🧑 que quedaban ahí).
+const ICO_TRENDING = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>';
+const ICO_PERSONA = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+const ICO_CHART_BAR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+const ICO_PAQUETE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
+const ICO_MONEDA = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;display:inline-block"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+const ICO_MAIL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>';
+const ICO_CHECK_OK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;display:inline-block;color:var(--green)"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>';
+const ICO_CHECK_NO = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;display:inline-block;color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+const ICO_REGALO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
+const ICO_GRUPO = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
 
 // 🔧 NUEVO: footer de factura/compartir UNIFICADO por grupo (revendedor +
 // categoría + estado). Antes cada pedido individual del cliente tenía su
@@ -3061,19 +3119,20 @@ function _renderProveedoresConfigBody() {
     if (!cont) return;
     const lista = PROVEEDORES_CONFIG.length
         ? PROVEEDORES_CONFIG.map(p => `
-            <div class="cat-item" style="flex-direction:column;align-items:stretch;gap:6px;padding:10px 4px;border-bottom:1px solid var(--border)">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                    <strong>${esc(p.nombre)}${p.pausado ? ' <span class="status-chip" style="font-size:10px;background:rgba(245,158,11,.15);color:#b45309;border:1px solid rgba(245,158,11,.35)">⏸ Panel pausado</span>' : ''}</strong>
-                    <div style="display:flex;gap:6px;flex-shrink:0">
-                        <button class="btn-act btn-pausar-proveedor" title="${p.pausado ? 'Reactivar panel' : 'Pausar panel'}" style="padding:4px 8px;font-size:11.5px" onclick="abrirPausarProveedorModal('${p.id}')">${p.pausado ? ICO_REANUDAR_PANEL : ICO_PAUSAR_PANEL}</button>
-                        <button class="btn-act" style="padding:4px 10px;font-size:11.5px" onclick="mostrarFormProveedor('${p.id}')">Editar</button>
-                        <button class="btn-act btn-del" style="padding:4px 10px;font-size:11.5px" onclick="eliminarProveedor('${p.id}')">Eliminar</button>
-                    </div>
+            <div class="prov-card">
+                <div class="prov-card-name-row">
+                    <strong>${esc(p.nombre)}</strong>
+                    ${(p.categorias||[]).map(c => `<span class="prov-cat-chip">${catIcon(c)} ${esc(CAT_LABELS[c]||c)}</span>`).join('') || '<span class="prov-cat-chip prov-cat-chip--empty">Sin categoría</span>'}
+                    ${p.pausado ? `<span class="prov-pausado-chip">${ICO_PAUSAR_PANEL} Panel pausado</span>` : ''}
                 </div>
-                <div style="font-size:12px;color:var(--text2)">+${esc(p.numero||'—')}</div>
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
-                    ${(p.categorias||[]).map(c => `<span class="status-chip s-lista" style="font-size:10.5px">${catIcon(c)} ${esc(CAT_LABELS[c]||c)}</span>`).join('') || '<span style="font-size:11.5px;color:var(--text2)">Sin categorías asignadas</span>'}
-                    <button class="btn-act btn-wa-enviar" style="margin-left:auto" onclick="enviarPanelAProveedor('${p.id}')">${ICO_ENVIAR_PANEL}Enviar Panel</button>
+                <div class="prov-card-numero">+${esc(p.numero||'—')}</div>
+                <div class="prov-card-actions">
+                    <div class="prov-card-actions-left">
+                        <button class="prov-btn-icon" title="${p.pausado ? 'Reactivar panel' : 'Pausar panel'}" onclick="abrirPausarProveedorModal('${p.id}')">${p.pausado ? ICO_REANUDAR_PANEL : ICO_PAUSAR_PANEL}</button>
+                        <button class="prov-btn-icon" title="Editar" onclick="mostrarFormProveedor('${p.id}')">${ICO_EDITAR_PROVEEDOR}</button>
+                        <button class="prov-btn-icon" title="Eliminar" onclick="eliminarProveedor('${p.id}')">${ICO_ELIMINAR_PROVEEDOR}</button>
+                    </div>
+                    <button class="prov-btn-enviar" onclick="enviarPanelAProveedor('${p.id}')">${ICO_ENVIAR_PANEL}Enviar Panel</button>
                 </div>
             </div>`).join('')
         : `<div class="empty" style="padding:16px 8px"><div class="empty-icon">📇</div><p>Todavía no hay proveedores configurados.</p></div>`;
@@ -4939,11 +4998,11 @@ function renderRvndrShell() {
         </div>`;
 
     if (masActivos.length) {
-        html += `<h2 class="section-title" style="font-size:13px">🔥 Revendedores más activos</h2>
+        html += `<h2 class="section-title" style="font-size:13px">${ICO_TRENDING}Revendedores más activos</h2>
         <div class="race-wrap" style="padding:12px;margin-bottom:18px">
             ${masActivos.map((r,i) => `<div class="race-row">
                 <div class="race-rank">${i+1}</div>
-                <div class="race-icon">👤</div>
+                <div class="race-icon">${ICO_PERSONA}</div>
                 <div class="race-body"><div class="race-top"><span class="race-name">${esc(vendorLabel(r.codigo))}</span><span class="race-val">${r.cantidad} ped.</span></div>
                 <div class="race-track"><div class="race-fill" style="width:${Math.max(6, r.cantidad / masActivos[0].cantidad * 100)}%"></div></div></div>
             </div>`).join('')}
@@ -4954,7 +5013,7 @@ function renderRvndrShell() {
     // cuántos revendedores tienen pedidos pendientes en cada categoría, y
     // al tocar uno, su progreso real hacia el objetivo de esa categoría.
     html += `<button class="btn-head" style="width:100%;justify-content:space-between;margin-bottom:10px" onclick="_toggleCategoriasActivas(this)">
-        <span>📊 Revendedores activos por Categorías</span>
+        <span>${ICO_CHART_BAR}Revendedores activos por Categorías</span>
         <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div id="categorias-activas-wrap" style="display:none;margin-bottom:14px"></div>`;
@@ -4994,7 +5053,7 @@ function renderRvndrLista(filter) {
     }) : vendors;
 
     if (!filtered.length) {
-        wrap.innerHTML = `<div class="empty" style="padding:30px 10px"><div class="empty-icon">👤</div><h3>Sin resultados</h3></div>`;
+        wrap.innerHTML = `<div class="empty" style="padding:30px 10px"><div class="empty-icon">${ICO_PERSONA}</div><h3>Sin resultados</h3></div>`;
         return;
     }
 
@@ -5020,9 +5079,9 @@ function renderRvndrLista(filter) {
             <div class="ribbon-body" style="${expandido?'max-height:600px':''}">
                 <div class="ribbon-inner">
                     <div class="ship-block" style="margin-top:0">
-                        <div class="ship-row">📦 ${v.pedidos} pedido${v.pedidos!==1?'s':''} · ${v.unidades} unidades</div>
-                        <div class="ship-row">💰 Facturación: <strong>${money(v.facturacion)}</strong></div>
-                        ${info.email ? `<div class="ship-row">✉️ ${esc(info.email)}</div>` : ''}
+                        <div class="ship-row">${ICO_PAQUETE}${v.pedidos} pedido${v.pedidos!==1?'s':''} · ${v.unidades} unidades</div>
+                        <div class="ship-row">${ICO_MONEDA}Facturación: <strong>${money(v.facturacion)}</strong></div>
+                        ${info.email ? `<div class="ship-row">${ICO_MAIL}${esc(info.email)}</div>` : ''}
                         ${(info.whatsappRevendedor || info.telefono) ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(info.whatsappRevendedor || info.telefono)}</div>` : ''}
                     </div>
                     <button class="btn-head" style="width:100%;justify-content:center;margin-top:10px" onclick="abrirRvndrMasInfo('${v.codigo}')">
@@ -5066,8 +5125,8 @@ function abrirRvndrMasInfo(codigo) {
 
     const topProds = Object.entries(v.items || {}).sort((a,b)=>b[1]-a[1]).slice(0,6);
 
-    const tyc = info.terminosCondicionesAceptado === true ? '✅ Aceptados' : (info.terminosCondicionesAceptado === false ? '❌ No aceptados' : '— Sin datos');
-    const pp  = info.politicaPrivacidadAceptado === true ? '✅ Aceptada' : (info.politicaPrivacidadAceptado === false ? '❌ No aceptada' : '— Sin datos');
+    const tyc = info.terminosCondicionesAceptado === true ? ICO_CHECK_OK + 'Aceptados' : (info.terminosCondicionesAceptado === false ? ICO_CHECK_NO + 'No aceptados' : '— Sin datos');
+    const pp  = info.politicaPrivacidadAceptado === true ? ICO_CHECK_OK + 'Aceptada' : (info.politicaPrivacidadAceptado === false ? ICO_CHECK_NO + 'No aceptada' : '— Sin datos');
 
     let html = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
@@ -5132,7 +5191,7 @@ function abrirRvndrMasInfo(codigo) {
     const wa = vendorWa(codigo);
     html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
         <button class="btn-head btn-rvndr" style="justify-content:center" onclick="abrirClientesDeRevendedor('${codigo}')">Información de Clientes</button>
-        ${wa ? `<button class="btn-gift" style="justify-content:center" onclick="enviarRegalo('${codigo}')">🎁 Enviar regalo por WhatsApp</button>` : ''}
+        ${wa ? `<button class="btn-gift" style="justify-content:center" onclick="enviarRegalo('${codigo}')">${ICO_REGALO}Enviar regalo por WhatsApp</button>` : ''}
     </div>`;
 
     document.getElementById('rvdet-body').innerHTML = html;
@@ -5178,7 +5237,7 @@ function renderRvcliLista(codigo, filter) {
         .sort((a,b) => b.pedidos - a.pedidos);
 
     if (!conCompras.length) {
-        wrap.innerHTML = `<div class="empty" style="padding:30px 10px"><div class="empty-icon">🧑‍🤝‍🧑</div><h3>Sin clientes</h3><p>Este revendedor todavía no tiene clientes registrados.</p></div>`;
+        wrap.innerHTML = `<div class="empty" style="padding:30px 10px"><div class="empty-icon">${ICO_GRUPO}</div><h3>Sin clientes</h3><p>Este revendedor todavía no tiene clientes registrados.</p></div>`;
         return;
     }
 
@@ -5216,8 +5275,8 @@ function abrirClienteMasInfo(codigo, telefono) {
     }));
     const topProds = Object.entries(prods).sort((a,b)=>b[1]-a[1]).slice(0,6);
 
-    const tyc = c.terminosCondicionesAceptado === true ? '✅ Aceptados' : (c.terminosCondicionesAceptado === false ? '❌ No aceptados' : '— Sin datos');
-    const pp  = c.politicaPrivacidadAceptado === true ? '✅ Aceptada' : (c.politicaPrivacidadAceptado === false ? '❌ No aceptada' : '— Sin datos');
+    const tyc = c.terminosCondicionesAceptado === true ? ICO_CHECK_OK + 'Aceptados' : (c.terminosCondicionesAceptado === false ? ICO_CHECK_NO + 'No aceptados' : '— Sin datos');
+    const pp  = c.politicaPrivacidadAceptado === true ? ICO_CHECK_OK + 'Aceptada' : (c.politicaPrivacidadAceptado === false ? ICO_CHECK_NO + 'No aceptada' : '— Sin datos');
 
     let html = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
@@ -5229,7 +5288,7 @@ function abrirClienteMasInfo(codigo, telefono) {
         <div class="ship-block" style="margin-bottom:18px">
             ${c.telefono ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(c.telefono)}</div>` : ''}
             ${c.direccion ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(c.direccion)}</div>` : ''}
-            ${c.email ? `<div class="ship-row">✉️ ${esc(c.email)}</div>` : ''}
+            ${c.email ? `<div class="ship-row">${ICO_MAIL}${esc(c.email)}</div>` : ''}
             ${!c.telefono && !c.direccion && !c.email ? `<div class="ship-row" style="color:var(--text3)">Sin más datos de identidad cargados.</div>` : ''}
         </div>
 
@@ -5249,7 +5308,7 @@ function abrirClienteMasInfo(codigo, telefono) {
         html += `<h2 class="section-title" style="font-size:13px">Productos más pedidos</h2><div class="race-wrap" style="padding:12px;margin-bottom:18px">`;
         const max = topProds[0][1] || 1;
         topProds.forEach(([n,q],i) => {
-            html += `<div class="race-row"><div class="race-rank">${i+1}</div><div class="race-icon">📦</div>
+            html += `<div class="race-row"><div class="race-rank">${i+1}</div><div class="race-icon">${ICO_PAQUETE}</div>
                 <div class="race-body"><div class="race-top"><span class="race-name">${esc(n)}</span><span class="race-val">${q} u.</span></div>
                 <div class="race-track"><div class="race-fill" style="width:${Math.max(6,q/max*100)}%"></div></div></div></div>`;
         });
