@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Revende Ways | Panel de Proveedores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
+<style>
+:root {
+    --blue:        #0066ff;
+    --blue-dim:    #1a4fff;
+    --blue-pale:   rgba(0,102,255,.12);
+    --blue-glow:   rgba(0,102,255,.25);
+    --bg:          #0b0d12;
+    --bg2:         #111318;
+    --bg3:         #16181f;
+    --surface:     #1c1f2a;
+    --surface2:    #222536;
+    --border:      rgba(255,255,255,.07);
+    --border2:     rgba(255,255,255,.12);
+    --text:        #e8eaf0;
+    --text2:       #9aa0b4;
+    --text3:       #5a6070;
+    --green:       #00c96e;
+    --green-pale:  rgba(0,201,110,.12);
+    --amber:       #f59e0b;
+    --amber-pale:  rgba(245,158,11,.12);
+    --red:         #f43f5e;
+    --red-pale:    rgba(244,63,94,.12);
+    --purple:      #8b5cf6;
+    --purple-pale: rgba(139,92,246,.12);
+    --radius:      16px;
+    --shadow:      0 4px 20px rgba(0,0,0,.4);
+    --shadow-lg:   0 12px 40px rgba(0,0,0,.6);
+    --font:        'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+
+/* ── SELECCIÓN DE PROVEEDOR (identificación por categoría) ── */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,102,255,.10), transparent); }
+.login-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 32px 28px; width: 100%; max-width: 380px; box-shadow: var(--shadow-lg); }
+.login-box h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.login-box p { color: var(--text2); font-size: 12.5px; margin-bottom: 22px; line-height: 1.5; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; }
+.field select { width: 100%; padding: 11px 14px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 14px; font-family: var(--font); }
+.field select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+.btn-login { width: 100%; padding: 13px; background: var(--blue); color: #fff; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: background .18s; }
+.btn-login:hover { background: var(--blue-dim); }
+.login-note { background: var(--amber-pale); color: var(--amber); border: 1px solid rgba(245,158,11,.25); padding: 10px 13px; border-radius: 9px; font-size: 11.5px; margin-top: 16px; line-height: 1.5; }
+
+/* ── SHELL / HEADER ── */
+.main { display: none; }
+.main.show { display: block; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 18px 60px; }
+.topbar { position: sticky; top: 0; z-index: 200; background: rgba(11,13,18,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 20px; height: 58px; display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, var(--blue), #17c9ff); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #fff; flex-shrink: 0; }
+.brand-info { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-title { font-size: 15px; font-weight: 700; }
+.brand-sub { font-size: 11px; font-weight: 600; color: var(--blue); }
+.btn-switch { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-family: var(--font); transition: all .18s; }
+.btn-switch:hover { border-color: var(--blue); color: var(--blue); }
+
+.page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 21px; font-weight: 800; }
+.page-title span { color: var(--text3); font-size: 13px; font-weight: 400; margin-left: 6px; }
+.btn-refresh { display: flex; align-items: center; gap: 7px; padding: 9px 15px; background: var(--surface); color: var(--text); border: 1px solid var(--border2); border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: all .18s; }
+.btn-refresh:hover { border-color: var(--blue); color: var(--blue); }
+
+/* ── TABS ── */
+.menu-nav { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+.menu-btn { display: flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; }
+.menu-btn:hover { color: var(--text); }
+.menu-btn.active { background: linear-gradient(135deg, var(--blue), #17c9ff); color: #fff; border-color: transparent; box-shadow: 0 4px 16px rgba(0,102,255,.35); }
+.view { display: none; }
+.view.show { display: block; }
+
+/* ── SECCIONES (Pendientes / Aprobados) ── */
+.section-block { margin-bottom: 26px; }
+.section-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.section-title { font-size: 15px; font-weight: 800; }
+.section-sub { color: var(--text2); font-size: 12px; margin-bottom: 12px; }
+.count-badge { background: var(--surface2); color: var(--text2); font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+.count-badge.pendiente { background: var(--amber-pale); color: var(--amber); }
+.count-badge.aprobado { background: var(--green-pale); color: var(--green); }
+
+.pedidos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ped-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 16px; }
+.ped-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.ped-card-vendedor { font-size: 14px; font-weight: 700; }
+.ped-card-cat { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.s-pendiente { background: var(--amber-pale); color: var(--amber); }
+.s-aprobado { background: var(--green-pale); color: var(--green); }
+.ped-items { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ped-items li { font-size: 12.5px; color: var(--text2); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 4px; }
+.ped-items li:last-child { border-bottom: none; padding-bottom: 0; }
+.ped-items li b { color: var(--text); font-weight: 600; }
+.ped-envio { font-size: 11.5px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
+.ped-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.ped-total { font-size: 15px; font-weight: 800; color: var(--blue); }
+.ped-fecha { font-size: 11px; color: var(--text3); }
+.empty-state { background: var(--surface); border: 1px dashed var(--border2); border-radius: var(--radius); padding: 30px 20px; text-align: center; color: var(--text3); font-size: 13px; }
+
+/* ── ESTADÍSTICAS ── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 18px; }
+.stat-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; font-size: 16px; }
+.stat-icon.blue { background: var(--blue-pale); }
+.stat-icon.green { background: var(--green-pale); }
+.stat-icon.purple { background: var(--purple-pale); }
+.stat-icon.amber { background: var(--amber-pale); }
+.stat-label { font-size: 11.5px; color: var(--text2); font-weight: 600; margin-bottom: 4px; }
+.stat-value { font-size: 21px; font-weight: 800; }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+.mini-list { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px 16px; }
+.mini-list-title { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+.mini-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.mini-row:last-child { border-bottom: none; }
+.mini-row-name { color: var(--text); font-weight: 600; }
+.mini-row-val { color: var(--text2); font-weight: 700; }
+
+.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; color: var(--text3); gap: 12px; }
+.spin { width: 30px; height: 30px; border: 3px solid var(--border2); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border2); color: var(--text); padding: 11px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-lg); opacity: 0; transition: all .25s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err { border-color: rgba(244,63,94,.35); color: var(--red); }
+
+@media (max-width: 640px) { .wrap { padding: 14px 12px 50px; } .pedidos-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ── Selección de proveedor (identificación por categoría) ── -->
+<div class="login-wrap" id="login-wrap">
+    <div class="login-box">
+        <h1>Panel de Proveedores</h1>
+        <p>Revende Ways — elegí tu rubro para ver los pedidos que te corresponden.</p>
+        <div class="field">
+            <label>Rubro / Proveedor</label>
+            <select id="sel-categoria"></select>
+        </div>
+        <button class="btn-login" onclick="seleccionarProveedor()">Entrar</button>
+        <div class="login-note">⚠️ Identificación simple por rubro, sin contraseña individual por proveedor todavía — se puede reforzar en una próxima vuelta si hace falta.</div>
+    </div>
+</div>
+
+<!-- ── Panel ── -->
+<div class="main" id="main">
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-mark">RW</div>
+            <div class="brand-info">
+                <div class="brand-title">Panel de Proveedores</div>
+                <div class="brand-sub" id="brand-cat">—</div>
+            </div>
+        </div>
+        <button class="btn-switch" onclick="cambiarProveedor()">Cambiar rubro</button>
+    </div>
+
+    <div class="wrap">
+        <div class="page-head">
+            <div class="page-title">Panel de Proveedores <span id="page-title-sub"></span></div>
+            <button class="btn-refresh" onclick="cargarDatos()">↻ Actualizar</button>
+        </div>
+
+        <div class="menu-nav">
+            <button class="menu-btn active" id="tab-btn-nuevos" onclick="cambiarTab('nuevos')">📦 Nuevos Pedidos</button>
+            <button class="menu-btn" id="tab-btn-stats" onclick="cambiarTab('stats')">📊 Estadísticas</button>
+        </div>
+
+        <div class="view show" id="view-nuevos">
+            <div id="nuevos-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+        </div>
+
+        <div class="view" id="view-stats">
+            <div id="stats-content"><div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// Panel de Proveedores — Revende Ways
+// Lee (SOLO LECTURA por ahora) los pedidos que pedidos.html manda a
+// workerproveedores.tuweb.workers.dev en dos momentos:
+//   1) Cuando un pedido llega a estadoReal === 'aprobado' en pedidos.html
+//      (todavía sin clasificar) → llega acá como "Pendientes"
+//      (origen: 'aprobado_pendiente', sincronización agregada en
+//      pedidos.html / _notificarPedidosAprobadosAProveedores).
+//   2) Cuando se confirma "(Enviar factura y clasificar pedido)" o se
+//      ejecuta un lote desde "Enviar Pedidos" → llega acá como "Aprobados"
+//      (origen: 'clasificacion_confirmado' u 'origen: enviar_pedidos',
+//      flujo que YA existía en pedidos.html antes de este panel).
+// La identificación de "quién es el proveedor" se hace por `categoria`
+// (mismo campo que ya usa pedidos.html para plata/WhatsApp por rubro:
+// CAT_LABELS / WHATSAPP_PROVEEDORES) — es el único campo por el que
+// workerproveedores.tuweb.workers.dev sabe filtrar pedidos por proveedor
+// (GET /api/pedidos-proveedor?categoria=...). No hay todavía un
+// usuario/contraseña propio por proveedor en el Worker: eso queda
+// pendiente de una próxima instrucción.
+// ═══════════════════════════════════════════════════════════
+
+const WORKER_PROVEEDORES = 'https://workerproveedores.tuweb.workers.dev';
+const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
+// 🔧 Misma clave de administrador que usa pedidos.html para hablar con
+// este mismo Worker (GET /api/pedidos-proveedor la exige por query
+// ?adminKey=). Sin este Worker soportando un secret propio por
+// proveedor, es la única forma hoy de que este panel pueda leer datos.
+const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
+
+const CAT_LABELS = { calzados: 'Calzados Importados', perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', lenceria: 'Conjuntos/Lencería', suplementos: 'Salud/Suplementos', multishop: 'Multishop' };
+
+// Orígenes que ya representan un pedido REALMENTE enviado al proveedor
+// (flujo existente de pedidos.html, previo a este panel) → "Aprobados".
+const ORIGENES_APROBADO = ['clasificacion_confirmado', 'enviar_pedidos'];
+// Origen nuevo, agregado en pedidos.html solo para que este panel sepa
+// que el pedido está "aprobado" en index(1).html pero TODAVÍA no fue
+// clasificado/enviado de verdad → "Pendientes".
+const ORIGEN_PENDIENTE = 'aprobado_pendiente';
+
+const CATEGORIA_KEY = 'rw_proveedor_categoria_v1';
+let CATEGORIA_ACTUAL = null;
+let PEDIDOS_PROVEEDOR = [];
+let CATALOGO_PRECIOS = {};
+
+function toast(msg, ok) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (ok ? '' : ' err');
+    setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'); }
+
+async function fetchJson(url, opts) {
+    try {
+        const res = await fetch(url, opts);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { window._lastFetchError = { status: res.status }; return null; }
+        return data;
+    } catch (e) { window._lastFetchError = { status: 0 }; return null; }
+}
+
+// ── Selección de proveedor (identificación por categoría/rubro) ──
+function poblarSelectCategorias() {
+    const sel = document.getElementById('sel-categoria');
+    sel.innerHTML = Object.keys(CAT_LABELS).map(c => `<option value="${c}">${esc(CAT_LABELS[c])}</option>`).join('');
+}
+function seleccionarProveedor() {
+    const cat = document.getElementById('sel-categoria').value;
+    if (!cat) return;
+    try { localStorage.setItem(CATEGORIA_KEY, cat); } catch(_) {}
+    entrarConCategoria(cat);
+}
+function cambiarProveedor() {
+    try { localStorage.removeItem(CATEGORIA_KEY); } catch(_) {}
+    CATEGORIA_ACTUAL = null;
+    document.getElementById('main').classList.remove('show');
+    document.getElementById('login-wrap').style.display = 'flex';
+}
+function entrarConCategoria(cat) {
+    CATEGORIA_ACTUAL = cat;
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('main').classList.add('show');
+    document.getElementById('brand-cat').textContent = CAT_LABELS[cat] || cat;
+    document.getElementById('page-title-sub').textContent = '· ' + (CAT_LABELS[cat] || cat);
+    cargarDatos();
+}
+
+function cambiarTab(tab) {
+    document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-btn-' + tab).classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('show'));
+    document.getElementById('view-' + tab).classList.add('show');
+}
+
+// ── Carga de datos ──
+async function cargarDatos() {
+    if (!CATEGORIA_ACTUAL) return;
+    document.getElementById('nuevos-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+    document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
+
+    const [pedidosRes, preciosRes] = await Promise.all([
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?categoria=${encodeURIComponent(CATEGORIA_ACTUAL)}&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
+        fetchJson(RESTOPRECIOS_WORKER),
+    ]);
+
+    if (!pedidosRes || !pedidosRes.ok) {
+        document.getElementById('nuevos-content').innerHTML = '<div class="empty-state">No se pudieron cargar los pedidos' + (window._lastFetchError && window._lastFetchError.status ? ` (código ${window._lastFetchError.status})` : '') + '. Probá "Actualizar".</div>';
+        document.getElementById('stats-content').innerHTML = '<div class="empty-state">No se pudieron cargar las estadísticas.</div>';
+        return;
+    }
+    PEDIDOS_PROVEEDOR = Array.isArray(pedidosRes.pedidos) ? pedidosRes.pedidos : [];
+
+    CATALOGO_PRECIOS = {};
+    if (preciosRes && Array.isArray(preciosRes.productos)) {
+        preciosRes.productos.forEach(p => {
+            if (p && p.nombre && p.precio_mayorista != null) {
+                CATALOGO_PRECIOS[String(p.nombre).trim().toUpperCase()] = Number(p.precio_mayorista);
+            }
+        });
+    }
+
+    renderNuevosPedidos();
+    renderEstadisticas();
+}
+
+// ── Clasificación Pendientes / Aprobados ──
+function esPendiente(p) { return p.origen === ORIGEN_PENDIENTE; }
+function esAprobado(p) { return ORIGENES_APROBADO.includes(p.origen) || (!esPendiente(p) && p.origen); }
+
+function pedidosPendientes() { return PEDIDOS_PROVEEDOR.filter(esPendiente); }
+function pedidosAprobados() { return PEDIDOS_PROVEEDOR.filter(esAprobado); }
+
+// ── Tab: Nuevos Pedidos ──
+function renderNuevosPedidos() {
+    const pendientes = pedidosPendientes().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
+    const aprobados = pedidosAprobados().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
+
+    let html = '';
+    html += renderSeccionPedidos('Pendientes', 'Pedidos aprobados en index(1).html, todavía sin clasificar/enviar de verdad.', pendientes, 's-pendiente', 'pendiente');
+    html += renderSeccionPedidos('Aprobados', 'Pedidos ya clasificados/enviados al proveedor desde "Enviar Pedidos" o "(Enviar factura y clasificar pedido)".', aprobados, 's-aprobado', 'aprobado');
+
+    document.getElementById('nuevos-content').innerHTML = html;
+}
+
+function renderSeccionPedidos(titulo, sub, lista, chipClass, badgeClass) {
+    const cuerpo = lista.length
+        ? `<div class="pedidos-grid">${lista.map(renderPedidoCard.bind(null, chipClass)).join('')}</div>`
+        : `<div class="empty-state">No hay pedidos ${titulo.toLowerCase()} por ahora.</div>`;
+    return `
+    <div class="section-block">
+        <div class="section-title-row">
+            <div class="section-title">${titulo}</div>
+            <span class="count-badge ${badgeClass}">${lista.length}</span>
+        </div>
+        <div class="section-sub">${sub}</div>
+        ${cuerpo}
+    </div>`;
+}
+
+function renderPedidoCard(chipClass, p) {
+    const productos = Array.isArray(p.productos) ? p.productos : [];
+    const envio = p.datosEnvio || {};
+    const ubicacion = [envio.ciudad, envio.provincia].filter(Boolean).join(', ');
+    const fecha = p.enviadoEn ? new Date(p.enviadoEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    const estLbl = chipClass === 's-pendiente' ? 'Pendiente' : 'Aprobado';
+    return `
+    <div class="ped-card">
+        <div class="ped-card-head">
+            <div>
+                <div class="ped-card-vendedor">${esc(p.nombreRevendedor || p.codigoVendedor || 'Revendedor')}</div>
+                <div class="ped-card-cat">${esc(CAT_LABELS[p.categoria] || p.categoria || '—')}</div>
+            </div>
+            <span class="status-chip ${chipClass}">${estLbl}</span>
+        </div>
+        <ul class="ped-items">
+            ${productos.length ? productos.map(it => `<li><span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad)||1}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
+        </ul>
+        ${ubicacion || envio.direccion || envio.telefono ? `<div class="ped-envio">📍 ${esc(ubicacion || '—')}${envio.direccion ? ' — ' + esc(envio.direccion) : ''}${envio.telefono ? '<br>📞 ' + esc(envio.telefono) : ''}</div>` : ''}
+        <div class="ped-foot">
+            <span class="ped-total">${money(p.totalMayorista)}</span>
+            <span class="ped-fecha">${fecha}</span>
+        </div>
+    </div>`;
+}
+
+// ── Precio real por nombre (Worker restoprecios) — mismo criterio de
+// match (exacto, luego por contenido) que usa pedidos.html. ──
+function limpiarNombreProducto(s) {
+    return String(s || '').trim().toUpperCase().replace(/\s*\(T\.?\s*\d+\)\s*/gi, '').replace(/\s+/g, ' ').trim();
+}
+function precioRealPorNombre(nombre) {
+    if (!nombre) return null;
+    const n = limpiarNombreProducto(nombre);
+    const keys = Object.keys(CATALOGO_PRECIOS);
+    if (!keys.length) return null;
+    if (CATALOGO_PRECIOS[n] != null) return CATALOGO_PRECIOS[n];
+    const porContenido = keys.filter(k => n.includes(k) && k.length > 3).sort((a,b) => b.length - a.length);
+    if (porContenido.length) return CATALOGO_PRECIOS[porContenido[0]];
+    const porContenido2 = keys.filter(k => k.includes(n) && n.length > 3).sort((a,b) => a.length - b.length);
+    if (porContenido2.length) return CATALOGO_PRECIOS[porContenido2[0]];
+    return null;
+}
+
+// ── Tab: Estadísticas (solo del proveedor actual) ──
+function renderEstadisticas() {
+    const todos = PEDIDOS_PROVEEDOR;
+    const totalPedidos = todos.length;
+    const totalPendientes = pedidosPendientes().length;
+    const totalAprobados = pedidosAprobados().length;
+
+    // Total con precios REALES tomados de restoprecios (no el totalMayorista
+    // guardado en el pedido, que es lo que le cobro yo al revendedor).
+    let totalConPreciosReales = 0;
+    let unidadesTotales = 0;
+    let productosSinMatch = new Set();
+    const ventasPorProducto = {}; // nombre normalizado -> { nombre, cantidad }
+
+    todos.forEach(p => {
+        (Array.isArray(p.productos) ? p.productos : []).forEach(it => {
+            const cant = Number(it.cantidad) || 1;
+            unidadesTotales += cant;
+            const key = limpiarNombreProducto(it.nombre);
+            if (!ventasPorProducto[key]) ventasPorProducto[key] = { nombre: it.nombre || key, cantidad: 0 };
+            ventasPorProducto[key].cantidad += cant;
+
+            const precioReal = precioRealPorNombre(it.nombre);
+            if (precioReal != null) {
+                totalConPreciosReales += precioReal * cant;
+            } else {
+                productosSinMatch.add(it.nombre || '—');
+            }
+        });
+    });
+
+    const rankingProductos = Object.values(ventasPorProducto).sort((a,b) => b.cantidad - a.cantidad);
+    const productoMasVendido = rankingProductos[0] || null;
+
+    let html = '';
+    html += `<div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon blue">📦</div>
+            <div class="stat-label">Total de pedidos</div>
+            <div class="stat-value">${totalPedidos}</div>
+            <div class="stat-sub">${totalPendientes} pendientes · ${totalAprobados} aprobados</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">💰</div>
+            <div class="stat-label">Total (precios reales restoprecios)</div>
+            <div class="stat-value">${money(totalConPreciosReales)}</div>
+            <div class="stat-sub">${productosSinMatch.size ? productosSinMatch.size + ' producto(s) sin precio en restoprecios' : 'Todos los productos matchearon'}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">🏆</div>
+            <div class="stat-label">Producto más vendido</div>
+            <div class="stat-value" style="font-size:15px">${productoMasVendido ? esc(productoMasVendido.nombre) : '—'}</div>
+            <div class="stat-sub">${productoMasVendido ? productoMasVendido.cantidad + ' unidades' : 'Sin datos todavía'}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber">🧾</div>
+            <div class="stat-label">Unidades totales pedidas</div>
+            <div class="stat-value">${unidadesTotales}</div>
+            <div class="stat-sub">Sumando todos los productos de todos los pedidos</div>
+        </div>
+    </div>`;
+
+    html += `<div class="mini-list">
+        <div class="mini-list-title">Ranking de productos más pedidos</div>
+        ${rankingProductos.length ? rankingProductos.slice(0, 10).map(r => `<div class="mini-row"><span class="mini-row-name">${esc(r.nombre)}</span><span class="mini-row-val">${r.cantidad} un.</span></div>`).join('') : '<div class="mini-row"><span class="mini-row-name">Sin pedidos todavía</span></div>'}
+    </div>`;
+
+    document.getElementById('stats-content').innerHTML = html;
+}
+
+// ── Init ──
+(function init() {
+    poblarSelectCategorias();
+    let cat = null;
+    try { cat = localStorage.getItem(CATEGORIA_KEY); } catch(_) {}
+    if (cat && CAT_LABELS[cat]) {
+        entrarConCategoria(cat);
+    } else {
+        document.getElementById('login-wrap').style.display = 'flex';
+    }
+})();
+</script>
+</body>
+</html>
