@@ -171,7 +171,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 <div class="login-wrap" id="login-wrap">
     <div class="login-box">
         <h1>Panel de Proveedores</h1>
-        <p id="login-wrap-msg">Este enlace no es válido o venció. Pedile a Revende Ways que te reenvíe tu enlace personal por WhatsApp — cada proveedor tiene el suyo propio y solo muestra sus pedidos.</p>
+        <p id="login-wrap-msg">Cargando los pedidos de su categoría.</p>
     </div>
 </div>
 
@@ -190,7 +190,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
     <div class="wrap">
         <div class="page-head">
             <div class="page-title">Panel de Proveedores <span id="page-title-sub"></span></div>
-            <button class="btn-refresh" onclick="cargarDatos()">↻ Actualizar</button>
+            <button class="btn-refresh" onclick="cargarDatos()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M3 12a9 9 0 0 1 15.3-6.5L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.5L3 16"/><path d="M3 21v-5h5"/></svg>Actualizar</button>
         </div>
 
         <div class="menu-nav">
@@ -774,7 +774,11 @@ function renderEstadisticas() {
 // HTML) — no hay ningún otro camino para entrar al panel.
 (function init() {
     const proveedorId = _leerProveedorIdDeUrl();
-    if (proveedorId) entrarConProveedorId(proveedorId);
+    if (proveedorId) {
+        entrarConProveedorId(proveedorId);
+    } else {
+        document.getElementById('login-wrap-msg').textContent = 'Este enlace no es válido o venció. Pedile a Revende Ways que te reenvíe tu enlace personal por WhatsApp — cada proveedor tiene el suyo propio y solo muestra sus pedidos.';
+    }
 })();
 </script>
 </body>
