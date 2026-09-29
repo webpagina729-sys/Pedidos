@@ -6,6 +6,8 @@
 <title>Revende Ways | Panel de Proveedores</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
+<!-- Boleta de envío en PDF (mismo patrón/branding que las facturas de pedidos.html) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 :root {
     --blue:        #0066ff;
@@ -82,27 +84,14 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .view { display: none; }
 .view.show { display: block; }
 
-/* ── SECCIONES (Pendientes / Aprobados) ── */
+/* ── SECCIONES (Pedidos / Pendiente para despachar) ── */
 .section-block { margin-bottom: 26px; }
 .section-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .section-title { font-size: 15px; font-weight: 800; }
 .section-sub { color: var(--text2); font-size: 12px; margin-bottom: 12px; }
 .count-badge { background: var(--surface2); color: var(--text2); font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
 .count-badge.pendiente { background: var(--amber-pale); color: var(--amber); }
-.count-badge.aprobado { background: var(--green-pale); color: var(--green); }
 
-.pedidos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-.ped-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 16px; }
-.ped-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.ped-card-vendedor { font-size: 14px; font-weight: 700; }
-.ped-card-cat { font-size: 11px; color: var(--text3); margin-top: 2px; }
-.status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-.s-pendiente { background: var(--amber-pale); color: var(--amber); }
-.s-aprobado { background: var(--green-pale); color: var(--green); }
-.ped-items { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.ped-items li { font-size: 12.5px; color: var(--text2); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 4px; }
-.ped-items li:last-child { border-bottom: none; padding-bottom: 0; }
-.ped-items li b { color: var(--text); font-weight: 600; }
 .ped-envio { font-size: 11.5px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
 .ped-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .ped-total { font-size: 15px; font-weight: 800; color: var(--blue); }
@@ -128,6 +117,26 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .mini-row-name { color: var(--text); font-weight: 600; }
 .mini-row-val { color: var(--text2); font-weight: 700; }
 
+/* ── CINTAS POR REVENDEDOR (pestaña "Pedidos" / "Pendiente para despachar") ── */
+.cinta { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden; }
+.cinta-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.cinta-vendedor { font-size: 15px; font-weight: 800; }
+.cinta-pedidos-nums { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+.cinta-body { padding: 6px 18px 4px; }
+.cinta-sub { padding: 10px 0; border-bottom: 1px dashed var(--border); }
+.cinta-sub:last-child { border-bottom: none; }
+.cinta-sub-cat { font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.cinta-items { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.cinta-items li { font-size: 12.5px; color: var(--text2); display: flex; justify-content: space-between; gap: 8px; }
+.cinta-items li b { color: var(--text); font-weight: 600; }
+.cinta-foot { display: flex; gap: 10px; padding: 14px 18px; flex-wrap: wrap; }
+.cinta-btn { display: flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: none; font-family: var(--font); transition: filter .15s; }
+.cinta-btn:hover { filter: brightness(1.1); }
+.cinta-btn svg { flex-shrink: 0; }
+.cinta-btn-prep { background: var(--blue-pale); color: var(--blue); }
+.cinta-btn-boleta { background: var(--green-pale); color: var(--green); }
+.cinta-btn-camino { background: var(--blue); color: #fff; }
+
 .loader { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; color: var(--text3); gap: 12px; }
 .spin { width: 30px; height: 30px; border: 3px solid var(--border2); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -135,7 +144,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.err { border-color: rgba(244,63,94,.35); color: var(--red); }
 
-@media (max-width: 640px) { .wrap { padding: 14px 12px 50px; } .pedidos-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .wrap { padding: 14px 12px 50px; } }
 </style>
 </head>
 <body>
@@ -150,7 +159,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             <select id="sel-categoria"></select>
         </div>
         <button class="btn-login" onclick="seleccionarProveedor()">Entrar</button>
-        <div class="login-note">⚠️ Identificación simple por rubro, sin contraseña individual por proveedor todavía — se puede reforzar en una próxima vuelta si hace falta.</div>
+        <div class="login-note">⚠️ Esta pantalla es un respaldo manual por rubro. Lo normal es entrar directo desde el enlace que te pasa Revende Ways por WhatsApp (proveedores.html?proveedor=...), que te identifica automáticamente.</div>
     </div>
 </div>
 
@@ -164,7 +173,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                 <div class="brand-sub" id="brand-cat">—</div>
             </div>
         </div>
-        <button class="btn-switch" onclick="cambiarProveedor()">Cambiar rubro</button>
+        <button class="btn-switch" id="btn-cambiar-rubro" onclick="cambiarProveedor()" style="display:none">Cambiar rubro</button>
     </div>
 
     <div class="wrap">
@@ -174,12 +183,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
         </div>
 
         <div class="menu-nav">
-            <button class="menu-btn active" id="tab-btn-nuevos" onclick="cambiarTab('nuevos')">📦 Nuevos Pedidos</button>
+            <button class="menu-btn active" id="tab-btn-nuevos" onclick="cambiarTab('nuevos')">📦 Pedidos</button>
+            <button class="menu-btn" id="tab-btn-despacho" onclick="cambiarTab('despacho')">🚚 Pendiente para despachar</button>
             <button class="menu-btn" id="tab-btn-stats" onclick="cambiarTab('stats')">📊 Estadísticas</button>
         </div>
 
         <div class="view show" id="view-nuevos">
             <div id="nuevos-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+        </div>
+
+        <div class="view" id="view-despacho">
+            <div id="despacho-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
         </div>
 
         <div class="view" id="view-stats">
@@ -193,47 +207,58 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 <script>
 // ═══════════════════════════════════════════════════════════
 // Panel de Proveedores — Revende Ways
-// Lee (SOLO LECTURA por ahora) los pedidos que pedidos.html manda a
-// workerproveedores.tuweb.workers.dev en dos momentos:
-//   1) Cuando un pedido llega a estadoReal === 'aprobado' en pedidos.html
-//      (todavía sin clasificar) → llega acá como "Pendientes"
-//      (origen: 'aprobado_pendiente', sincronización agregada en
-//      pedidos.html / _notificarPedidosAprobadosAProveedores).
-//   2) Cuando se confirma "(Enviar factura y clasificar pedido)" o se
-//      ejecuta un lote desde "Enviar Pedidos" → llega acá como "Aprobados"
-//      (origen: 'clasificacion_confirmado' u 'origen: enviar_pedidos',
-//      flujo que YA existía en pedidos.html antes de este panel).
-// La identificación de "quién es el proveedor" se hace por `categoria`
-// (mismo campo que ya usa pedidos.html para plata/WhatsApp por rubro:
-// CAT_LABELS / WHATSAPP_PROVEEDORES) — es el único campo por el que
-// workerproveedores.tuweb.workers.dev sabe filtrar pedidos por proveedor
-// (GET /api/pedidos-proveedor?categoria=...). No hay todavía un
-// usuario/contraseña propio por proveedor en el Worker: eso queda
-// pendiente de una próxima instrucción.
+// Lee los pedidos que pedidos.html manda a
+// workerproveedores.tuweb.workers.dev (POST /api/pedido-proveedor, ver
+// _enviarPedidoAWorkerProveedores en pedidos.html) y los agrupa en
+// "cintas" por REVENDEDOR (no por categoría ni por pedido individual).
+//
+// ── Identificación del proveedor ──
+// Flujo principal: se entra vía el enlace que genera guardarProveedor()
+// en pedidos.html al guardar/editar un proveedor:
+//   proveedores.html?proveedor=<id>
+// donde <id> es el MISMO id que ya usa PROVEEDORES_CONFIG en
+// pedidos.html (ej. "prov_m5k2x9abc"). Ese id viaja como "proveedorId"
+// en cada pedido que pedidos.html manda a workerproveedores (agregado en
+// este mismo turno, ver handleGuardarPedidoProveedor en
+// workerproveedores_worker.js), así que este panel puede pedir
+// directamente GET /api/pedidos-proveedor?proveedorId=<id> — sin
+// necesitar leer el localStorage de pedidos.html (dominio distinto) ni
+// depender de un endpoint de "login" propio por proveedor.
+// Fallback (si se abre proveedores.html SIN el parámetro ?proveedor=,
+// por ej. un enlace viejo o acceso directo): queda el selector manual
+// por rubro/categoría que ya existía, que sigue funcionando igual que
+// antes (GET /api/pedidos-proveedor?categoria=...).
 // ═══════════════════════════════════════════════════════════
 
 const WORKER_PROVEEDORES = 'https://workerproveedores.tuweb.workers.dev';
 const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
 // 🔧 Misma clave de administrador que usa pedidos.html para hablar con
-// este mismo Worker (GET /api/pedidos-proveedor la exige por query
-// ?adminKey=). Sin este Worker soportando un secret propio por
-// proveedor, es la única forma hoy de que este panel pueda leer datos.
+// este mismo Worker. Sin este Worker soportando un secret propio por
+// proveedor, es la única forma hoy de que este panel pueda leer/escribir
+// datos (tanto por query ?adminKey= para GET como por header
+// X-Panel-Admin-Key para POST, igual que pedidos.html).
 const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
 
 const CAT_LABELS = { calzados: 'Calzados Importados', perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', lenceria: 'Conjuntos/Lencería', suplementos: 'Salud/Suplementos', multishop: 'Multishop' };
 
-// Orígenes que ya representan un pedido REALMENTE enviado al proveedor
-// (flujo existente de pedidos.html, previo a este panel) → "Aprobados".
-const ORIGENES_APROBADO = ['clasificacion_confirmado', 'enviar_pedidos'];
-// Origen nuevo, agregado en pedidos.html solo para que este panel sepa
-// que el pedido está "aprobado" en index(1).html pero TODAVÍA no fue
-// clasificado/enviado de verdad → "Pendientes".
-const ORIGEN_PENDIENTE = 'aprobado_pendiente';
+// ── Estados del flujo de despacho (pedidosProveedores.estado en Firestore) ──
+// 'enviado_proveedor' (o sin estado, pedidos viejos) → pestaña "Pedidos".
+// Botón "En preparación" → pasa a 'pendiente_despachar' → pestaña
+// "Pendiente para despachar". Botón "Pedido en camino" → pasa a
+// 'en_camino' (ya no se lista en ninguna pestaña de este panel — el
+// pedido salió). No se persiste un estado intermedio "en_preparacion":
+// el botón "En preparación" YA deja el pedido listo en "Pendiente para
+// despachar", que es la única sección pedida para ese paso — un estado
+// transitorio sin ninguna pantalla que lo muestre sería código muerto.
+const ESTADO_PENDIENTE_DESPACHO = 'pendiente_despachar';
+const ESTADO_EN_CAMINO = 'en_camino';
 
 const CATEGORIA_KEY = 'rw_proveedor_categoria_v1';
 let CATEGORIA_ACTUAL = null;
+let PROVEEDOR_ID_ACTUAL = null;   // id de PROVEEDORES_CONFIG, vía ?proveedor=
 let PEDIDOS_PROVEEDOR = [];
 let CATALOGO_PRECIOS = {};
+let CINTAS_ACTUALES = {};         // cintaKey -> cinta agrupada (para Boleta de envío)
 
 function toast(msg, ok) {
     const t = document.getElementById('toast');
@@ -254,7 +279,12 @@ async function fetchJson(url, opts) {
     } catch (e) { window._lastFetchError = { status: 0 }; return null; }
 }
 
-// ── Selección de proveedor (identificación por categoría/rubro) ──
+// ── Identificación por enlace (?proveedor=<id>) ──
+function _leerProveedorIdDeUrl() {
+    try { return new URLSearchParams(location.search).get('proveedor') || null; } catch(_) { return null; }
+}
+
+// ── Selección de proveedor (fallback manual por categoría/rubro) ──
 function poblarSelectCategorias() {
     const sel = document.getElementById('sel-categoria');
     sel.innerHTML = Object.keys(CAT_LABELS).map(c => `<option value="${c}">${esc(CAT_LABELS[c])}</option>`).join('');
@@ -268,15 +298,31 @@ function seleccionarProveedor() {
 function cambiarProveedor() {
     try { localStorage.removeItem(CATEGORIA_KEY); } catch(_) {}
     CATEGORIA_ACTUAL = null;
+    PROVEEDOR_ID_ACTUAL = null;
     document.getElementById('main').classList.remove('show');
     document.getElementById('login-wrap').style.display = 'flex';
 }
 function entrarConCategoria(cat) {
     CATEGORIA_ACTUAL = cat;
+    PROVEEDOR_ID_ACTUAL = null;
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('main').classList.add('show');
+    document.getElementById('btn-cambiar-rubro').style.display = '';
     document.getElementById('brand-cat').textContent = CAT_LABELS[cat] || cat;
     document.getElementById('page-title-sub').textContent = '· ' + (CAT_LABELS[cat] || cat);
+    cargarDatos();
+}
+// Entra directo con el id de proveedor que trae el enlace — sin
+// selector, sin "Cambiar rubro" (no hay rubro: el proveedor puede tener
+// varias categorías asignadas, ver pedidos.html PROVEEDORES_CONFIG).
+function entrarConProveedorId(id) {
+    PROVEEDOR_ID_ACTUAL = id;
+    CATEGORIA_ACTUAL = null;
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('main').classList.add('show');
+    document.getElementById('btn-cambiar-rubro').style.display = 'none';
+    document.getElementById('brand-cat').textContent = 'Cargando...';
+    document.getElementById('page-title-sub').textContent = '';
     cargarDatos();
 }
 
@@ -289,21 +335,37 @@ function cambiarTab(tab) {
 
 // ── Carga de datos ──
 async function cargarDatos() {
-    if (!CATEGORIA_ACTUAL) return;
+    if (!CATEGORIA_ACTUAL && !PROVEEDOR_ID_ACTUAL) return;
     document.getElementById('nuevos-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+    document.getElementById('despacho-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
 
+    const filtro = PROVEEDOR_ID_ACTUAL
+        ? `proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}`
+        : `categoria=${encodeURIComponent(CATEGORIA_ACTUAL)}`;
     const [pedidosRes, preciosRes] = await Promise.all([
-        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?categoria=${encodeURIComponent(CATEGORIA_ACTUAL)}&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?${filtro}&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
         fetchJson(RESTOPRECIOS_WORKER),
     ]);
 
     if (!pedidosRes || !pedidosRes.ok) {
-        document.getElementById('nuevos-content').innerHTML = '<div class="empty-state">No se pudieron cargar los pedidos' + (window._lastFetchError && window._lastFetchError.status ? ` (código ${window._lastFetchError.status})` : '') + '. Probá "Actualizar".</div>';
+        const msgErr = '<div class="empty-state">No se pudieron cargar los pedidos' + (window._lastFetchError && window._lastFetchError.status ? ` (código ${window._lastFetchError.status})` : '') + '. Probá "Actualizar".</div>';
+        document.getElementById('nuevos-content').innerHTML = msgErr;
+        document.getElementById('despacho-content').innerHTML = msgErr;
         document.getElementById('stats-content').innerHTML = '<div class="empty-state">No se pudieron cargar las estadísticas.</div>';
         return;
     }
     PEDIDOS_PROVEEDOR = Array.isArray(pedidosRes.pedidos) ? pedidosRes.pedidos : [];
+
+    // Si entramos por enlace, el nombre del proveedor no viaja en la URL
+    // (solo el id) — se toma del primer pedido que tenga proveedorNombre
+    // cargado. Si todavía no hay ningún pedido, queda el id como fallback.
+    if (PROVEEDOR_ID_ACTUAL) {
+        const conNombre = PEDIDOS_PROVEEDOR.find(p => p.proveedorNombre);
+        const nombreProv = conNombre ? conNombre.proveedorNombre : PROVEEDOR_ID_ACTUAL;
+        document.getElementById('brand-cat').textContent = nombreProv;
+        document.getElementById('page-title-sub').textContent = '· ' + nombreProv;
+    }
 
     CATALOGO_PRECIOS = {};
     if (preciosRes && Array.isArray(preciosRes.productos)) {
@@ -315,67 +377,212 @@ async function cargarDatos() {
     }
 
     renderNuevosPedidos();
+    renderPendienteDespacho();
     renderEstadisticas();
 }
 
-// ── Clasificación Pendientes / Aprobados ──
-function esPendiente(p) { return p.origen === ORIGEN_PENDIENTE; }
-function esAprobado(p) { return ORIGENES_APROBADO.includes(p.origen) || (!esPendiente(p) && p.origen); }
-
-function pedidosPendientes() { return PEDIDOS_PROVEEDOR.filter(esPendiente); }
-function pedidosAprobados() { return PEDIDOS_PROVEEDOR.filter(esAprobado); }
-
-// ── Tab: Nuevos Pedidos ──
-function renderNuevosPedidos() {
-    const pendientes = pedidosPendientes().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
-    const aprobados = pedidosAprobados().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
-
-    let html = '';
-    html += renderSeccionPedidos('Pendientes', 'Pedidos aprobados en index(1).html, todavía sin clasificar/enviar de verdad.', pendientes, 's-pendiente', 'pendiente');
-    html += renderSeccionPedidos('Aprobados', 'Pedidos ya clasificados/enviados al proveedor desde "Enviar Pedidos" o "(Enviar factura y clasificar pedido)".', aprobados, 's-aprobado', 'aprobado');
-
-    document.getElementById('nuevos-content').innerHTML = html;
+// ── Agrupación por revendedor ("cintas") ──
+// Cada pedido guardado en workerproveedores es un documento (un pedido
+// puntual o un lote "Enviar Pedidos" ya agrupado por categorías). Acá se
+// agrupan TODOS los documentos de un mismo revendedor en UNA sola cinta,
+// con todos los productos de todos juntos — sin importar de cuántas
+// categorías/envíos distintos vengan.
+function agruparPorRevendedor(lista) {
+    const grupos = {};
+    const orden = [];
+    lista.forEach(p => {
+        const key = (p.codigoVendedor || p.nombreRevendedor || p.id || '').toUpperCase();
+        if (!grupos[key]) {
+            grupos[key] = {
+                key,
+                codigoVendedor: p.codigoVendedor || '',
+                nombreRevendedor: p.nombreRevendedor || p.codigoVendedor || 'Revendedor',
+                docs: [],
+                pedidoIds: [],
+                productos: [],       // { nombre, variante, cantidad }
+                datosEnvio: {},
+                totalMayorista: 0,
+                enviadoEn: '',
+            };
+            orden.push(key);
+        }
+        const g = grupos[key];
+        g.docs.push(p);
+        g.pedidoIds.push(p.pedidoId || p.id);
+        // Datos de envío: se completan con el primer valor no vacío que
+        // aparezca entre los documentos del revendedor (todos deberían
+        // traer el mismo perfil, pero por las dudas no se pisan valores
+        // ya cargados con vacíos de un documento más viejo).
+        const envio = p.datosEnvio || {};
+        Object.keys(envio).forEach(k => { if (envio[k] && !g.datosEnvio[k]) g.datosEnvio[k] = envio[k]; });
+        // Productos: se suman cantidades cuando coincide nombre+variante
+        // (mismo producto pedido en más de un envío), si no se agregan
+        // como línea nueva — así "el pedido completo" no repite líneas.
+        (Array.isArray(p.productos) ? p.productos : []).forEach(it => {
+            const nombre = it.nombre || '—';
+            const variante = it.variante || '';
+            const existente = g.productos.find(x => x.nombre === nombre && x.variante === variante);
+            if (existente) existente.cantidad += Number(it.cantidad) || 1;
+            else g.productos.push({ nombre, variante, cantidad: Number(it.cantidad) || 1 });
+        });
+        g.totalMayorista += Number(p.totalMayorista) || 0;
+        if (!g.enviadoEn || String(p.enviadoEn || '') > g.enviadoEn) g.enviadoEn = p.enviadoEn || g.enviadoEn;
+    });
+    return orden.map(k => grupos[k]);
 }
 
-function renderSeccionPedidos(titulo, sub, lista, chipClass, badgeClass) {
-    const cuerpo = lista.length
-        ? `<div class="pedidos-grid">${lista.map(renderPedidoCard.bind(null, chipClass)).join('')}</div>`
-        : `<div class="empty-state">No hay pedidos ${titulo.toLowerCase()} por ahora.</div>`;
-    return `
+// Un pedido pertenece a la pestaña principal "Pedidos" mientras no haya
+// pasado por "En preparación" ni por "Pedido en camino".
+function pedidosPrincipales() { return PEDIDOS_PROVEEDOR.filter(p => p.estado !== ESTADO_PENDIENTE_DESPACHO && p.estado !== ESTADO_EN_CAMINO); }
+function pedidosPendienteDespacho() { return PEDIDOS_PROVEEDOR.filter(p => p.estado === ESTADO_PENDIENTE_DESPACHO); }
+
+// ── Íconos SVG compactos para los botones de cada cinta ──
+const ICO_PREPARACION = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>';
+const ICO_BOLETA = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+const ICO_CAMINO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h1"/><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1"/><circle cx="6.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>';
+
+// ── Tab: Pedidos (cintas por revendedor) ──
+function renderNuevosPedidos() {
+    const lista = pedidosPrincipales().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
+    const cintas = agruparPorRevendedor(lista);
+    CINTAS_ACTUALES = {};
+    cintas.forEach(c => { CINTAS_ACTUALES['n_' + c.key] = c; });
+
+    document.getElementById('nuevos-content').innerHTML = `
     <div class="section-block">
         <div class="section-title-row">
-            <div class="section-title">${titulo}</div>
-            <span class="count-badge ${badgeClass}">${lista.length}</span>
+            <div class="section-title">Pedidos</div>
+            <span class="count-badge">${cintas.length}</span>
         </div>
-        <div class="section-sub">${sub}</div>
-        ${cuerpo}
+        <div class="section-sub">Un pedido por revendedor, con todos los productos que te pidió (de todas las categorías incluidas).</div>
+        ${cintas.length ? cintas.map(c => renderCinta(c, 'n_' + c.key, true)).join('') : '<div class="empty-state">No hay pedidos por ahora.</div>'}
     </div>`;
 }
 
-function renderPedidoCard(chipClass, p) {
-    const productos = Array.isArray(p.productos) ? p.productos : [];
-    const envio = p.datosEnvio || {};
-    const ubicacion = [envio.ciudad, envio.provincia].filter(Boolean).join(', ');
-    const fecha = p.enviadoEn ? new Date(p.enviadoEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
-    const estLbl = chipClass === 's-pendiente' ? 'Pendiente' : 'Aprobado';
-    return `
-    <div class="ped-card">
-        <div class="ped-card-head">
-            <div>
-                <div class="ped-card-vendedor">${esc(p.nombreRevendedor || p.codigoVendedor || 'Revendedor')}</div>
-                <div class="ped-card-cat">${esc(CAT_LABELS[p.categoria] || p.categoria || '—')}</div>
-            </div>
-            <span class="status-chip ${chipClass}">${estLbl}</span>
+// ── Tab: Pendiente para despachar ──
+function renderPendienteDespacho() {
+    const lista = pedidosPendienteDespacho().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
+    const cintas = agruparPorRevendedor(lista);
+    cintas.forEach(c => { CINTAS_ACTUALES['d_' + c.key] = c; });
+
+    document.getElementById('despacho-content').innerHTML = `
+    <div class="section-block">
+        <div class="section-title-row">
+            <div class="section-title">Pendiente para despachar</div>
+            <span class="count-badge pendiente">${cintas.length}</span>
         </div>
-        <ul class="ped-items">
-            ${productos.length ? productos.map(it => `<li><span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad)||1}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
-        </ul>
-        ${ubicacion || envio.direccion || envio.telefono ? `<div class="ped-envio">📍 ${esc(ubicacion || '—')}${envio.direccion ? ' — ' + esc(envio.direccion) : ''}${envio.telefono ? '<br>📞 ' + esc(envio.telefono) : ''}</div>` : ''}
-        <div class="ped-foot">
-            <span class="ped-total">${money(p.totalMayorista)}</span>
-            <span class="ped-fecha">${fecha}</span>
-        </div>
+        <div class="section-sub">Pedidos que ya pasaron por "En preparación" — falta despacharlos.</div>
+        ${cintas.length ? cintas.map(c => renderCinta(c, 'd_' + c.key, false)).join('') : '<div class="empty-state">No hay pedidos pendientes de despacho.</div>'}
     </div>`;
+}
+
+// Cinta = TODO el pedido de un revendedor en una sola unidad, sin ningún
+// botón en medio del contenido — solo el/los botones al final.
+function renderCinta(c, cintaId, enPreparacion) {
+    const envio = c.datosEnvio || {};
+    const ubicacion = [envio.ciudad, envio.provincia].filter(Boolean).join(', ');
+    const fecha = c.enviadoEn ? new Date(c.enviadoEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    const botones = enPreparacion
+        ? `<button class="cinta-btn cinta-btn-prep" onclick="marcarEnPreparacion('${cintaId}')">${ICO_PREPARACION}En preparación</button>
+           <button class="cinta-btn cinta-btn-boleta" onclick="descargarBoletaEnvio('${cintaId}')">${ICO_BOLETA}Boleta de envío</button>`
+        : `<button class="cinta-btn cinta-btn-camino" onclick="marcarPedidoEnCamino('${cintaId}')">${ICO_CAMINO}Pedido en camino</button>`;
+    return `
+    <div class="cinta">
+        <div class="cinta-head">
+            <div>
+                <div class="cinta-vendedor">${esc(c.nombreRevendedor)}</div>
+                <div class="cinta-pedidos-nums">Pedido${c.pedidoIds.length !== 1 ? 's' : ''} Nº ${c.pedidoIds.map(id => esc(String(id || '—'))).join(', ')}</div>
+            </div>
+            <span class="ped-total">${money(c.totalMayorista)}</span>
+        </div>
+        <div class="cinta-body">
+            <ul class="cinta-items">
+                ${c.productos.length ? c.productos.map(it => `<li><span>${esc(it.nombre)}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${it.cantidad}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
+            </ul>
+            ${ubicacion || envio.direccion || envio.telefono ? `<div class="ped-envio">📍 ${esc(ubicacion || '—')}${envio.direccion ? ' — ' + esc(envio.direccion) : ''}${envio.telefono ? '<br>📞 ' + esc(envio.telefono) : ''}</div>` : ''}
+            <div class="ped-fecha" style="margin-top:6px">${fecha}</div>
+        </div>
+        <div class="cinta-foot">${botones}</div>
+    </div>`;
+}
+
+// ── Cambios de estado (POST /api/pedido-proveedor-estado) ──
+async function _cambiarEstadoDocs(pedidoIds, estado) {
+    const resultados = await Promise.all(pedidoIds.map(id => fetchJson(`${WORKER_PROVEEDORES}/api/pedido-proveedor-estado`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id, estado }),
+    })));
+    return resultados.every(r => r && r.ok);
+}
+
+async function marcarEnPreparacion(cintaId) {
+    const c = CINTAS_ACTUALES[cintaId];
+    if (!c) return;
+    const ok = await _cambiarEstadoDocs(c.pedidoIds, ESTADO_PENDIENTE_DESPACHO);
+    toast(ok ? 'Pedido movido a "Pendiente para despachar"' : 'No se pudo actualizar el estado', ok);
+    await cargarDatos();
+}
+
+async function marcarPedidoEnCamino(cintaId) {
+    const c = CINTAS_ACTUALES[cintaId];
+    if (!c) return;
+    const ok = await _cambiarEstadoDocs(c.pedidoIds, ESTADO_EN_CAMINO);
+    toast(ok ? 'Pedido marcado como "en camino"' : 'No se pudo actualizar el estado', ok);
+    await cargarDatos();
+}
+
+// ── Boleta de envío (PDF, sin precios/totales) ──
+// Mismo branding que las facturas de pedidos.html
+// (_generarFacturaProveedorPDFGrupo): header azul con "Revende Ways",
+// número de pedido real. Acá SIN productos con precio ni total — solo
+// los datos de envío que pide el cliente.
+function descargarBoletaEnvio(cintaId) {
+    const c = CINTAS_ACTUALES[cintaId];
+    if (!c || !window.jspdf) { toast('No se pudo generar la boleta', 'err'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const W = doc.internal.pageSize.getWidth();
+    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
+    const envio = c.datosEnvio || {};
+    const cantidadProductos = c.productos.reduce((s, it) => s + (Number(it.cantidad) || 0), 0);
+
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 0, W, 30, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Revende Ways', 14, 15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text('Boleta de envío', 14, 23);
+
+    let y = 44;
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Pedido Nº: ' + c.pedidoIds.map(id => String(id || '—')).join(', '), 14, y);
+    y += 12;
+
+    const filas = [
+        ['Cantidad de productos', String(cantidadProductos)],
+        ['Nombre y apellido', [envio.nombre, envio.apellido].filter(Boolean).join(' ') || '—'],
+        ['Cuit', envio.cuit || '—'],
+        ['Teléfono de contacto', envio.telefono || '—'],
+        ['Provincia', envio.provincia || '—'],
+        ['Localidad / Ciudad', envio.ciudad || '—'],
+        ['Código postal', envio.codigoPostal || '—'],
+        ['Calle', envio.calle || envio.direccion || '—'],
+        ['Número', envio.numero || '—'],
+        ['Dirección alternativa', envio.direccionAlternativa || '—'],
+    ];
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    filas.forEach(([label, valor]) => {
+        doc.setTextColor(...GRAY); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+        doc.text(String(label).toUpperCase(), 14, y);
+        doc.setTextColor(...DARK); doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+        doc.text(String(valor), 14, y + 6);
+        y += 15;
+    });
+
+    doc.save(`Boleta_Envio_${(c.codigoVendedor || c.nombreRevendedor || 'pedido').replace(/[^\w-]/g,'_')}.pdf`);
+    toast('Boleta de envío descargada', true);
 }
 
 // ── Precio real por nombre (Worker restoprecios) — mismo criterio de
@@ -400,8 +607,8 @@ function precioRealPorNombre(nombre) {
 function renderEstadisticas() {
     const todos = PEDIDOS_PROVEEDOR;
     const totalPedidos = todos.length;
-    const totalPendientes = pedidosPendientes().length;
-    const totalAprobados = pedidosAprobados().length;
+    const totalNuevos = pedidosPrincipales().length;
+    const totalDespacho = pedidosPendienteDespacho().length;
 
     // Total con precios REALES tomados de restoprecios (no el totalMayorista
     // guardado en el pedido, que es lo que le cobro yo al revendedor).
@@ -436,7 +643,7 @@ function renderEstadisticas() {
             <div class="stat-icon blue">📦</div>
             <div class="stat-label">Total de pedidos</div>
             <div class="stat-value">${totalPedidos}</div>
-            <div class="stat-sub">${totalPendientes} pendientes · ${totalAprobados} aprobados</div>
+            <div class="stat-sub">${totalNuevos} en "Pedidos" · ${totalDespacho} pendientes de despacho</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon green">💰</div>
@@ -467,8 +674,16 @@ function renderEstadisticas() {
 }
 
 // ── Init ──
+// Flujo principal: ?proveedor=<id> en la URL (enlace generado por
+// guardarProveedor() en pedidos.html) → entra directo, sin selector.
+// Fallback: selector manual por categoría (localStorage, como antes).
 (function init() {
     poblarSelectCategorias();
+    const proveedorId = _leerProveedorIdDeUrl();
+    if (proveedorId) {
+        entrarConProveedorId(proveedorId);
+        return;
+    }
     let cat = null;
     try { cat = localStorage.getItem(CATEGORIA_KEY); } catch(_) {}
     if (cat && CAT_LABELS[cat]) {
