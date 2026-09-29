@@ -1125,12 +1125,31 @@ async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje)
         const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
         try {
             const file = new File([blob], filename, { type: 'application/pdf' });
+            // navigator.share con {files, text} juntos: WhatsApp arma el
+            // archivo como el mensaje principal y el texto como leyenda
+            // debajo — la factura queda arriba, el texto abajo, tal como
+            // se pide. Válido tal cual para navegadores/celulares que lo
+            // soportan.
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file], title: filename, text: mensaje });
                 return;
             }
         } catch(e) { /* cancelado — sigue por WhatsApp con el texto */ }
         doc.save(filename);
+        // 🔧 FIX: acá antes se abría WhatsApp con el TEXTO ya escrito en
+        // el cuadro de mensaje — como la factura recién descargada hay
+        // que adjuntarla a mano, en la práctica el texto terminaba
+        // enviándose primero y la factura después (quedaba "factura
+        // abajo, texto arriba", al revés de lo pedido). Ahora, en este
+        // fallback (navegador de escritorio sin soporte para compartir
+        // archivos), el texto se copia al portapapeles y WhatsApp se abre
+        // SIN nada prellenado: así el primer paso natural es adjuntar la
+        // factura ya descargada, y recién después pegar el texto (Ctrl+V)
+        // como segundo mensaje — factura arriba, texto abajo.
+        try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
+        window.open(`https://wa.me/${wa}`, '_blank');
+        toast('Factura descargada y copiada al portapapeles: adjuntala primero en WhatsApp y después pegá el texto (Ctrl+V)', true);
+        return;
     }
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
@@ -1186,9 +1205,14 @@ function enviarBoletaPendienteGrupo(codigo, categoria) {
     const gs = _gsGrupo(codigo, categoria, 'aprobado');
     if (!gs.length) { toast('No hay pedidos aprobados en este grupo', 'err'); return; }
     const nombreRevendedor = vendorLabel(codigo);
+    // 🔧 FIX: acá se calculaba "cuánto falta para llegar al mínimo de la
+    // categoría" (minimo - totalGrupo) — pero un grupo en estado
+    // "aprobado" YA superó ese mínimo (es requisito para pasar de
+    // pendiente a aprobado), así que ese cálculo siempre daba $0. El
+    // "monto pendiente de pago" real es el TOTAL del grupo (lo mismo que
+    // figura en la factura), no lo que falta para el objetivo.
     const totalGrupo = gs.reduce((s,g) => s + totalMayoristaPedido(g), 0);
-    const minimo = categoria === 'calzados' ? 0 : (MINIMO_ENTREGA_CATEGORIA[categoria] || 0);
-    const montoRestante = Math.round(Math.max(0, minimo - totalGrupo)).toLocaleString('es-AR');
+    const montoRestante = Math.round(totalGrupo).toLocaleString('es-AR');
     const msg = `Hola ${nombreRevendedor} 👋
 Te enviamos nuevamente la boleta correspondiente a tu${gs.length!==1?'s':''} ${gs.length} pedido${gs.length!==1?'s':''} de ${CAT_LABELS[categoria]||categoria}.
 📦 Estado: Pendiente de pago
@@ -1884,6 +1908,12 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
     }).join('');
 }
 
+// Íconos SVG compactos para los botones de Factura/Seguimiento del
+// footer grupal (reemplazan los emojis 💬/🧾 anteriores).
+const ICO_ENVIAR_FACTURA = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+const ICO_SEGUIMIENTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+const ICO_REENVIAR_FACTURA = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
+
 // 🔧 NUEVO: footer de factura/compartir UNIFICADO por grupo (revendedor +
 // categoría + estado). Antes cada pedido individual del cliente tenía su
 // propio botón de "Factura" y "Compartir al revendedor" — pero el
@@ -1905,7 +1935,7 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
         if (!gsCat.some(superaMinimoYVencido48hs)) return '';
         return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
             <div class="actions" style="width:100%">
-                <button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoPendienteGrupo('${codigo}','${cat}')">💬 Enviar seguimiento</button>
+                <button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoPendienteGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
             </div>
         </div>`;
     }
@@ -1928,9 +1958,9 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     // revendedor paga el total del grupo, no pedido por pedido, así que
     // ahora son UN solo botón acá, igual que la factura/compartir.
     const botonesSeguimiento = estado === 'aprobado'
-        ? `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoAprobadoGrupo('${codigo}','${cat}')">💬 Enviar seguimiento</button>
-           <button class="btn-act btn-wa" onclick="${stop}enviarBoletaPendienteGrupo('${codigo}','${cat}')">🧾 Reenviar boleta pendiente</button>`
-        : `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoConfirmadoGrupo('${codigo}','${cat}')">💬 Enviar seguimiento</button>`;
+        ? `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoAprobadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
+           <button class="btn-act btn-wa" onclick="${stop}enviarBoletaPendienteGrupo('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
+        : `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoConfirmadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
             <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
@@ -1938,7 +1968,7 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
         </div>
         <div class="actions">
             <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupo('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
-            <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsAppGrupo('${codigo}','${cat}','${estado}')">💬 Compartir al revendedor</button>
+            <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsAppGrupo('${codigo}','${cat}','${estado}')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
             ${botonesSeguimiento}
         </div>
     </div>`;
