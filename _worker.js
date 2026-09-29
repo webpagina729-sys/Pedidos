@@ -59,6 +59,20 @@ export default {
       });
     }
 
+    // 🔧 FIX: este Worker protege TODO lo que esté en este mismo dominio
+    // (controldeplataforma.revendeways.shop) con el PIN del dueño — eso
+    // incluía sin querer a proveedores.html, que se comparte por enlace
+    // con cada proveedor externo. Un proveedor no tiene (ni debe tener)
+    // el PANEL_PIN, así que se topaba con esta pantalla de login en vez
+    // de su panel. proveedores.html tiene su propia protección (el id
+    // en el enlace, ver PROVEEDOR_ID_ACTUAL / "no debe elegir" en ese
+    // archivo, y ahora también el pausado por proveedor), así que queda
+    // afuera del gate de PIN — el resto del dominio (pedidos.html y todo
+    // lo demás) sigue exigiendo la contraseña exactamente igual que antes.
+    if (url.pathname === '/proveedores.html') {
+      return env.ASSETS.fetch(request);
+    }
+
     // ── Verificar sesión para TODO lo demás ──
     const sesionValida = await verificarSesion(request, env);
     if (!sesionValida) {
