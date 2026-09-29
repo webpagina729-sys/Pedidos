@@ -902,13 +902,25 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
      del login del panel). Reemplaza al widget de Turnstile que quedaba
      roto en "⚙️ WhatsApp de proveedores"; también lo usa "Mis Ganancias"
      en Estadísticas. Ver pedirVerificacionPanelPin() / _confirmarPanelPin(). -->
+<style>
+/* Estilos exclusivos de #panel-pin-modal — no afectan a ningún otro modal. */
+#panel-pin-modal .modal-box{ max-width:300px; padding:20px; }
+#panel-pin-modal .modal-icon{ width:38px; height:38px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; border-radius:50%; background:var(--green-pale); }
+#panel-pin-modal h3{ font-size:14.5px; margin-bottom:5px; }
+#panel-pin-modal p{ margin-bottom:12px; }
+#panel-pin-modal #panel-pin-input{ margin-bottom:0; }
+#panel-pin-modal .modal-actions{ margin-top:14px; gap:8px; }
+#panel-pin-modal .modal-cancel, #panel-pin-modal .modal-confirm-btn{ padding:8px; font-size:12px; border-radius:8px; }
+#panel-pin-modal .modal-confirm-btn{ background:var(--green); color:#fff; font-weight:700; box-shadow:0 2px 8px rgba(0,201,110,.25); }
+#panel-pin-modal .modal-confirm-btn:hover{ background:#00b364; }
+</style>
 <div class="modal-overlay" id="panel-pin-modal">
     <div class="modal-box">
-        <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div class="modal-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
         <h3>Verificá que sos vos</h3>
-        <p style="font-size:12.5px;">Ingresá la contraseña del panel para continuar.</p>
-        <input type="password" id="panel-pin-input" class="rvndr-search" style="margin-bottom:0" placeholder="Contraseña" autocomplete="off" onkeydown="if(event.key==='Enter')_confirmarPanelPin()">
-        <p id="panel-pin-error" style="display:none;color:#f43f5e;font-size:12px;margin:8px 0 0;text-align:left"></p>
+        <p style="font-size:12px;">Ingresá la contraseña del panel para continuar.</p>
+        <input type="password" id="panel-pin-input" class="rvndr-search" placeholder="Contraseña" autocomplete="off" onkeydown="if(event.key==='Enter')_confirmarPanelPin()">
+        <p id="panel-pin-error" style="display:none;color:#f43f5e;font-size:11.5px;margin:8px 0 0;text-align:left"></p>
         <div class="modal-actions">
             <button class="modal-cancel" onclick="cerrarPanelPinModal()">Cancelar</button>
             <button class="modal-confirm-btn" id="panel-pin-confirm-btn" onclick="_confirmarPanelPin()">Verificar</button>
