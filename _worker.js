@@ -40,6 +40,14 @@ export default {
       return handleLogin(request, env);
     }
 
+    // ── Ruta de re-verificación de PIN (POST) — usada para pedir el PIN
+    // de nuevo dentro del panel ya logueado (ej: antes de abrir configs
+    // sensibles). A diferencia de /__login, esta NO toca la cookie de
+    // sesión ni la renueva: solo confirma si el PIN es correcto. ──
+    if (url.pathname === '/__verify-pin' && request.method === 'POST') {
+      return handleVerifyPin(request, env);
+    }
+
     // ── Ruta de logout ──
     if (url.pathname === '/__logout') {
       return new Response(null, {
@@ -98,6 +106,39 @@ async function handleLogin(request, env) {
       'Set-Cookie': `${COOKIE_NAME}=${token}; Path=/; Max-Age=${SESSION_DURATION_HORAS * 3600}; HttpOnly; Secure; SameSite=Strict`,
     },
   });
+}
+
+// ─────────────────────────────────────────────
+// Re-verificación de PIN dentro del panel — requiere que ya exista una
+// sesión válida (rw_panel_session), y solo confirma el PIN. No emite
+// ni renueva ninguna cookie: es un simple ok/fail.
+// ─────────────────────────────────────────────
+async function handleVerifyPin(request, env) {
+  if (!env.PANEL_PIN || !env.SESSION_SECRET) {
+    return new Response('Panel no configurado — faltan los secrets PANEL_PIN o SESSION_SECRET en este Worker.', { status: 503 });
+  }
+
+  const sesionValida = await verificarSesion(request, env);
+  if (!sesionValida) {
+    return json({ ok: false, error: 'Sesión inválida' }, 401);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: 'Solicitud inválida' }, 400);
+  }
+
+  const pin = (body.pin || '').trim();
+
+  const coincide = await compararEnTiempoConstante(pin, env.PANEL_PIN);
+  if (!coincide) {
+    await new Promise(r => setTimeout(r, 400));
+    return json({ ok: false, error: 'Contraseña incorrecta' }, 401);
+  }
+
+  return json({ ok: true }, 200);
 }
 
 // ─────────────────────────────────────────────
