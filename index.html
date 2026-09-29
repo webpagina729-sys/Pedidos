@@ -325,6 +325,11 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .btn-act.btn-wa-seguimiento:hover { background: #12873c; }
 .btn-act.btn-wa-reenviar { background: #059669; }
 .btn-act.btn-wa-reenviar:hover { background: #047a56; }
+/* Botón compacto de pausar/reanudar panel de proveedor — icono solo, tono
+   ámbar neutro (no es una acción "positiva" en verde ni "destructiva" en
+   rojo, es un estado intermedio). */
+.btn-act.btn-pausar-proveedor { background: rgba(245,158,11,.14); color: #b45309; border: 1px solid rgba(245,158,11,.32); display:inline-flex; align-items:center; justify-content:center; }
+.btn-act.btn-pausar-proveedor:hover { background: rgba(245,158,11,.22); }
 .btn-act.btn-pago-verificado { background: rgba(10,201,122,.15); color: #0a8a52; border: 1px solid rgba(10,201,122,.35); }
 .btn-act.btn-pago-verificado:hover { background: var(--green); color: #fff; }
 .btn-retirar:hover { background: var(--purple); color: #fff; }
@@ -551,6 +556,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         </button>
         <div class="sidebar-sep"></div>
+        <button class="sidebar-btn" style="position:relative" onclick="abrirEnvios()" title="Envíos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            <span id="envios-badge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--red,#f43f5e);color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center">0</span>
+        </button>
         <button class="sidebar-btn" onclick="openRvndr()" title="Info Rvndr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </button>
@@ -841,6 +850,20 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- 🔧 NUEVO: panel de "Envíos" — muestra los pedidos que los proveedores
+     marcaron "Pedido en camino" en proveedores.html (llega como
+     notificación, ver handleMarcarEstadoPedidoProveedor en
+     workerproveedores_worker.js). -->
+<div class="rvndr-overlay" id="envios-modal">
+    <div class="rvndr-box" style="max-width:640px">
+        <div class="rvndr-head">
+            <h3><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Envíos</h3>
+            <button class="rvndr-close" onclick="document.getElementById('envios-modal').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body" id="envios-body"></div>
+    </div>
+</div>
+
 <!-- ══ CONFIRMACIÓN: ELIMINAR AVISO PARA SIEMPRE ══ -->
 <div class="modal-overlay" id="aviso-eliminar-modal">
     <div class="modal-box">
@@ -929,6 +952,23 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div class="modal-actions">
             <button class="modal-cancel" onclick="cerrarPausaCategoriaModal()">Cancelar</button>
             <button class="modal-confirm-btn" style="background:#f59e0b" onclick="confirmarPausaCategoria()">Frenar Temporalmente</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🔧 NUEVO: confirmación compacta para pausar/reanudar el acceso de un
+     proveedor a su panel (proveedores.html). Pausar SOLO bloquea el
+     acceso — la información sigue viva dentro de proveedores.html, esto
+     no toca nada de esos datos (ver handleSetProveedorPausado /
+     handleGetProveedorPausado en workerproveedores_worker.js). -->
+<div class="modal-overlay" id="pausarProveedorModal">
+    <div class="modal-box" style="max-width:320px">
+        <div class="modal-icon" id="pausarProveedorIcon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg></div>
+        <h3 id="pausarProveedorTitulo">¿Pausar el panel?</h3>
+        <p style="font-size:12.5px;" id="pausarProveedorTexto">El proveedor no va a poder entrar a su panel hasta que lo reactivés. La información sigue actualizándose en vivo mientras tanto.</p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="cerrarPausarProveedorModal()">No</button>
+            <button class="modal-confirm-btn" id="pausarProveedorConfirmBtn" style="background:#f59e0b" onclick="confirmarPausarProveedor()">Sí</button>
         </div>
     </div>
 </div>
@@ -1123,42 +1163,29 @@ function superaMinimoYVencido48hs(g) {
 // estado), consistente con la factura grupal (renderFacturaGrupoFooter /
 // _generarFacturaProveedorPDFGrupo). Helper compartido: manda el mensaje
 // SIEMPRE junto con la factura CONSOLIDADA del grupo (con su marca de
-// agua correspondiente). Intenta compartir el PDF adjunto por WhatsApp
-// (Web Share API); si el navegador no lo soporta, descarga la factura
-// igual y abre WhatsApp con el texto.
+// agua correspondiente). Descarga la factura y abre el chat de WhatsApp
+// del revendedor directo (wa.me/<numero>), con el mensaje ya escrito.
 async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje) {
     const wa = vendorWa(codigo);
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
     const doc = _generarFacturaProveedorPDFGrupo(codigo, categoria, estado);
+    // 🔧 FIX: antes, cuando el navegador soportaba Web Share con archivos
+    // (navigator.canShare), se usaba navigator.share({files, text}) — pero
+    // esa API deja que el SISTEMA OPERATIVO elija a dónde mandarlo (abre el
+    // panel nativo "Compartir" con contactos y apps para elegir), NUNCA abre
+    // un chat de WhatsApp específico. Por eso terminaba en esa pantalla en
+    // vez de ir directo al chat del revendedor. Ahora se usa siempre el
+    // enlace wa.me/<numero>, que sí abre el chat puntual de ese número
+    // directo (sin pantalla intermedia), con el texto ya escrito en el
+    // cuadro de mensaje (?text=). La factura se descarga aparte: al
+    // adjuntarla desde WhatsApp, el texto ya escrito queda como leyenda
+    // debajo del archivo — factura arriba, texto abajo, tal como se pide.
     if (doc) {
-        const blob = doc.output('blob');
         const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
-        try {
-            const file = new File([blob], filename, { type: 'application/pdf' });
-            // navigator.share con {files, text} juntos: WhatsApp arma el
-            // archivo como el mensaje principal y el texto como leyenda
-            // debajo — la factura queda arriba, el texto abajo, tal como
-            // se pide. Válido tal cual para navegadores/celulares que lo
-            // soportan.
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: filename, text: mensaje });
-                return;
-            }
-        } catch(e) { /* cancelado — sigue por WhatsApp con el texto */ }
         doc.save(filename);
-        // 🔧 FIX: acá antes se abría WhatsApp con el TEXTO ya escrito en
-        // el cuadro de mensaje — como la factura recién descargada hay
-        // que adjuntarla a mano, en la práctica el texto terminaba
-        // enviándose primero y la factura después (quedaba "factura
-        // abajo, texto arriba", al revés de lo pedido). Ahora, en este
-        // fallback (navegador de escritorio sin soporte para compartir
-        // archivos), el texto se copia al portapapeles y WhatsApp se abre
-        // SIN nada prellenado: así el primer paso natural es adjuntar la
-        // factura ya descargada, y recién después pegar el texto (Ctrl+V)
-        // como segundo mensaje — factura arriba, texto abajo.
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-        window.open(`https://wa.me/${wa}`, '_blank');
-        toast('Factura descargada y copiada al portapapeles: adjuntala primero en WhatsApp y después pegá el texto (Ctrl+V)', true);
+        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
         return;
     }
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -1634,6 +1661,7 @@ async function loadData() {
         fetchJson(WORKER_ESTADOS + '/api/listar-revendedores')
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
+    actualizarBadgeEnvios(); // 🔧 NUEVO: ídem para notificaciones de "Pedido en camino"
 
     ESTADOS_CONFIRMADOS = (estadosRes && estadosRes.ok && estadosRes.confirmados) || {};
     ESTADOS_PAGADOS     = (estadosRes && estadosRes.ok && estadosRes.pagados) || {};
@@ -1869,6 +1897,42 @@ function renderPedidosView() {
     });
 
     wrap.innerHTML = html;
+    _sincronizarPreviewProveedores();
+}
+
+// 🔧 NUEVO: sincroniza automáticamente (sin que el dueño haga nada) los
+// grupos de pedidos "aprobado"/"confirmado" que tengan un proveedor
+// asignado a su categoría — para que proveedores.html pueda mostrarlos
+// como adelanto ("Pedidos pendientes"/"Pedidos aprobados", de solo
+// lectura) ANTES de que se manden formalmente con "Enviar a proveedor".
+// Se agrupa con el MISMO criterio que la factura (codigoVendedor +
+// categoria + estadoReal) para que el id del documento sea estable y
+// cada sincronización actualice el mismo registro en vez de duplicar.
+// No bloquea el render — es un "fire and forget" en segundo plano.
+async function _sincronizarPreviewProveedores() {
+    const grupos = {};
+    panelGestion.forEach(g => {
+        if (g.estadoReal !== 'aprobado' && g.estadoReal !== 'confirmado') return;
+        const prov = proveedorDeCategoria(g.categoria);
+        if (!prov) return; // sin proveedor asignado a esta categoría: nada que sincronizar
+        const key = `${g.codigoVendedor}_${g.categoria}_${g.estadoReal}`;
+        if (!grupos[key]) grupos[key] = { codigoVendedor: g.codigoVendedor, categoria: g.categoria, estadoPedido: g.estadoReal, proveedor: prov, items: [] };
+        grupos[key].items.push(g);
+    });
+    for (const key in grupos) {
+        const grp = grupos[key];
+        const productos = grp.items.flatMap(g => (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1 })));
+        try {
+            await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({
+                    codigoVendedor: grp.codigoVendedor, categoria: grp.categoria, estadoPedido: grp.estadoPedido,
+                    proveedorId: grp.proveedor.id, proveedorNombre: grp.proveedor.nombre,
+                    nombreRevendedor: vendorLabel(grp.codigoVendedor), productos,
+                })
+            });
+        } catch(_) { /* sincronización best-effort — si falla, se reintenta en el próximo render */ }
+    }
 }
 
 function toggleEstadoRibbon(id) { document.getElementById(id)?.classList.toggle('expanded'); }
@@ -1942,6 +2006,12 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
 const ICO_ENVIAR_FACTURA = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
 const ICO_SEGUIMIENTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
 const ICO_REENVIAR_FACTURA = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
+// Íconos para el panel de proveedores: "Enviar Panel" (enlace), "Pausar
+// panel" (ícono de pausa) y "Reanudar panel" (ícono de play, se muestra
+// en el mismo botón cuando el panel ya está pausado).
+const ICO_ENVIAR_PANEL = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>';
+const ICO_PAUSAR_PANEL = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+const ICO_REANUDAR_PANEL = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
 
 // 🔧 NUEVO: footer de factura/compartir UNIFICADO por grupo (revendedor +
 // categoría + estado). Antes cada pedido individual del cliente tenía su
@@ -2202,17 +2272,29 @@ function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
     y += 10;
     doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
     let totalMayoristaFactura = 0;
+    // 🔧 NUEVO: la factura consolidada mostraba solo la CANTIDAD de
+    // pedidos ("3 pedido(s)") pero no CUÁL era cada uno — se pide que
+    // cada pedido muestre su número real de Firestore (g.pedidoId), tanto
+    // acá (factura pendiente/pagada) como en la boleta de envío de
+    // proveedores.html. Se imprime una línea de encabezado por pedido,
+    // con sus productos debajo.
     gs.forEach(g => {
+        if (y > H - 40) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...BLUE);
+        doc.text(`Pedido #${String(g.pedidoId||'—').slice(-8).toUpperCase()}`, 17, y);
+        y += 6;
+        doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
         (g.items||[]).forEach(it => {
             if (y > H - 40) { doc.addPage(); y = 20; }
             const eco = itemEconomiaReal(it, g.categoria);
             totalMayoristaFactura += eco.precioCliente;
             doc.setFontSize(9.5);
-            doc.text(String(it.nombre||'—').slice(0,50), 17, y);
+            doc.text(String(it.nombre||'—').slice(0,50), 20, y);
             doc.text(String(it.cantidad||1), W-70, y);
             doc.text('$'+Math.round(eco.precioCliente / Number(it.cantidad||1)).toLocaleString('es-AR'), W-17, y, { align:'right' });
             y += 7;
         });
+        y += 2;
     });
 
     y += 6;
@@ -2237,20 +2319,19 @@ function descargarFacturaProveedorGrupo(codigo, categoria, estado) {
 async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     const doc = _generarFacturaProveedorPDFGrupo(codigo, categoria, estado);
     if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
-    const blob = doc.output('blob');
     const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
     const wa = vendorWa(codigo);
     const mensaje = estado === 'confirmado' ? 'Te comparto tu factura ya pagada.' : 'Te comparto tu factura pendiente de pago.';
-    try {
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: filename, text: mensaje });
-            return;
-        }
-    } catch(e) { return; }
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
+    // 🔧 FIX: usaba navigator.share({files,text}), que abre el panel nativo
+    // "Compartir" del sistema (a elegir contacto/app) en vez de ir directo
+    // al chat de WhatsApp del revendedor. Se reemplaza por el mismo criterio
+    // que _enviarMensajeConFacturaGrupo: se descarga la factura y se abre
+    // el chat puntual (wa.me/<numero>) con el mensaje ya escrito.
     doc.save(filename);
-    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-    else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+    try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
 }
 
 // "Pago Verificado" — confirma manualmente que el dinero llegó. No
@@ -2307,22 +2388,19 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
     const doc = _generarFacturaProveedorPDF(pedidoId);
     const wa = vendorWa(g.codigoVendedor);
     const mensaje = `¡Gracias por tu compra, ${nombre}! 🙌 Tu pago ya fue verificado — te comparto tu factura pagada. Ya estamos preparando tu pedido para enviarlo. ¡Cualquier consulta, estamos para ayudarte!`;
+    // 🔧 FIX: mismo caso — navigator.share() abría el panel nativo del
+    // sistema en vez de ir directo al chat. Se descarga la factura y se
+    // abre el chat puntual del revendedor con el mensaje ya escrito.
     if (doc) {
-        const blob = doc.output('blob');
         const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
-        try {
-            const file = new File([blob], filename, { type: 'application/pdf' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: filename, text: mensaje });
-                toast('Pedido enviado, clasificado y factura compartida', true);
-                renderPedidosView(); renderListaView();
-                return;
-            }
-        } catch(e) { /* el usuario canceló el share nativo — sigue por WhatsApp abajo */ }
         doc.save(filename);
     }
-    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-    else toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+    if (wa) {
+        try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
+        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    } else {
+        toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+    }
 
     toast('Pedido enviado, clasificado y factura descargada', true);
     renderPedidosView();
@@ -2607,7 +2685,7 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
                             ${info.direccion ? `<div class="ship-row">${esc(info.direccion)}</div>` : ''}
                             ${info.codigoPostal ? `<div class="ship-row">CP: ${esc(info.codigoPostal)}</div>` : ''}
                         </div>
-                        <button class="btn-head btn-rvndr" style="width:100%;justify-content:center;margin-top:10px" onclick="ejecutarPedido('${codigo}','${catsCsv}')">🚀 Ejecutar Pedido</button>
+                        <button class="btn-act btn-wa-enviar" style="width:100%;justify-content:center;margin-top:10px;padding:9px" onclick="ejecutarPedido('${codigo}','${catsCsv}')">${ICO_ENVIAR_FACTURA}Enviar a proveedor</button>
                     </div></div>
                 </div>`;
             }).join('');
@@ -2622,6 +2700,25 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
         }).join('')
         : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📦</div><p>Todavía no hay pedidos con "Pago Verificado" para ejecutar.</p></div>`;
 
+    // 🔧 NUEVO: "Compartir panel" ÚNICO y al final de TODOS los pedidos
+    // (no repetido por categoría/grupo, como pasaba con cada botón
+    // "Ejecutar Pedido" antes) — un botón por cada proveedor distinto
+    // involucrado en este lote, agrupados en un solo bloque al pie.
+    const proveedoresInvolucrados = [];
+    const idsVistos = new Set();
+    paraEjecutar.forEach(g => {
+        const prov = proveedorDeCategoria(g.categoria);
+        if (prov && !idsVistos.has(prov.id)) { idsVistos.add(prov.id); proveedoresInvolucrados.push(prov); }
+    });
+    const bloqueCompartirPanel = proveedoresInvolucrados.length
+        ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:8px">Compartir panel</div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+                ${proveedoresInvolucrados.map(p => `<button class="btn-act btn-wa-enviar" style="width:100%;justify-content:center;padding:9px" onclick="enviarPanelAProveedor('${p.id}')">${ICO_ENVIAR_PANEL}Compartir panel — ${esc(p.nombre)}</button>`).join('')}
+            </div>
+        </div>`
+        : '';
+
     return `<div class="estado-ribbon" id="${ribbonId}">
         <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
             <div class="estado-head-left">
@@ -2631,7 +2728,7 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
             </div>
             <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        <div class="estado-body"><div class="estado-inner">${cuerpo}</div></div>
+        <div class="estado-body"><div class="estado-inner">${cuerpo}${bloqueCompartirPanel}</div></div>
     </div>`;
 }
 
@@ -2738,7 +2835,7 @@ function _separarCalleYNumero(direccion) {
     return m ? { calle: m[1], numero: m[2] } : { calle: str, numero: '' };
 }
 
-async function _enviarPedidoAWorkerProveedores({ pedidoId, codigo, categoria, categorias, nombre, info, productos, totalMayorista, origen }) {
+async function _enviarPedidoAWorkerProveedores({ pedidoId, pedidoIds, codigo, categoria, categorias, nombre, info, productos, totalMayorista, origen }) {
     const listaCategorias = categorias && categorias.length ? categorias : [categoria];
     const prov = proveedorDeCategoria(listaCategorias[0]);
     // 🔧 NUEVO: "cuit" y "direccionAlternativa" — se completan en el perfil
@@ -2755,6 +2852,15 @@ async function _enviarPedidoAWorkerProveedores({ pedidoId, codigo, categoria, ca
             headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
             body: JSON.stringify({
                 pedidoId: pedidoId || null,
+                // 🔧 NUEVO: los lotes agrupados de "Enviar Pedidos" (varios
+                // pedidos de un mismo revendedor+categoría en un solo envío
+                // al proveedor) mandan acá TODOS los pedidoId reales de
+                // Firestore involucrados — antes se perdían (el lote solo
+                // guardaba un id sintético propio), y ni la boleta de envío
+                // ni la factura podían mostrar el número real de cada
+                // pedido. Para el envío de un solo pedido (pedidoId ya
+                // viene puesto), alcanza con ese mismo valor.
+                pedidoIds: (Array.isArray(pedidoIds) && pedidoIds.length ? pedidoIds : (pedidoId ? [pedidoId] : [])).map(String),
                 codigoVendedor: codigo,
                 nombreRevendedor: nombre,
                 categoria: categoria || listaCategorias[0],
@@ -2882,10 +2988,24 @@ async function ejecutarPedido(codigo, categoriaOCsv) {
     await _enviarPedidoAWorkerProveedores({
         codigo, categoria: categorias[0], categorias, nombre, info,
         productos: productosLista,
+        pedidoIds: gsCat.map(g => g.pedidoId),
         totalMayorista: totalMayoristaLote,
         origen: 'enviar_pedidos',
     });
     marcarPedidosRealizados(gsCat.map(g => g.pedidoId));
+
+    // 🔧 NUEVO: este grupo ya se mandó formalmente ("Enviar a proveedor")
+    // — se borra su vista previa (si existía) para que no quede un
+    // adelanto fantasma en "Pedidos pendientes"/"Pedidos aprobados" de
+    // proveedores.html duplicando lo que ahora ya está en "Confirmados".
+    for (const c of categorias) {
+        for (const estadoPedido of ['aprobado','confirmado']) {
+            fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview-eliminar', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({ codigoVendedor: codigo, categoria: c, estadoPedido })
+            }).catch(()=>{});
+        }
+    }
 
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(msg)}`, '_blank');
     toast('Pedido enviado al proveedor y movido a "Pedidos Realizados"', true);
@@ -2943,15 +3063,17 @@ function _renderProveedoresConfigBody() {
         ? PROVEEDORES_CONFIG.map(p => `
             <div class="cat-item" style="flex-direction:column;align-items:stretch;gap:6px;padding:10px 4px;border-bottom:1px solid var(--border)">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                    <strong>${esc(p.nombre)}</strong>
+                    <strong>${esc(p.nombre)}${p.pausado ? ' <span class="status-chip" style="font-size:10px;background:rgba(245,158,11,.15);color:#b45309;border:1px solid rgba(245,158,11,.35)">⏸ Panel pausado</span>' : ''}</strong>
                     <div style="display:flex;gap:6px;flex-shrink:0">
+                        <button class="btn-act btn-pausar-proveedor" title="${p.pausado ? 'Reactivar panel' : 'Pausar panel'}" style="padding:4px 8px;font-size:11.5px" onclick="abrirPausarProveedorModal('${p.id}')">${p.pausado ? ICO_REANUDAR_PANEL : ICO_PAUSAR_PANEL}</button>
                         <button class="btn-act" style="padding:4px 10px;font-size:11.5px" onclick="mostrarFormProveedor('${p.id}')">Editar</button>
                         <button class="btn-act btn-del" style="padding:4px 10px;font-size:11.5px" onclick="eliminarProveedor('${p.id}')">Eliminar</button>
                     </div>
                 </div>
                 <div style="font-size:12px;color:var(--text2)">+${esc(p.numero||'—')}</div>
-                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
                     ${(p.categorias||[]).map(c => `<span class="status-chip s-lista" style="font-size:10.5px">${catIcon(c)} ${esc(CAT_LABELS[c]||c)}</span>`).join('') || '<span style="font-size:11.5px;color:var(--text2)">Sin categorías asignadas</span>'}
+                    <button class="btn-act btn-wa-enviar" style="margin-left:auto" onclick="enviarPanelAProveedor('${p.id}')">${ICO_ENVIAR_PANEL}Enviar Panel</button>
                 </div>
             </div>`).join('')
         : `<div class="empty" style="padding:16px 8px"><div class="empty-icon">📇</div><p>Todavía no hay proveedores configurados.</p></div>`;
@@ -3078,6 +3200,61 @@ function eliminarProveedor(id) {
     _guardarProveedoresConfigLocal();
     _renderProveedoresConfigBody();
     toast('Proveedor eliminado', true);
+}
+
+// 🔧 NUEVO: "Enviar Panel" — manda directo al chat de WhatsApp del
+// proveedor (sin pantalla de compartir del sistema, mismo criterio que el
+// resto de los envíos por WhatsApp de este panel) el mensaje fijo pedido
+// junto con el enlace a su panel de pedidos (proveedores.html).
+function enviarPanelAProveedor(id) {
+    const p = PROVEEDORES_CONFIG.find(x => x.id === id);
+    if (!p) { toast('No se encontró el proveedor', 'err'); return; }
+    if (!p.numero) { toast('Este proveedor no tiene WhatsApp cargado', 'err'); return; }
+    const url = location.origin + '/proveedores.html?proveedor=' + encodeURIComponent(p.id);
+    const mensaje = `Hola ${p.nombre} acá te dejo todos los pedidos bien ordenados junto a la boleta de envío descargable de cada uno! Cualquier cosita me preguntas! \n${url}`;
+    window.open(`https://wa.me/${p.numero}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+// 🔧 NUEVO: pausar/reanudar el acceso del proveedor a proveedores.html.
+// Pausar NO borra ni congela ningún dato — solo bloquea la entrada (ver
+// handleSetProveedorPausado/handleGetProveedorPausado en
+// workerproveedores_worker.js y el chequeo en proveedores.html).
+let _proveedorAPausarId = null;
+function abrirPausarProveedorModal(id) {
+    const p = PROVEEDORES_CONFIG.find(x => x.id === id);
+    if (!p) { toast('No se encontró el proveedor', 'err'); return; }
+    _proveedorAPausarId = id;
+    const vaAPausar = !p.pausado;
+    document.getElementById('pausarProveedorTitulo').textContent = vaAPausar ? '¿Pausar el panel?' : '¿Reanudar el panel?';
+    document.getElementById('pausarProveedorTexto').innerHTML = vaAPausar
+        ? `El proveedor <strong>${esc(p.nombre)}</strong> no va a poder entrar a su panel hasta que lo reactivés. La información sigue actualizándose en vivo mientras tanto.`
+        : `El proveedor <strong>${esc(p.nombre)}</strong> va a poder volver a entrar a su panel normalmente.`;
+    const btn = document.getElementById('pausarProveedorConfirmBtn');
+    btn.style.background = vaAPausar ? '#f59e0b' : '#16a34a';
+    document.getElementById('pausarProveedorModal').classList.add('show');
+}
+function cerrarPausarProveedorModal() {
+    _proveedorAPausarId = null;
+    document.getElementById('pausarProveedorModal').classList.remove('show');
+}
+async function confirmarPausarProveedor() {
+    const id = _proveedorAPausarId;
+    const p = PROVEEDORES_CONFIG.find(x => x.id === id);
+    if (!p) { cerrarPausarProveedorModal(); return; }
+    const nuevoPausado = !p.pausado;
+    cerrarPausarProveedorModal();
+    const res = await fetchJson(WORKER_PROVEEDORES + '/api/proveedor-pausado', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ proveedorId: id, pausado: nuevoPausado })
+    });
+    if (res && res.ok) {
+        p.pausado = nuevoPausado;
+        _guardarProveedoresConfigLocal();
+        _renderProveedoresConfigBody();
+        toast(nuevoPausado ? 'Panel pausado' : 'Panel reactivado', true);
+    } else {
+        toast('No se pudo actualizar el panel — probá de nuevo', 'err');
+    }
 }
 
 // ── Re-verificación del PANEL_PIN dentro del panel ya logueado ──
@@ -3397,6 +3574,70 @@ async function actualizarBadgeReclamos(cantidadForzada) {
         const res = await fetchJson(WORKER_RECLAMOS + '/api/listar-reclamos');
         const reclamos = (res && res.ok && res.reclamos) || [];
         cantidad = reclamos.filter(r => !r.visto).length;
+    }
+    if (cantidad > 0) {
+        badge.textContent = cantidad > 99 ? '99+' : String(cantidad);
+        badge.style.display = 'block';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// 🔧 NUEVO: panel de "Envíos" — cuando un proveedor marca "Pedido en
+// camino" en proveedores.html, el Worker genera automáticamente una
+// notificación (ver handleMarcarEstadoPedidoProveedor en
+// workerproveedores_worker.js). Este panel las lista con el detalle de
+// lo que se está despachando. Mismo patrón que Reclamos.
+let ENVIOS_CACHE = [];
+async function abrirEnvios() {
+    document.getElementById('envios-modal').classList.add('show');
+    const body = document.getElementById('envios-body');
+    body.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando envíos...</p></div>';
+
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/notificaciones-envio?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+    ENVIOS_CACHE = (res && res.ok && res.notificaciones) || [];
+    renderEnviosLista();
+
+    // Al abrir el panel se consideran todas "vistas" — el badge se apaga.
+    const noVistas = ENVIOS_CACHE.filter(n => !n.vista);
+    if (noVistas.length) {
+        fetchJson(`${WORKER_PROVEEDORES}/api/notificaciones-envio-vistas`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ ids: noVistas.map(n => n.id) })
+        });
+    }
+    actualizarBadgeEnvios(0);
+}
+
+function renderEnviosLista() {
+    const body = document.getElementById('envios-body');
+    if (!ENVIOS_CACHE.length) {
+        body.innerHTML = '<p style="font-size:13px;color:var(--text2)">Todavía no hay pedidos en camino.</p>';
+        return;
+    }
+    body.innerHTML = ENVIOS_CACHE.map(n => `
+        <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+                <strong style="font-size:13.5px">${esc(n.proveedorNombre || 'Proveedor')}</strong>
+                <span class="status-chip s-lista" style="font-size:10.5px">🚚 En camino</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--text2);margin-bottom:6px">Revendedor: <strong style="color:var(--text)">${esc(vendorLabel(n.codigoVendedor) || n.codigoVendedor || '—')}</strong> · ${esc(CAT_LABELS[n.categoria]||n.categoria||'—')}</div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--text2)">
+                ${(n.productos||[]).length ? n.productos.map(p => `<li><span style="color:var(--text)">${esc(p.nombre)}</span> — x${p.cantidad}</li>`).join('') : '<li>Sin productos detallados</li>'}
+            </ul>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">${n.creadaEn ? new Date(n.creadaEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : ''}</div>
+        </div>`).join('');
+}
+
+// Actualiza el numerito rojo sobre el ícono de Envíos. Llamado al
+// cargar el panel (ver loadData) y al abrir/cerrar la lista.
+async function actualizarBadgeEnvios(cantidadForzada) {
+    const badge = document.getElementById('envios-badge');
+    if (!badge) return;
+    let cantidad = cantidadForzada;
+    if (cantidad === undefined) {
+        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/notificaciones-envio?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}&soloNoVistas=1`);
+        cantidad = (res && res.ok && res.notificaciones) ? res.notificaciones.length : 0;
     }
     if (cantidad > 0) {
         badge.textContent = cantidad > 99 ? '99+' : String(cantidad);
