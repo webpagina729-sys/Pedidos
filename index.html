@@ -315,6 +315,16 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .btn-act { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: none; font-family: var(--font); transition: all .18s; }
 .btn-retirar { background: var(--purple-pale); color: var(--purple); border: 1px solid rgba(139,92,246,.25); }
 .btn-act.btn-wa { background: rgba(37,211,102,.14); color: #0a8a3f; border: 1px solid rgba(37,211,102,.3); padding: 8px 13px; font-size: 11.5px; }
+/* 🎨 Rediseño solicitado: botones de Enviar Factura / Hacer seguimiento / Reenviar
+   Factura en tonos de verde sólidos y distintos, compactos, profesionales, con
+   contorno blanco sutil y texto blanco en un solo renglón (sin wrap). */
+.btn-act.btn-wa-enviar, .btn-act.btn-wa-seguimiento, .btn-act.btn-wa-reenviar { color: #fff; border: 1px solid rgba(255,255,255,.45); padding: 7px 12px; font-size: 11px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.btn-act.btn-wa-enviar { background: #0f7a3e; }
+.btn-act.btn-wa-enviar:hover { background: #0c6633; }
+.btn-act.btn-wa-seguimiento { background: #16a34a; }
+.btn-act.btn-wa-seguimiento:hover { background: #12873c; }
+.btn-act.btn-wa-reenviar { background: #059669; }
+.btn-act.btn-wa-reenviar:hover { background: #047a56; }
 .btn-act.btn-pago-verificado { background: rgba(10,201,122,.15); color: #0a8a52; border: 1px solid rgba(10,201,122,.35); }
 .btn-act.btn-pago-verificado:hover { background: var(--green); color: #fff; }
 .btn-retirar:hover { background: var(--purple); color: #fff; }
@@ -1775,9 +1785,28 @@ function vendorLabel(codigo) {
     const nm = v ? fullName(v) : '';
     return nm || codigo || 'Revendedor';
 }
+// 🔧 FIX: los enlaces wa.me llevaban a la pantalla de "contactos" en vez
+// de abrir el chat directo cuando el número no estaba guardado en la
+// agenda. Causa real: wa.me solo abre el chat directo si el número viene
+// en formato internacional completo (código de país + "9" + área +
+// número, sin 0 ni 15) — si al revendedor le faltaba ese prefijo (o
+// tenía un 0/15 de más) en el dato guardado, WhatsApp no reconocía el
+// número como válido y caía en la pantalla de contactos. index.html ya
+// normaliza así el WhatsApp del revendedor al guardarlo (ver
+// guardarWhatsappRevendedor): mismo criterio acá, para que el link
+// funcione sin importar en qué formato haya quedado guardado el dato.
+function _normalizarWhatsappArgentino(numeroCrudo) {
+    let n = String(numeroCrudo || '').replace(/\D/g, '');
+    if (n.startsWith('549')) n = n.slice(3);
+    else if (n.startsWith('54')) n = n.slice(2);
+    if (n.startsWith('0')) n = n.replace(/^0+/, '');
+    if (n.length >= 4 && n.charAt(2) === '1' && n.charAt(3) === '5') n = n.slice(0,2) + n.slice(4);
+    if (!n || n.length < 8) return '';
+    return '549' + n;
+}
 function vendorWa(codigo) {
     const v = vendorCache[(codigo||'').toUpperCase()];
-    return (v && (v.whatsappRevendedor || v.telefono) || '').replace(/\D/g,'');
+    return _normalizarWhatsappArgentino(v && (v.whatsappRevendedor || v.telefono));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1935,7 +1964,7 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
         if (!gsCat.some(superaMinimoYVencido48hs)) return '';
         return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
             <div class="actions" style="width:100%">
-                <button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoPendienteGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
+                <button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoPendienteGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
             </div>
         </div>`;
     }
@@ -1958,9 +1987,9 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     // revendedor paga el total del grupo, no pedido por pedido, así que
     // ahora son UN solo botón acá, igual que la factura/compartir.
     const botonesSeguimiento = estado === 'aprobado'
-        ? `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoAprobadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
-           <button class="btn-act btn-wa" onclick="${stop}enviarBoletaPendienteGrupo('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
-        : `<button class="btn-act btn-wa" onclick="${stop}enviarSeguimientoConfirmadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
+        ? `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoAprobadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
+           <button class="btn-act btn-wa btn-wa-reenviar" onclick="${stop}enviarBoletaPendienteGrupo('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
+        : `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoConfirmadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
             <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
@@ -1968,7 +1997,7 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
         </div>
         <div class="actions">
             <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupo('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
-            <button class="btn-act btn-wa" onclick="${stop}compartirFacturaWhatsAppGrupo('${codigo}','${cat}','${estado}')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
+            <button class="btn-act btn-wa btn-wa-enviar" onclick="${stop}compartirFacturaWhatsAppGrupo('${codigo}','${cat}','${estado}')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
             ${botonesSeguimiento}
         </div>
     </div>`;
