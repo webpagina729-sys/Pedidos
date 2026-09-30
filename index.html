@@ -1443,7 +1443,7 @@ let activeRvndrCode = null;
 let ESTADOS_CONFIRMADOS = {};
 let ESTADOS_PAGADOS = {};
 let ESTADOS_ELIMINADOS = {};   // pedidoId -> true, si se eliminó/no se aprobó en index(1).html
-let _autoRefreshPedidosTimer = null; // 🔧 NUEVO: ver loadData() — refresco automático cada 60s
+let _autoRefreshPedidosTimer = null; // 🔧 NUEVO: ver loadData() — refresco automático cada 20min
 let CLIENTES_TODOS = [];   // clientes de TODOS los revendedores (workerwebcliente /clientes)
 let REVENDEDORES_TODOS = []; // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan pedidos o no
 
@@ -2030,9 +2030,9 @@ async function loadData() {
     // el momento en que loadData() se ejecuta. Si el dueño deja esta
     // pestaña abierta y elimina un pedido desde index(1).html en otra
     // pestaña, acá quedaba desactualizado hasta tocar "Actualizar" a
-    // mano. Con este auto-refresh cada 60s, se recalcula solo.
+    // mano. Con este auto-refresh cada 20min, se recalcula solo.
     if (!_autoRefreshPedidosTimer) {
-        _autoRefreshPedidosTimer = setInterval(() => { loadData().catch(() => {}); }, 60000);
+        _autoRefreshPedidosTimer = setInterval(() => { loadData().catch(() => {}); }, 1200000);
     }
 }
 
