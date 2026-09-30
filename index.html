@@ -591,10 +591,26 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <button class="sidebar-btn menu-btn" data-view="stockped" onclick="switchView('stockped')" title="Pedidos de Stock">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 7.27 12 12l-8.5-4.73"/><path d="M12 22.08V12"/><path d="M20.5 16.73 12 12l8.5-4.73"/><path d="m3.5 7.27 8.5 4.73 8.5-4.73L12 2.5Z"/></svg>
         </button>
+        <!-- 🆕 NUEVO: sección "Envíos" — pedidos de proveedores en estado
+             en_camino/entregado (colección pedidosProveedores vía
+             workerproveedores_worker.js). Antes era un modal simple de
+             notificaciones; ahora es una vista completa (ver
+             renderEnviosView) con estadísticas, cintas por proveedor →
+             categoría, paginado y el botón "Enviar pedidos en camino". El
+             badge sigue contando lo mismo que antes en espíritu (algo
+             pendiente de atención en Envíos), pero ahora es la cantidad de
+             pedidos en_camino (pendientes de recibir), no notificaciones
+             sin ver. -->
         <div class="sidebar-sep"></div>
-        <button class="sidebar-btn" style="position:relative" onclick="abrirEnvios()" title="Envíos">
+        <button class="sidebar-btn menu-btn" data-view="envios" style="position:relative" onclick="switchView('envios')" title="Envíos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
             <span id="envios-badge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--red,#f43f5e);color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center">0</span>
+        </button>
+        <!-- 🆕 NUEVO: "Proveedores registrados" — padrón oficial de
+             proveedores (colección proveedoresRegistrados, alta desde el
+             modal de registro en proveedores.html), solo lectura acá. -->
+        <button class="sidebar-btn menu-btn" data-view="proveedores-reg" onclick="switchView('proveedores-reg')" title="Proveedores registrados">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 13h1"/><path d="M14 13h1"/><path d="M9 21v-4h6v4"/></svg>
         </button>
         <button class="sidebar-btn" onclick="openRvndr()" title="Info Rvndr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -678,6 +694,15 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 7.27 12 12l-8.5-4.73"/><path d="M12 22.08V12"/><path d="M20.5 16.73 12 12l8.5-4.73"/><path d="m3.5 7.27 8.5 4.73 8.5-4.73L12 2.5Z"/></svg>
                 Pedidos de Stock <span class="cnt2" id="cnt-stockped">0</span>
             </button>
+            <!-- 🆕 NUEVO: ver comentario junto al botón del sidebar -->
+            <button class="menu-btn" data-view="envios" onclick="switchView('envios')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                Envíos <span class="cnt2" id="cnt-envios">0</span>
+            </button>
+            <button class="menu-btn" data-view="proveedores-reg" onclick="switchView('proveedores-reg')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 13h1"/><path d="M14 13h1"/><path d="M9 21v-4h6v4"/></svg>
+                Proveedores registrados
+            </button>
         </div>
 
         <!-- VIEW: PEDIDOS NUEVOS -->
@@ -712,6 +737,21 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div class="view" id="view-stockped">
             <div class="section-sub">Compras de stock mayorista que los revendedores hacen directo a Revende Ways desde su carrito (stock.html)</div>
             <div id="stockped-wrap"></div>
+        </div>
+
+        <!-- VIEW: ENVÍOS (pedidos ya despachados por el proveedor —
+             colección pedidosProveedores, estados en_camino/entregado —
+             ver workerproveedores_worker.js). -->
+        <div class="view" id="view-envios">
+            <div class="section-sub">Pedidos que los proveedores ya despacharon (en camino) o que el revendedor ya confirmó como recibidos, agrupados por proveedor</div>
+            <div id="envios-wrap"></div>
+        </div>
+
+        <!-- VIEW: PROVEEDORES REGISTRADOS (padrón oficial, colección
+             proveedoresRegistrados — alta desde proveedores.html). -->
+        <div class="view" id="view-proveedores-reg">
+            <div class="section-sub">Proveedores que completaron el registro oficial desde su panel (proveedores.html)</div>
+            <div id="proveedores-reg-wrap"><div class="loader"><div class="spin"></div><p>Cargando proveedores...</p></div></div>
         </div>
 
     </div>
@@ -900,17 +940,20 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
-<!-- 🔧 NUEVO: panel de "Envíos" — muestra los pedidos que los proveedores
-     marcaron "Pedido en camino" en proveedores.html (llega como
-     notificación, ver handleMarcarEstadoPedidoProveedor en
-     workerproveedores_worker.js). -->
-<div class="rvndr-overlay" id="envios-modal">
-    <div class="rvndr-box" style="max-width:640px">
+<!-- 🆕 NUEVO: confirmación compacta al tocar "Enviar pedidos en camino"
+     (ver enviarPedidosEnCaminoDelProveedor) — texto EXACTO pedido, un
+     único botón "Aceptar". Mismo patrón visual que el resto de los
+     modales chicos del panel (.rvndr-overlay/.rvndr-box). -->
+<div class="rvndr-overlay" id="envios-confirmar-modal">
+    <div class="rvndr-box" style="max-width:380px">
         <div class="rvndr-head">
-            <h3><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Envíos</h3>
-            <button class="rvndr-close" onclick="document.getElementById('envios-modal').classList.remove('show')">✕</button>
+            <h3><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Envío en camino</h3>
+            <button class="rvndr-close" onclick="document.getElementById('envios-confirmar-modal').classList.remove('show')">✕</button>
         </div>
-        <div class="rvndr-body" id="envios-body"></div>
+        <div class="rvndr-body" style="text-align:center">
+            <p style="font-size:13.5px;color:var(--text);line-height:1.5;margin:4px 0 16px">Pedido En camino. Avísanos cuando el Pedido haya sido (Recibido) desde el Seguimiento</p>
+            <button class="btn-act btn-wa-enviar" style="width:100%;justify-content:center;padding:10px" onclick="document.getElementById('envios-confirmar-modal').classList.remove('show')">Aceptar</button>
+        </div>
     </div>
 </div>
 
@@ -1726,7 +1769,6 @@ async function loadData() {
         fetchJson(WORKER_PAGOS + '/api/carritos-stock')
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
-    actualizarBadgeEnvios(); // 🔧 NUEVO: ídem para notificaciones de "Pedido en camino"
 
     ESTADOS_CONFIRMADOS = (estadosRes && estadosRes.ok && estadosRes.confirmados) || {};
     ESTADOS_PAGADOS     = (estadosRes && estadosRes.ok && estadosRes.pagados) || {};
@@ -1908,12 +1950,20 @@ async function loadData() {
     document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
 
     await cargarWhatsappProveedores();
+    // 🆕 NUEVO: "Envíos" (en_camino/entregado) — mismo ciclo de 60s que
+    // el resto del panel (ver _autoRefreshPedidosTimer más abajo), así
+    // queda "en vivo" sin agregar un segundo temporizador aparte. Fuente
+    // de verdad compartida con proveedores.html (mismo Worker/colección),
+    // así que si un pedido cambia de estado o desaparece allá, acá se
+    // refleja solo con este refresco periódico.
+    await cargarEnvios();
 
     renderPedidosView();
     renderListaView();
     renderStatsView();
     renderRevmesView();
     renderPedidosStockView(); // 🆕 NUEVO: "Pedidos de Stock" (colección Firestore dedicada "pedidosStock")
+    renderEnviosView(); // 🆕 NUEVO: "Envíos"
     actualizarContadorRvndrHeader();
 
     // 🔧 NUEVO: avisa a workerproveedores.tuweb.workers.dev de los pedidos
@@ -4423,68 +4473,267 @@ async function actualizarBadgeReclamos(cantidadForzada) {
     }
 }
 
-// 🔧 NUEVO: panel de "Envíos" — cuando un proveedor marca "Pedido en
-// camino" en proveedores.html, el Worker genera automáticamente una
-// notificación (ver handleMarcarEstadoPedidoProveedor en
-// workerproveedores_worker.js). Este panel las lista con el detalle de
-// lo que se está despachando. Mismo patrón que Reclamos.
-let ENVIOS_CACHE = [];
-async function abrirEnvios() {
-    document.getElementById('envios-modal').classList.add('show');
-    const body = document.getElementById('envios-body');
-    body.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando envíos...</p></div>';
+// ═══════════════════════════════════════════════════════════
+// VIEW: ENVÍOS — pedidos de proveedores en estado en_camino/entregado
+// (colección Firestore "pedidosProveedores" vía workerproveedores_worker.js,
+// GET /api/pedidos-proveedor?estado=...). El estado en_camino lo pone el
+// PROVEEDOR desde proveedores.html; entregado lo pone el REVENDEDOR desde
+// su "Seguimiento" en index (1).html (marcar-recibido). Esta vista es de
+// SOLO LECTURA sobre ese estado — nunca lo dispara ni lo cambia, solo lo
+// refleja (ver cargarEnvios(), llamado dentro de loadData() cada 60s, el
+// mismo ciclo de auto-refresh que ya usa el resto del panel, así queda
+// "en vivo" sin agregar un segundo temporizador).
+//
+// Estructura de cada sub-sección (Pendientes = en_camino, Entregados =
+// entregado): cinta por PROVEEDOR (proveedorId||proveedorNombre) →
+// dentro, cinta por CATEGORÍA → dentro, pedidos individuales listados de
+// 10 en 10 ("Cargar más"), cada uno cliqueable para ver el detalle
+// completo (productos, datos de envío, número de pedido, total).
+// ═══════════════════════════════════════════════════════════
+let ENVIOS_EN_CAMINO = [];
+let ENVIOS_ENTREGADOS = [];
+const ENVIOS_PAGINA_TAM = 10;
+let enviosPaginas = {}; // key `${estadoTab}|${proveedorKey}|${categoria}` -> cantidad de pedidos mostrados
 
-    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/notificaciones-envio?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
-    ENVIOS_CACHE = (res && res.ok && res.notificaciones) || [];
-    renderEnviosLista();
-
-    // Al abrir el panel se consideran todas "vistas" — el badge se apaga.
-    const noVistas = ENVIOS_CACHE.filter(n => !n.vista);
-    if (noVistas.length) {
-        fetchJson(`${WORKER_PROVEEDORES}/api/notificaciones-envio-vistas`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-            body: JSON.stringify({ ids: noVistas.map(n => n.id) })
-        });
-    }
-    actualizarBadgeEnvios(0);
+// Trae ambos estados del Worker en paralelo. Se llama desde loadData()
+// (mismo ciclo de 60s que ya refresca todo lo demás) y también al entrar
+// a la vista "Envíos" por primera vez.
+async function cargarEnvios() {
+    const [enCaminoRes, entregadoRes] = await Promise.all([
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?estado=en_camino&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?estado=entregado&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
+    ]);
+    ENVIOS_EN_CAMINO = (enCaminoRes && enCaminoRes.ok && Array.isArray(enCaminoRes.pedidos)) ? enCaminoRes.pedidos : [];
+    ENVIOS_ENTREGADOS = (entregadoRes && entregadoRes.ok && Array.isArray(entregadoRes.pedidos)) ? entregadoRes.pedidos : [];
+    actualizarBadgeEnvios();
 }
 
-function renderEnviosLista() {
-    const body = document.getElementById('envios-body');
-    if (!ENVIOS_CACHE.length) {
-        body.innerHTML = '<p style="font-size:13px;color:var(--text2)">Todavía no hay pedidos en camino.</p>';
+// Numerito rojo sobre el ícono de "Envíos" — cantidad de pedidos
+// en_camino (pendientes de recibir por el revendedor), tal como pide el
+// requerimiento. Se llama tras cada cargarEnvios().
+function actualizarBadgeEnvios() {
+    const cantidad = ENVIOS_EN_CAMINO.length;
+    const badge = document.getElementById('envios-badge');
+    if (badge) {
+        if (cantidad > 0) { badge.textContent = cantidad > 99 ? '99+' : String(cantidad); badge.style.display = 'block'; }
+        else badge.style.display = 'none';
+    }
+    const cnt = document.getElementById('cnt-envios');
+    if (cnt) cnt.textContent = String(cantidad);
+}
+
+// Clave de agrupación por proveedor — prioriza proveedorId (estable);
+// si un pedido viejo no lo tiene, cae a proveedorNombre; si tampoco, un
+// bucket genérico (nunca se pierde un pedido por falta de proveedor).
+function _envioProveedorKey(p) { return p.proveedorId || p.proveedorNombre || 'sin-proveedor'; }
+function _envioProveedorNombre(p) { return p.proveedorNombre || 'Proveedor sin nombre'; }
+
+function renderEnviosView() {
+    const wrap = document.getElementById('envios-wrap');
+    if (!wrap) return;
+
+    const totalEnCamino = ENVIOS_EN_CAMINO.length;
+    const totalEntregados = ENVIOS_ENTREGADOS.length;
+
+    const stats = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <div class="rank-row" style="cursor:default;flex:1;min-width:180px;margin-bottom:0">
+            <div class="rank-pos" style="color:#f59e0b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+            <div class="rank-body"><div class="rank-name" style="font-weight:600">En camino</div></div>
+            <div class="rank-val" style="color:#f59e0b">${totalEnCamino}</div>
+        </div>
+        <div class="rank-row" style="cursor:default;flex:1;min-width:180px;margin-bottom:0">
+            <div class="rank-pos" style="color:var(--green)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="rank-body"><div class="rank-name" style="font-weight:600">Entregados</div></div>
+            <div class="rank-val">${totalEntregados}</div>
+        </div>
+    </div>`;
+
+    const ribbonPendientes = _renderEnviosEstadoRibbon('pendientes', 'Pendientes de recibir', ENVIOS_EN_CAMINO, '#f59e0b', true);
+    const ribbonEntregados = _renderEnviosEstadoRibbon('entregados', 'Entregados', ENVIOS_ENTREGADOS, '#0ac97a', false);
+
+    wrap.innerHTML = stats + ribbonPendientes + ribbonEntregados;
+}
+
+function _renderEnviosEstadoRibbon(estadoTab, titulo, lista, color, conBotonEnviar) {
+    const ribbonId = 'envios-estado-rib-' + estadoTab;
+    const hay = lista.length > 0;
+    const proveedoresDistintos = new Set(lista.map(_envioProveedorKey)).size;
+    return `<div class="estado-ribbon" id="${ribbonId}">
+        <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
+            <div class="estado-head-left">
+                <span class="dot-status ${hay ? 'pulsing' : ''}" style="background:${color};color:${color}"></span>
+                <span class="estado-title">${esc(titulo)}</span>
+                <span class="cnt">${proveedoresDistintos}</span>
+            </div>
+            <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="estado-body"><div class="estado-inner">
+            ${hay ? _renderEnviosProveedores(estadoTab, lista, conBotonEnviar) : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🚚</div><p>${estadoTab === 'pendientes' ? 'Todavía no hay pedidos en camino.' : 'Todavía no hay pedidos entregados.'}</p></div>`}
+        </div></div>
+    </div>`;
+}
+
+function _renderEnviosProveedores(estadoTab, lista, conBotonEnviar) {
+    const porProveedor = {};
+    lista.forEach(p => {
+        const k = _envioProveedorKey(p);
+        (porProveedor[k] = porProveedor[k] || { nombre: _envioProveedorNombre(p), pedidos: [] }).pedidos.push(p);
+    });
+    return Object.entries(porProveedor).map(([provKey, grupo]) => {
+        const vId = `envios-prov-${estadoTab}-${provKey}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const porCategoria = {};
+        grupo.pedidos.forEach(p => {
+            const cat = (p.categoria || 'multishop').toLowerCase();
+            (porCategoria[cat] = porCategoria[cat] || []).push(p);
+        });
+        const subcintas = Object.entries(porCategoria).map(([cat, gsCat]) => _renderEnviosCategoria(estadoTab, provKey, vId, cat, gsCat)).join('');
+        const botonEnviar = conBotonEnviar
+            ? `<button class="btn-act btn-wa-enviar" style="width:100%;justify-content:center;padding:9px;margin-top:8px" onclick="event.stopPropagation();enviarPedidosEnCaminoDelProveedor('${provKey}')">${ICO_ENVIAR_FACTURA}Enviar pedidos en camino</button>`
+            : '';
+        return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
+            <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
+                <div class="ribbon-main"><div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(grupo.nombre)}</div><span class="r-name">${esc(grupo.nombre)}</span><span class="r-code">${grupo.pedidos.length} pedido${grupo.pedidos.length!==1?'s':''}</span></div>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ribbon-body"><div class="ribbon-inner">${subcintas}${botonEnviar}</div></div>
+        </div>`;
+    }).join('');
+}
+
+function _renderEnviosCategoria(estadoTab, provKey, vId, cat, gsCat) {
+    const catId = `${vId}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+    const pagKey = `${estadoTab}|${provKey}|${cat}`;
+    const totalU = gsCat.reduce((s,g)=>s+(g.productos||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0),0);
+    const mostrar = enviosPaginas[pagKey] || ENVIOS_PAGINA_TAM;
+    const visibles = gsCat.slice(0, mostrar);
+    const quedan = gsCat.length - visibles.length;
+    const filas = visibles.map(p => _renderEnvioPedidoRow(p)).join('');
+    const cargarMas = quedan > 0
+        ? `<button class="btn-act" style="width:100%;justify-content:center;padding:7px;margin-top:6px" onclick="event.stopPropagation();envioCargarMas('${pagKey}')">Cargar más (${quedan} restante${quedan!==1?'s':''})</button>`
+        : '';
+    return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
+        <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
+            <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${esc(CAT_LABELS[cat]||cat)}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
+            <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="ribbon-body"><div class="ribbon-inner">${filas}${cargarMas}</div></div>
+    </div>`;
+}
+
+// Un pedido individual — cliqueable (toggle) para ver su detalle
+// completo: productos+cantidades, datos de envío, número de pedido y
+// total mayorista.
+function _renderEnvioPedidoRow(p) {
+    const rowId = 'envio-ped-' + String(p.id || p.pedidoId || Math.random()).replace(/[^a-zA-Z0-9-]/g, '_');
+    const de = p.datosEnvio || {};
+    const nombreCompleto = [de.nombre, de.apellido].filter(Boolean).join(' ') || p.nombreRevendedor || vendorLabel(p.codigoVendedor);
+    const direccion = de.direccion || [de.calle, de.numero].filter(Boolean).join(' ');
+    const rows = (p.productos||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}${it.variante ? `<div style="font-size:10.5px;color:var(--text2)">${esc(it.variante)}</div>` : ''}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
+    return `<div class="ribbon" id="${rowId}" style="margin-bottom:6px">
+        <div class="ribbon-head" onclick="toggleRibbonEl('${rowId}')" style="background:var(--surface)">
+            <div class="ribbon-main">
+                <span class="r-name">${p.numeroPedido ? `Pedido #${esc(p.numeroPedido)}` : `Pedido ${esc(String(p.id||p.pedidoId||'—').slice(-8).toUpperCase())}`}</span>
+                <span class="r-code">${esc(vendorLabel(p.codigoVendedor) || p.nombreRevendedor || '—')}</span>
+            </div>
+            <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="ribbon-body"><div class="ribbon-inner">
+            <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
+            <div class="ship-block" style="margin-top:10px">
+                <div class="ship-row">📇 Datos de envío</div>
+                <div class="ship-row"><strong>${esc(nombreCompleto)}</strong></div>
+                ${de.telefono ? `<div class="ship-row">${esc(de.telefono)}</div>` : ''}
+                ${(de.ciudad||de.provincia) ? `<div class="ship-row">${esc([de.ciudad,de.provincia].filter(Boolean).join(', '))}</div>` : ''}
+                ${direccion ? `<div class="ship-row">${esc(direccion)}</div>` : ''}
+                ${de.codigoPostal ? `<div class="ship-row">CP: ${esc(de.codigoPostal)}</div>` : ''}
+            </div>
+            <div class="order-foot" style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+                <div class="foot-meta">Total mayorista: <strong>${money(p.totalMayorista)}</strong></div>
+            </div>
+        </div></div>
+    </div>`;
+}
+
+// "Cargar más" — suma otra página (10 más) a ese proveedor+categoría y
+// vuelve a dibujar toda la vista (dataset chico, no justifica un render
+// parcial más complejo).
+function envioCargarMas(pagKey) {
+    enviosPaginas[pagKey] = (enviosPaginas[pagKey] || ENVIOS_PAGINA_TAM) + ENVIOS_PAGINA_TAM;
+    renderEnviosView();
+}
+
+// Botón "Enviar pedidos en camino" — acción administrativa/informativa:
+// el estado en_camino ya lo puso el proveedor desde proveedores.html (ver
+// handleMarcarEstadoPedidoProveedor en workerproveedores_worker.js), así
+// que acá NO hay ninguna llamada a backend que disparar — solo se avisa
+// por WhatsApp a cada revendedor distinto involucrado (mismo mecanismo
+// wa.me ya usado en todo el panel) y se confirma con un modal compacto.
+function enviarPedidosEnCaminoDelProveedor(proveedorKey) {
+    const pedidos = ENVIOS_EN_CAMINO.filter(p => _envioProveedorKey(p) === proveedorKey);
+    if (!pedidos.length) { toast('No hay pedidos en camino de este proveedor', 'err'); return; }
+
+    const porRevendedor = {};
+    pedidos.forEach(p => {
+        const tel = _normalizarWhatsappArgentino((p.datosEnvio && p.datosEnvio.telefono) || vendorWa(p.codigoVendedor));
+        const key = (p.codigoVendedor || '') + '|' + tel;
+        if (!porRevendedor[key]) porRevendedor[key] = tel;
+    });
+
+    const msg = 'Pedido En camino. Avísanos cuando el Pedido haya sido (Recibido) desde el Seguimiento';
+    let seAbrioAlguno = false;
+    Object.values(porRevendedor).forEach(tel => {
+        if (!tel) return;
+        seAbrioAlguno = true;
+        window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+    });
+    if (!seAbrioAlguno) toast('Ninguno de estos revendedores tiene WhatsApp registrado', 'err');
+
+    document.getElementById('envios-confirmar-modal').classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIEW: PROVEEDORES REGISTRADOS — padrón oficial (colección Firestore
+// "proveedoresRegistrados", alta desde el modal de registro en
+// proveedores.html vía registrodeproveedores_worker.js). Solo lectura
+// acá; no participa del ciclo de 60s de loadData() porque no es un dato
+// que cambie por acciones "en vivo" del proveedor/revendedor — se
+// recarga cada vez que se entra a la vista (ver switchView).
+// ═══════════════════════════════════════════════════════════
+let PROVEEDORES_REGISTRADOS = [];
+async function cargarProveedoresRegistrados() {
+    const wrap = document.getElementById('proveedores-reg-wrap');
+    if (wrap) wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando proveedores...</p></div>';
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-registrados?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+    PROVEEDORES_REGISTRADOS = (res && res.ok && Array.isArray(res.proveedores)) ? res.proveedores : [];
+    renderProveedoresRegView();
+}
+
+function renderProveedoresRegView() {
+    const wrap = document.getElementById('proveedores-reg-wrap');
+    if (!wrap) return;
+    if (!PROVEEDORES_REGISTRADOS.length) {
+        wrap.innerHTML = `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🏢</div><p>Todavía no hay proveedores registrados.</p></div>`;
         return;
     }
-    body.innerHTML = ENVIOS_CACHE.map(n => `
-        <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-                <strong style="font-size:13.5px">${esc(n.proveedorNombre || 'Proveedor')}</strong>
-                <span class="status-chip s-lista" style="font-size:10.5px">🚚 En camino</span>
+    wrap.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+        ${PROVEEDORES_REGISTRADOS.map(p => `
+        <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;background:var(--surface)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(p.empresa)}</div>
+                <strong style="font-size:13.5px">${esc(p.empresa || 'Proveedor')}</strong>
             </div>
-            <div style="font-size:12.5px;color:var(--text2);margin-bottom:6px">Revendedor: <strong style="color:var(--text)">${esc(vendorLabel(n.codigoVendedor) || n.codigoVendedor || '—')}</strong> · ${esc(CAT_LABELS[n.categoria]||n.categoria||'—')}</div>
-            <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--text2)">
-                ${(n.productos||[]).length ? n.productos.map(p => `<li><span style="color:var(--text)">${esc(p.nombre)}</span> — x${p.cantidad}</li>`).join('') : '<li>Sin productos detallados</li>'}
-            </ul>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">${n.creadaEn ? new Date(n.creadaEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : ''}</div>
-        </div>`).join('');
-}
-
-// Actualiza el numerito rojo sobre el ícono de Envíos. Llamado al
-// cargar el panel (ver loadData) y al abrir/cerrar la lista.
-async function actualizarBadgeEnvios(cantidadForzada) {
-    const badge = document.getElementById('envios-badge');
-    if (!badge) return;
-    let cantidad = cantidadForzada;
-    if (cantidad === undefined) {
-        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/notificaciones-envio?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}&soloNoVistas=1`);
-        cantidad = (res && res.ok && res.notificaciones) ? res.notificaciones.length : 0;
-    }
-    if (cantidad > 0) {
-        badge.textContent = cantidad > 99 ? '99+' : String(cantidad);
-        badge.style.display = 'block';
-    } else {
-        badge.style.display = 'none';
-    }
+            <div class="ship-block" style="margin-top:0">
+                <div class="ship-row">Responsable: <strong>${esc(p.responsable || '—')}</strong></div>
+                <div class="ship-row">CUIT: <strong>${esc(p.cuit || '—')}</strong></div>
+                <div class="ship-row">Rubro: <strong>${esc(p.rubro || '—')}</strong></div>
+                <div class="ship-row">Tipo: <strong>${esc(p.tipoProveedor || '—')}</strong></div>
+                <div class="ship-row">Ubicación: <strong>${esc([p.ciudad,p.provincia].filter(Boolean).join(', ') || '—')}</strong></div>
+                ${p.whatsapp ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(p.whatsapp)}</div>` : ''}
+                ${p.email ? `<div class="ship-row">${esc(p.email)}</div>` : ''}
+                <div class="ship-row" style="color:var(--text3);font-size:11px">Registrado: ${p.registradoEn ? ba(Date.parse(p.registradoEn)) : '—'}</div>
+            </div>
+        </div>`).join('')}
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6105,6 +6354,8 @@ function switchView(v) {
     document.getElementById('view-'+v)?.classList.add('active');
     document.querySelectorAll('.menu-btn').forEach(e => e.classList.toggle('active', e.dataset.view === v));
     if (v === 'stock') renderStockView();
+    if (v === 'envios') renderEnviosView(); // 🆕 NUEVO
+    if (v === 'proveedores-reg') cargarProveedoresRegistrados(); // 🆕 NUEVO
 }
 
 // ── GUÍA ──
