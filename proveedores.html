@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
 <!-- Boleta de envío en PDF (mismo patrón/branding que las facturas de pedidos.html) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<!-- 🔒 Cloudflare Turnstile — protección anti-bot que se antepone a TODO el panel
+     (mismo site key que ya usa stock.html para su checkout/login). -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 :root {
     --blue:        #0066ff;
@@ -56,6 +59,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .btn-login { width: 100%; padding: 13px; background: var(--blue); color: #fff; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: background .18s; }
 .btn-login:hover { background: var(--blue-dim); }
 .login-note { background: var(--amber-pale); color: var(--amber); border: 1px solid rgba(245,158,11,.25); padding: 10px 13px; border-radius: 9px; font-size: 11.5px; margin-top: 16px; line-height: 1.5; }
+
+/* ── 🔒 GATE ANTI-BOT (Cloudflare Turnstile) — se muestra ANTES que
+   cualquier otro contenido del panel (incluso antes del "Cargando...").
+   Reutiliza .login-wrap/.login-box para verse consistente con el resto. ── */
+.turnstile-gate-box { text-align: center; }
+.turnstile-gate-icon { width: 40px; height: 40px; margin: 0 auto 14px; color: var(--blue); }
+#turnstile-gate-widget { display: flex; justify-content: center; margin: 6px 0 4px; min-height: 65px; }
+.turnstile-gate-error { display: none; background: var(--red-pale); color: var(--red); border: 1px solid rgba(244,63,94,.3); padding: 10px 13px; border-radius: 9px; font-size: 11.5px; margin-top: 14px; line-height: 1.5; text-align: left; }
+.turnstile-gate-error.show { display: block; }
+.turnstile-gate-retry { display: none; width: 100%; margin-top: 12px; }
+.turnstile-gate-retry.show { display: block; }
 
 /* ── SHELL / HEADER ── */
 .main { display: none; }
@@ -249,10 +263,31 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 </head>
 <body>
 
+<!-- ── 🔒 GATE ANTI-BOT (Cloudflare Turnstile) ──
+     Esto es LO PRIMERO que ve cualquier usuario al entrar, sin excepción:
+     tapa por completo el resto del panel (login-wrap sigue oculto por
+     display:none inline hasta que este gate confirme el token) y solo
+     cuando Turnstile resuelve el desafío se revela login-wrap y arranca
+     el flujo normal (?proveedor=, fetch de pedidos, etc. — ver init() al
+     final del <body>, que ahora se dispara desde onTurnstileGateOk()). -->
+<div class="login-wrap" id="turnstile-gate">
+    <div class="login-box turnstile-gate-box">
+        <svg class="turnstile-gate-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h1>Panel de Proveedores</h1>
+        <p>Antes de continuar, confirmá que no sos un robot.</p>
+        <div id="turnstile-gate-widget" class="cf-turnstile" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-size="normal" data-callback="onTurnstileGateOk" data-expired-callback="onTurnstileGateExpired" data-error-callback="onTurnstileGateError"></div>
+        <p class="turnstile-gate-error" id="turnstile-gate-error">No se pudo verificar automáticamente. Si el casillero no aparece o falló, probá de nuevo.</p>
+        <button type="button" class="modal-btn modal-btn-primary turnstile-gate-retry" id="turnstile-gate-retry-btn" onclick="reintentarTurnstileGate()">Reintentar verificación</button>
+    </div>
+</div>
+
 <!-- ── Enlace inválido/ausente: no hay selector — cada proveedor entra
      SOLO con el enlace que le pasa Revende Ways, así nunca puede ver
      los pedidos de otro proveedor. ── -->
-<div class="login-wrap" id="login-wrap">
+<!-- 🔒 Oculto por defecto (display:none inline) hasta pasar el gate de
+     Turnstile de arriba — se revela en onTurnstileGateOk(), justo antes
+     de llamar a init(). -->
+<div class="login-wrap" id="login-wrap" style="display:none">
     <div class="login-box">
         <h1>Panel de Proveedores</h1>
         <p id="login-wrap-msg">Cargando los pedidos de su categoría.</p>
@@ -545,8 +580,17 @@ async function cargarDatos() {
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
 
     const filtro = `proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}`;
+    // 🔒 NUEVO: GET /api/pedidos-proveedor ahora exige verificación real de
+    // Cloudflare Turnstile del lado del servidor cuando la llamada no trae
+    // adminKey (ver handleListarPedidosProveedor en
+    // workerproveedores_worker.js) — antes el checkbox "No soy un robot"
+    // de arriba era solo un gate visual de frontend, sin ningún chequeo en
+    // el backend. Se manda el token ya resuelto en el gate (ver
+    // onTurnstileGateOk) como ?turnstileToken=. El resto de los endpoints
+    // de este panel (preview, proveedor-pausado) siguen igual que antes —
+    // solo este listado de pedidos es el que expone datos sensibles.
     const [pedidosRes, preciosRes, previewRes] = await Promise.all([
-        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?${filtro}&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?${filtro}&turnstileToken=${encodeURIComponent(window._turnstileGateToken || '')}`),
         fetchJson(RESTOPRECIOS_WORKER),
         // 🔧 NUEVO: adelanto de pedidos "aprobado"/"confirmado" en
         // pedidos.html — de solo lectura, ver PEDIDOS_PROVEEDOR_PREVIEW.
@@ -556,6 +600,15 @@ async function cargarDatos() {
     ]);
 
     if (!pedidosRes || !pedidosRes.ok) {
+        // 🔒 NUEVO: el backend rechazó la verificación de Turnstile (token
+        // vencido/inválido/ausente) — no es un enlace inválido ni un error
+        // de conectividad, así que no debe mostrar ninguno de esos dos
+        // carteles: se vuelve a pedir el checkbox "No soy un robot"
+        // (mismo mecanismo de "Reintentar verificación" del gate inicial).
+        if (window._lastFetchError && window._lastFetchError.status === 403) {
+            _mostrarErrorTurnstileBackend();
+            return;
+        }
         // El backend confirmó que este proveedorId no existe/no es válido
         // (404, o {ok:false, error:"...no encontrado..."}) → SÍ es un
         // enlace inválido, se vuelve a la pantalla de entrada con ese
@@ -1299,14 +1352,88 @@ async function enviarRegistroOficial() {
 // hace que el error se vea por defecto mientras carga un enlace válido,
 // antes de que este init() y el fetch de cargarDatos() lleguen a
 // responder.
-(function init() {
+function init() {
     const proveedorId = _leerProveedorIdDeUrl();
     if (proveedorId) {
         entrarConProveedorId(proveedorId);
     } else {
         _mostrarEnlaceInvalido();
     }
-})();
+}
+
+// ── 🔒 GATE ANTI-BOT (Cloudflare Turnstile) ──
+// init() (y por lo tanto TODO el panel: ?proveedor=, fetch de pedidos,
+// "Cargando...", enlace inválido, etc.) NO arranca hasta que el usuario
+// resuelva el checkbox "No soy un robot" de #turnstile-gate. Mismo
+// site key que ya usa stock.html (0x4AAAAAAEuP7UTtW1odDnHM). El token que
+// entrega este gate (window._turnstileGateToken) es el mismo que después
+// manda cargarDatos() a GET /api/pedidos-proveedor?turnstileToken=... —
+// ahora SÍ se valida del lado del servidor (ver verificarTurnstile en
+// workerproveedores_worker.js): este checkbox ya no es solo un gate
+// visual de frontend.
+window._turnstileGateToken = null;
+function onTurnstileGateOk(token) {
+    window._turnstileGateToken = token;
+    document.getElementById('turnstile-gate-error').classList.remove('show');
+    document.getElementById('turnstile-gate-retry-btn').classList.remove('show');
+    document.getElementById('turnstile-gate').style.display = 'none';
+    document.getElementById('login-wrap').style.display = 'flex';
+    init();
+}
+function onTurnstileGateExpired() {
+    window._turnstileGateToken = null;
+    document.getElementById('turnstile-gate-error').textContent = 'La verificación expiró. Volvé a marcar el casillero.';
+    document.getElementById('turnstile-gate-error').classList.add('show');
+}
+function onTurnstileGateError() {
+    window._turnstileGateToken = null;
+    document.getElementById('turnstile-gate-error').textContent = 'No se pudo cargar la verificación de seguridad. Probá reintentar.';
+    document.getElementById('turnstile-gate-error').classList.add('show');
+    document.getElementById('turnstile-gate-retry-btn').classList.add('show');
+}
+// 🔒 NUEVO: el backend rechazó (403) el token de Turnstile que mandó
+// cargarDatos() — token vencido, reusado, o inválido. Se vuelve a mostrar
+// el mismo gate inicial (con su mensaje y botón de "Reintentar
+// verificación") en vez de dejar el panel roto en silencio o mostrarlo
+// vacío; cuando el usuario resuelva el checkbox de nuevo, onTurnstileGateOk()
+// vuelve a llamar a init() → entrarConProveedorId() → cargarDatos().
+function _mostrarErrorTurnstileBackend() {
+    window._turnstileGateToken = null;
+    document.getElementById('main').classList.remove('show');
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('turnstile-gate').style.display = 'flex';
+    document.getElementById('turnstile-gate-error').textContent = 'La verificación de seguridad venció o no es válida. Volvé a marcar el casillero para seguir.';
+    document.getElementById('turnstile-gate-error').classList.add('show');
+    document.getElementById('turnstile-gate-retry-btn').classList.add('show');
+    try {
+        if (typeof turnstile !== 'undefined') turnstile.reset('#turnstile-gate-widget');
+    } catch (_e) { /* si falla el reset, "Reintentar verificación" recarga la página */ }
+}
+
+function reintentarTurnstileGate() {
+    document.getElementById('turnstile-gate-error').classList.remove('show');
+    document.getElementById('turnstile-gate-retry-btn').classList.remove('show');
+    try {
+        if (typeof turnstile !== 'undefined') {
+            turnstile.reset('#turnstile-gate-widget');
+        } else {
+            location.reload();
+        }
+    } catch (_e) {
+        location.reload();
+    }
+}
+// Si a los 15s de cargada la página el script de Turnstile no llegó a
+// renderizar el widget (red lenta, bloqueado, etc.), mostramos el botón
+// de reintento en vez de dejar al usuario mirando un casillero que nunca
+// aparece.
+setTimeout(function () {
+    if (window._turnstileGateToken) return;
+    const widget = document.getElementById('turnstile-gate-widget');
+    if (widget && widget.childElementCount === 0) {
+        onTurnstileGateError();
+    }
+}, 15000);
 </script>
 </body>
 </html>
