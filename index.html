@@ -431,6 +431,11 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .rvndr-search { width:100%; padding:9px 13px; background:var(--bg2); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-size:12.5px; font-family:var(--font); margin-bottom:14px; }
 .rvndr-search:focus { outline:none; border-color:var(--blue); }
 
+/* ── Buscador con ícono (Pedidos Realizados) ── */
+.search-ico-wrap { position:relative; margin-bottom:12px; }
+.search-ico-wrap svg { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text3); pointer-events:none; }
+.search-ico-wrap .rvndr-search { padding-left:33px; margin-bottom:0; }
+
 /* ── GUIDE MODAL ── */
 .guide-modal { position: fixed; inset: 0; z-index: 400; display: none; }
 .guide-modal.show { display: block; }
@@ -1800,6 +1805,7 @@ async function loadData() {
             return {
                 docId: g.docId,
                 pedidoId: g.pedidoId,
+                numeroPedido: g.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al registrar el pedido en panelGestion
                 codigoVendedor: (g.codigoVendedor || '').toUpperCase(),
                 categoria: (g.categoria || g.nicho || catOf(g.items)).toLowerCase(),
                 items: Array.isArray(g.items) ? g.items : [],
@@ -1852,6 +1858,7 @@ async function loadData() {
         const totalMayorista = Number(p.totalMayorista || 0);
         return {
             pedidoId: p.pedidoId,
+            numeroPedido: p.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al crear el pedido de stock
             codigoVendedor: (p.codigoVendedor || '').toUpperCase(),
             categoria: (p.categoria || 'multishop').toLowerCase(),
             items,
@@ -2150,6 +2157,7 @@ function calcularGruposCarritoStockEnVivo(carritos) {
         const codigoVendedor = (c.codigoVendedor || '').toUpperCase();
         return {
             pedidoId: 'CART-' + codigoVendedor,
+            numeroPedido: c.numeroPedido || null, // 🆕 número de pedido secuencial (#N) del carrito en vivo, asignado (y mantenido estable) por workerpagos al guardar el carrito
             codigoVendedor,
             categoria: (c.categoria || 'multishop').toLowerCase(),
             items,
@@ -2224,7 +2232,7 @@ function panelGestionContenidoStock(g) {
             <div class="actions">
                 ${g.estadoReal === 'confirmado' ? (yaEnLista
                     ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>`
-                    : `<button class="btn-act btn-pago-verificado" onclick="${stop}enviarFacturaYClasificarPedidoStock('${g.pedidoId}')">📤 (Enviar factura y clasificar pedido de stock)</button>`) : ''}
+                    : `<button class="btn-act btn-pago-verificado" onclick="${stop}enviarFacturaYClasificarPedidoStock('${g.pedidoId}')">Enviar y clasificar pedido</button>`) : ''}
                 ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">${g.esCarritoEnVivo ? 'El revendedor todavía está armando el carrito — falta completar el mínimo de compra' : 'Esperando a que se complete el mínimo de compra de esta categoría'}</span>` : ''}
                 ${g.estadoReal === 'aprobado' ? `<span class="status-chip s-espera">${g.esCarritoEnVivo ? 'Mínimo alcanzado en el carrito — esperando a que el revendedor complete el pago' : 'Mínimo de compra alcanzado — esperando la acreditación del pago mayorista'}</span>` : ''}
             </div>
@@ -2242,16 +2250,33 @@ function panelGestionContenidoStock(g) {
 function renderFacturaGrupoFooterStock(gsCat, estado, codigo, cat) {
     const stop = 'event.stopPropagation();';
 
+    // 🆕 NUEVO: en Pendientes y Aprobados estos botones son SOLO envío
+    // informativo de la factura tal como está el grupo ahora mismo por
+    // WhatsApp — nunca despacho real a proveedores — así que se muestran
+    // para TODO grupo, sin distinguir pedido real de carrito en vivo
+    // (esCarritoEnVivo). El despacho real (ejecutarPedido/"Enviar a
+    // proveedor") sigue siendo otro flujo aparte, no tocado acá.
     if (estado === 'pendiente') {
-        if (!gsCat.some(g => (Date.now() - (Number(g.fecha)||0)) / 3600000 >= 48)) return '';
         return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
             <div class="actions" style="width:100%">
-                <button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoPendienteGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
+                <button class="btn-act btn-pdf" onclick="${stop}enviarFacturaPendienteStock('${codigo}','${cat}')">🧾 Factura (Pendiente de pago)</button>
+                <button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoPendienteNuevoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer Seguimiento</button>
             </div>
         </div>`;
     }
 
-    if (estado !== 'aprobado' && estado !== 'confirmado') return '';
+    if (estado === 'aprobado') {
+        return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
+            <div class="actions" style="width:100%">
+                <button class="btn-act btn-pdf" onclick="${stop}enviarFacturaPendienteAprobadoStock('${codigo}','${cat}')">🧾 Factura (Pendiente de pago)</button>
+                <button class="btn-act btn-wa btn-wa-enviar" onclick="${stop}enviarFacturaAprobadoStock('${codigo}','${cat}')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
+                <button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoAprobadoNuevoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer Seguimiento</button>
+                <button class="btn-act btn-wa btn-wa-reenviar" onclick="${stop}reenviarFacturaAprobadoStock('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>
+            </div>
+        </div>`;
+    }
+
+    if (estado !== 'confirmado') return '';
 
     // 🆕 NUEVO: las acciones de este footer (descargar/enviar factura al
     // proveedor) son de PEDIDOS YA CREADOS — un carrito EN VIVO
@@ -2270,19 +2295,14 @@ function renderFacturaGrupoFooterStock(gsCat, estado, codigo, cat) {
         totalMayoristaGrupo += Number(g.totalMayorista) || 0;
         totalUnidGrupo += (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0);
     });
-    const etiquetaFactura = estado === 'confirmado' ? '🧾 Factura (Pagada)' : '🧾 Factura (Pendiente de pago)';
-    const botonesSeguimiento = estado === 'aprobado'
-        ? `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoAprobadoGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
-           <button class="btn-act btn-wa btn-wa-reenviar" onclick="${stop}enviarBoletaPendienteGrupoStock('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
-        : `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoConfirmadoGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
             <div class="foot-meta"><strong>${gsCatReal.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
         </div>
         <div class="actions">
-            <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupoStock('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
-            <button class="btn-act btn-wa btn-wa-enviar" onclick="${stop}compartirFacturaWhatsAppGrupoStock('${codigo}','${cat}','${estado}')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
-            ${botonesSeguimiento}
+            <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupoStock('${codigo}','${cat}','confirmado')">🧾 Factura (Pagada)</button>
+            <button class="btn-act btn-wa btn-wa-enviar" onclick="${stop}compartirFacturaWhatsAppGrupoStock('${codigo}','${cat}','confirmado')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
+            <button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoConfirmadoGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
         </div>
     </div>`;
 }
@@ -2312,53 +2332,62 @@ async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, men
     }
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
-function enviarSeguimientoPendienteGrupoStock(codigo, categoria) {
-    const gs = _gsGrupoStock(codigo, categoria, 'pendiente');
-    if (!gs.length) { toast('No hay pedidos de stock pendientes en este grupo', 'err'); return; }
-    const nombreRevendedor = vendorLabel(codigo);
-    const totalGrupo = gs.reduce((s,g) => s + (Number(g.totalMayorista)||0), 0);
-    const montoSumado = Math.round(totalGrupo).toLocaleString('es-AR');
-    const minimo = categoria === 'calzados' ? 0 : (MINIMO_ENTREGA_CATEGORIA[categoria] || 0);
-    const montoRestante = Math.round(Math.max(0, minimo - totalGrupo)).toLocaleString('es-AR');
-    const msg = `Hola ${nombreRevendedor} 👋
-
-Vimos que tenés ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock (reinversión) de ${CAT_LABELS[categoria]||categoria} todavía pendiente${gs.length!==1?'s':''} de completar el mínimo de compra.
-
-Actualmente llevás sumado hasta el momento $${montoSumado} y te faltan $${montoRestante} para completar el objetivo de tu carrito de stock.
-
-Recordá que reinvertir tus ganancias en más stock te permite tener siempre mercadería lista para seguir vendiendo y creciendo.
-
-💡 Te recomendamos sumar más productos a tu carrito de reposición para alcanzar el mínimo más rápido.
-
-¡Vamos que falta muy poco para completar tu reposición! 🚀`;
+// ── NUEVO: botones de Pendientes (2) y Aprobados (4) de "Pedidos de
+// Stock" — textos EXACTOS pedidos por el dueño, verbatim. Misma mecánica
+// que arriba (_enviarMensajeConFacturaGrupoStock: factura del grupo TAL
+// COMO ESTÁ ahora + WhatsApp), aplican a TODO grupo (pedido real o
+// carrito en vivo) — reemplazan a los 3 mensajes viejos de
+// seguimiento/boleta que tenía este footer antes (con textos genéricos
+// de "reposición de stock"), ya sin ningún botón que los llame.
+function enviarFacturaPendienteStock(codigo, categoria) {
+    const msg = `Hola 👋
+Te enviamos la factura correspondiente a los productos que tenés actualmente en tu carrito.
+🧾 La factura se encuentra pendiente de pago.
+Por favor, revisá los productos, cantidades y total de la factura. Una vez completado el mínimo de compra y realizado el pago, podremos continuar con el proceso de tu pedido.
+Si necesitás realizar alguna modificación, podés hacerlo desde tu carrito antes de confirmar el pedido.`;
     _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'pendiente', msg);
 }
-function enviarSeguimientoAprobadoGrupoStock(codigo, categoria) {
-    const gs = _gsGrupoStock(codigo, categoria, 'aprobado');
-    if (!gs.length) { toast('No hay pedidos de stock aprobados en este grupo', 'err'); return; }
-    const nombreRevendedor = vendorLabel(codigo);
-    const msg = `Hola ${nombreRevendedor} 👋
-Tu${gs.length!==1?'s':''} ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock de ${CAT_LABELS[categoria]||categoria} ya alcanzó${gs.length!==1?'ron':''} el mínimo de compra correctamente ✅
-Actualmente el equipo se encuentra atento a la acreditación de tu pago mayorista para comenzar con la preparación para despacho.
-Te recomendamos aprovechar este tiempo para seguir promocionando tus productos y reinvirtiendo tus ganancias.
-Apenas existan novedades sobre el envío de tu stock te mantendremos informado.
-Gracias por confiar en Revende Ways 🚀
-Quedamos Atentos!`;
+function enviarSeguimientoPendienteNuevoStock(codigo, categoria) {
+    const msg = `Hola 👋
+Queríamos hacer seguimiento de tu pedido.
+Te enviamos nuevamente la factura con los productos que tenés actualmente en tu carrito 🧾.
+Por favor, revisá la factura y, si estás de acuerdo con el pedido, completá el minimo de compra y avanzá con el pago para poder continuar con la preparación.
+Si necesitás modificar cantidades o productos, podés hacerlo desde tu carrito.
+Saludos!`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'pendiente', msg);
+}
+function enviarFacturaPendienteAprobadoStock(codigo, categoria) {
+    const msg = `Hola 👋
+Tu pedido ya completó el mínimo de compra ✅
+Te enviamos la factura correspondiente a los productos que tenés actualmente en tu carrito 🧾.
+La factura se encuentra pendiente de pago.
+Por favor, revisá los productos, cantidades y total, nuestro equipo se encuentra pendiente al pago para la preparación y despacho de tu pedido.`;
     _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'aprobado', msg);
 }
-function enviarBoletaPendienteGrupoStock(codigo, categoria) {
-    const gs = _gsGrupoStock(codigo, categoria, 'aprobado');
-    if (!gs.length) { toast('No hay pedidos de stock aprobados en este grupo', 'err'); return; }
-    const nombreRevendedor = vendorLabel(codigo);
-    const totalGrupo = gs.reduce((s,g) => s + (Number(g.totalMayorista)||0), 0);
-    const montoRestante = Math.round(totalGrupo).toLocaleString('es-AR');
-    const msg = `Hola ${nombreRevendedor} 👋
-Te enviamos nuevamente la boleta correspondiente a tu${gs.length!==1?'s':''} ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock de ${CAT_LABELS[categoria]||categoria}.
-📦 Estado: Pendiente de pago
-💰 Monto pendiente: $${montoRestante}
-Cuanto antes se acredite el pago mayorista, antes podremos procesar y despachar tu stock.
-Una buena estrategia es reinvertir tus ganancias apenas puedas para no quedarte sin mercadería.
-¡Seguimos acompañándote en tu reposición! 🚀`;
+function enviarFacturaAprobadoStock(codigo, categoria) {
+    const msg = `Te enviamos la factura correspondiente a tu pedido 🧾.
+Tu pedido ya se encuentra aprobado ✅.
+La factura se encuentra pendiente de pago.
+Por favor, revisá los productos, cantidades y total de la factura. Si todo está correcto, podés avanzar con el pago para continuar con la preparación de tu pedido.
+Ante cualquier consulta, estamos a disposición.`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'aprobado', msg);
+}
+function enviarSeguimientoAprobadoNuevoStock(codigo, categoria) {
+    const msg = `Hola 👋
+Queríamos hacer seguimiento de tu pedido, que ya se encuentra con el mínimo de compra aprobado ✅.
+Te enviamos nuevamente la factura actualizada con los productos que tenés actualmente en tu carrito 🧾.
+Por favor, revisá la factura y, si todo está correcto, avanzá con el pago para que podamos continuar con el pedido.
+Si necesitás realizar algún cambio, podés modificar el carrito antes de finalizar.`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'aprobado', msg);
+}
+function reenviarFacturaAprobadoStock(codigo, categoria) {
+    const msg = `Hola 👋
+Te reenviamos la factura correspondiente a los productos que tenés actualmente en tu carrito 🧾.
+Tu pedido se encuentra aprobado ✅.
+Por favor, revisá la factura y confirmá que los productos y cantidades sean correctos.
+Si vas a realizar el pedido desde la sección Stock, podés continuar normalmente con el proceso.
+⚠️ Si finalmente no vas a realizar el pedido desde la sección Stock, te pedimos por favor que vacíes tu carrito, para evitar que los productos queden cargados y puedan generar confusiones en futuros pedidos.
+Ante cualquier consulta, estamos a disposición.`;
     _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'aprobado', msg);
 }
 function enviarSeguimientoConfirmadoGrupoStock(codigo, categoria) {
@@ -2397,10 +2426,17 @@ function _generarFacturaProveedorPDFStock(pedidoId) {
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(18);
     doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('Factura no fiscal', 14, 19);
+    doc.setFontSize(9.5);
     doc.text(pagado ? 'Factura de stock / reinversión — PAGADA' : 'Factura de stock / reinversión — PENDIENTE DE PAGO', 14, 23);
     doc.setFontSize(8);
     doc.text(`Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()} · ${ba(g.fecha)}`, 14, 29);
+    if (g.numeroPedido) {
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+        doc.text(`Pedido Nº #${g.numeroPedido}`, W - 14, 15, { align: 'right' });
+        doc.setFont('helvetica','normal');
+    }
 
     doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
     doc.text('Facturado a:', 14, 46);
@@ -2454,7 +2490,9 @@ function _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado) {
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(18);
     doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('Factura no fiscal', 14, 19);
+    doc.setFontSize(9.5);
     doc.text(pagado ? 'Factura de stock / reinversión — PAGADA' : 'Factura de stock / reinversión — PENDIENTE DE PAGO', 14, 23);
     doc.setFontSize(8);
     doc.text(`${gs.length} pedido(s) de stock · ${CAT_LABELS[categoria] || categoria}`, 14, 29);
@@ -2477,7 +2515,7 @@ function _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado) {
     gs.forEach(g => {
         if (y > H - 40) { doc.addPage(); y = 20; }
         doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...BLUE);
-        doc.text(`Pedido de Stock #${String(g.pedidoId||'—').slice(-8).toUpperCase()}`, 17, y);
+        doc.text(`Pedido de Stock #${String(g.pedidoId||'—').slice(-8).toUpperCase()}${g.numeroPedido ? ' · Pedido Nº #' + g.numeroPedido : ''}`, 17, y);
         y += 6;
         doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
         (g.items||[]).forEach(it => {
@@ -2532,14 +2570,18 @@ function pagoYaVerificadoStock(pedidoId) {
     try { return JSON.parse(localStorage.getItem(PAGO_VERIFICADO_STOCK_KEY) || '[]').includes(pedidoId); } catch(_) { return false; }
 }
 
-// "(Enviar factura y clasificar pedido de stock)" — equivalente EXACTO de
-// enviarFacturaYClasificarPedido (Pedidos nuevos) para "Pedidos de
-// Stock": marca el pago como verificado, manda el detalle a
-// workerproveedores.tuweb.workers.dev vía el MISMO
+// "Enviar y clasificar pedido" (Confirmados, Pedidos de Stock) —
+// equivalente EXACTO de enviarFacturaYClasificarPedido (Pedidos nuevos):
+// marca el pago como verificado (mueve el pedido a "Enviar Pedidos"),
+// manda el detalle a workerproveedores.tuweb.workers.dev vía el MISMO
 // _enviarPedidoAWorkerProveedores (genérico, sin tocarlo — ver
 // requerimiento 4) con origen:'stock_reposicion' para poder distinguirlo
 // de 'clasificacion_confirmado' en proveedores.html si hiciera falta, y
-// comparte la factura pagada por WhatsApp con mensaje de reinversión.
+// ADEMÁS redirige al WhatsApp del revendedor con la factura PAGADA y el
+// mensaje exacto pedido por el dueño. Solo aplica a pedidos reales — un
+// esCarritoEnVivo nunca llega a 'confirmado' (ver
+// calcularGruposCarritoStockEnVivo), así que este botón nunca se le
+// ofrece.
 async function enviarFacturaYClasificarPedidoStock(pedidoId) {
     const g = pedidosStockGrupos.find(x => x.pedidoId === pedidoId);
     if (!g) { toast('No se encontró el pedido de stock', 'err'); return; }
@@ -2559,7 +2601,12 @@ async function enviarFacturaYClasificarPedidoStock(pedidoId) {
 
     const doc = _generarFacturaProveedorPDFStock(pedidoId);
     const wa = vendorWa(g.codigoVendedor);
-    const mensaje = `¡Gracias por reinvertir en tu stock, ${nombre}! 🙌 Tu pago de reposición ya fue acreditado — te comparto tu factura pagada. Ya estamos preparando tu mercadería para enviarla. ¡Cualquier consulta, estamos para ayudarte!`;
+    const mensaje = `Hola 👋
+¡Tu pedido ha sido confirmado! ✅📦
+Te enviamos la factura con los productos de tu pedido 🧾 
+Y ahora vamos a encargarnos de enviarlo y clasificarlo para comenzar con la preparación.💪
+A seguir así con tu emprendimiento. 🚀
+¡Que este sea un nuevo éxito de muchos más! 🙌`;
     if (doc) {
         const filename = `Factura_Stock_${String(pedidoId).slice(-8)}.pdf`;
         doc.save(filename);
@@ -2885,10 +2932,17 @@ function _generarFacturaProveedorPDF(pedidoId) {
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(18);
     doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('Factura no fiscal', 14, 19);
+    doc.setFontSize(9.5);
     doc.text(pagado ? 'Factura de compra a proveedor — PAGADA' : 'Factura de compra a proveedor — PENDIENTE DE PAGO', 14, 23);
     doc.setFontSize(8);
     doc.text(`Pedido #${String(g.pedidoId).slice(-8).toUpperCase()} · ${ba(g.fecha)}`, 14, 29);
+    if (g.numeroPedido) {
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+        doc.text(`Pedido Nº #${g.numeroPedido}`, W - 14, 15, { align: 'right' });
+        doc.setFont('helvetica','normal');
+    }
 
     doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
     doc.text('Facturado a:', 14, 46);
@@ -2957,7 +3011,9 @@ function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(18);
     doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('Factura no fiscal', 14, 19);
+    doc.setFontSize(9.5);
     doc.text(pagado ? 'Factura de compra a proveedor — PAGADA' : 'Factura de compra a proveedor — PENDIENTE DE PAGO', 14, 23);
     doc.setFontSize(8);
     doc.text(`${gs.length} pedido(s) · ${CAT_LABELS[categoria] || categoria}`, 14, 29);
@@ -2986,7 +3042,7 @@ function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
     gs.forEach(g => {
         if (y > H - 40) { doc.addPage(); y = 20; }
         doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...BLUE);
-        doc.text(`Pedido #${String(g.pedidoId||'—').slice(-8).toUpperCase()}`, 17, y);
+        doc.text(`Pedido #${String(g.pedidoId||'—').slice(-8).toUpperCase()}${g.numeroPedido ? ' · Pedido Nº #' + g.numeroPedido : ''}`, 17, y);
         y += 6;
         doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
         (g.items||[]).forEach(it => {
@@ -3441,55 +3497,127 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
 // proveedor (marcados vía ejecutarPedido() o "Enviar factura y
 // clasificar pedido"), agrupados igual que "Enviar Pedidos" pero sin el
 // botón de ejecutar — es solo un historial de lo ya hecho.
+//
+// 🆕 NUEVO: buscador compacto arriba del historial — filtra la MISMA
+// lista `realizados` que ya arma renderListaView (sin tocar Pedidos de
+// Stock ni Pedidos nuevos) y reusa esta misma función para volver a
+// dibujar el cuerpo, así el resultado de la búsqueda es exactamente la
+// misma cinta/tarjeta que ya se ve sin buscar. Coincidencia EXACTA por
+// número de pedido (con o sin "#") si lo tipeado es numérico, y además
+// coincidencia parcial (case-insensitive) por revendedor, código de
+// revendedor, categoría y nombre de producto — ver filtrarPedidosRealizados.
+let realizadosCompletos = []; // último `realizados` recibido, sin filtrar
+let realizadosSearchQuery = ''; // texto tipeado en el buscador, se conserva entre re-renders de renderListaView
 function renderSeccionPedidosRealizados(realizados) {
+    realizadosCompletos = realizados;
     const ribbonId = 'lista-rib-realizados';
-    const porVendedor = {};
-    realizados.forEach(g => {
-        const k = g.codigoVendedor || '—';
-        (porVendedor[k] = porVendedor[k] || []).push(g);
-    });
+    const filtrados = filtrarPedidosRealizados(realizados, realizadosSearchQuery);
 
-    const cuerpo = Object.keys(porVendedor).length
-        ? Object.entries(porVendedor).map(([codigo, gsV]) => {
-            const nombre = vendorLabel(codigo);
-            const vId = `realizado-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
-            const porCategoria = {};
-            gsV.forEach(g => { (porCategoria[g.categoria] = porCategoria[g.categoria] || []).push(g); });
-            const subcintas = Object.entries(porCategoria).map(([cat, gsCat]) => {
-                const catId = `${vId}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
-                const totalU = gsCat.reduce((s,g)=>s+(g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0),0);
-                const rows = gsCat.flatMap(g => g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}${_variantLabel(it) ? `<div style="font-size:10.5px;color:var(--text2)">${esc(_variantLabel(it))}</div>` : ''}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
-                return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
-                    <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
-                        <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${CAT_LABELS[cat]||cat}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
-                        <span class="status-chip s-lista">✅ Enviado al proveedor</span>
-                    </div>
-                    <div class="ribbon-body"><div class="ribbon-inner">
-                        <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
-                    </div></div>
-                </div>`;
-            }).join('');
-            return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
-                <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
-                    <div class="ribbon-main"><div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div><span class="r-name">${esc(nombre)}</span><span class="r-code">${gsV.length} pedido${gsV.length!==1?'s':''}</span></div>
-                    <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ribbon-body"><div class="ribbon-inner">${subcintas}</div></div>
-            </div>`;
-        }).join('')
-        : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">✅</div><p>Todavía no hay pedidos enviados al proveedor.</p></div>`;
+    const buscador = `<div class="search-ico-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="realizados-search-input" class="rvndr-search" placeholder="Buscar por N° de pedido, revendedor, código, categoría o producto..." autocomplete="off" value="${esc(realizadosSearchQuery)}" oninput="onRealizadosSearchInput(this.value)">
+    </div>`;
 
     return `<div class="estado-ribbon" id="${ribbonId}">
         <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
             <div class="estado-head-left">
                 <span class="dot-status" style="background:#8b93a7;color:#8b93a7"></span>
                 <span class="estado-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Pedidos Realizados</span>
-                <span class="cnt">${realizados.length}</span>
+                <span class="cnt" id="realizados-cnt-badge">${realizados.length}</span>
             </div>
             <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        <div class="estado-body"><div class="estado-inner">${cuerpo}</div></div>
+        <div class="estado-body"><div class="estado-inner">
+            ${buscador}
+            <div id="realizados-cuerpo-wrap">${renderCuerpoPedidosRealizados(filtrados)}</div>
+        </div></div>
     </div>`;
+}
+
+// Arma las cintas Revendedor → Categoría a partir de la lista YA
+// filtrada — es la misma lógica de agrupado/render que antes vivía
+// inline en renderSeccionPedidosRealizados, separada para poder
+// reusarla al tipear en el buscador sin reconstruir toda la sección
+// (así el input no pierde el foco mientras se escribe).
+function renderCuerpoPedidosRealizados(gs) {
+    if (!gs.length) {
+        return realizadosCompletos.length
+            ? `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🔍</div><p>Sin resultados para "${esc(realizadosSearchQuery)}".</p></div>`
+            : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">✅</div><p>Todavía no hay pedidos enviados al proveedor.</p></div>`;
+    }
+    const porVendedor = {};
+    gs.forEach(g => {
+        const k = g.codigoVendedor || '—';
+        (porVendedor[k] = porVendedor[k] || []).push(g);
+    });
+
+    return Object.entries(porVendedor).map(([codigo, gsV]) => {
+        const nombre = vendorLabel(codigo);
+        const vId = `realizado-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const porCategoria = {};
+        gsV.forEach(g => { (porCategoria[g.categoria] = porCategoria[g.categoria] || []).push(g); });
+        const subcintas = Object.entries(porCategoria).map(([cat, gsCat]) => {
+            const catId = `${vId}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+            const totalU = gsCat.reduce((s,g)=>s+(g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0),0);
+            const rows = gsCat.flatMap(g => g.items||[]).map(it => `<tr><td><div class="prod-name">${esc(it.nombre)}${_variantLabel(it) ? `<div style="font-size:10.5px;color:var(--text2)">${esc(_variantLabel(it))}</div>` : ''}</div></td><td class="qty-num">${it.cantidad}</td></tr>`).join('');
+            return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
+                <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
+                    <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${CAT_LABELS[cat]||cat}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
+                    <span class="status-chip s-lista">✅ Enviado al proveedor</span>
+                </div>
+                <div class="ribbon-body"><div class="ribbon-inner">
+                    <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
+                </div></div>
+            </div>`;
+        }).join('');
+        return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
+            <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
+                <div class="ribbon-main"><div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div><span class="r-name">${esc(nombre)}</span><span class="r-code">${gsV.length} pedido${gsV.length!==1?'s':''}</span></div>
+                <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ribbon-body"><div class="ribbon-inner">${subcintas}</div></div>
+        </div>`;
+    }).join('');
+}
+
+// Filtro del buscador de "Pedidos Realizados": si lo tipeado es un
+// número (con o sin "#"), matchea EXACTO por numeroPedido (así buscar
+// "42" no trae "#420"); si no, o además, busca coincidencia parcial
+// (contiene, case-insensitive) en revendedor, código de revendedor,
+// categoría y nombre de producto.
+function filtrarPedidosRealizados(gs, query) {
+    const q = (query || '').trim();
+    if (!q) return gs;
+
+    const soloNumero = q.replace(/^#/, '').trim();
+    const esNumero = /^\d+$/.test(soloNumero);
+    if (esNumero) {
+        const n = Number(soloNumero);
+        return gs.filter(g => Number(g.numeroPedido) === n);
+    }
+
+    const qLower = q.toLowerCase();
+    return gs.filter(g => {
+        const nombre = vendorLabel(g.codigoVendedor).toLowerCase();
+        const codigo = (g.codigoVendedor || '').toLowerCase();
+        const categoria = (CAT_LABELS[g.categoria] || g.categoria || '').toLowerCase();
+        const productos = (g.items || []).map(it => (it.nombre || '').toLowerCase());
+        return nombre.includes(qLower)
+            || codigo.includes(qLower)
+            || categoria.includes(qLower)
+            || productos.some(p => p.includes(qLower));
+    });
+}
+
+// Se dispara en cada tecla del buscador — solo redibuja el cuerpo y el
+// contador (el input no se toca, así conserva foco y cursor).
+function onRealizadosSearchInput(value) {
+    realizadosSearchQuery = value;
+    const filtrados = filtrarPedidosRealizados(realizadosCompletos, realizadosSearchQuery);
+    const wrap = document.getElementById('realizados-cuerpo-wrap');
+    if (wrap) wrap.innerHTML = renderCuerpoPedidosRealizados(filtrados);
+    const badge = document.getElementById('realizados-cnt-badge');
+    if (badge) badge.textContent = filtrados.length;
 }
 
 let WHATSAPP_PROVEEDORES = {};
