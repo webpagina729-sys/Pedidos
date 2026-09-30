@@ -105,6 +105,12 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .section-sub { color: var(--text2); font-size: 12px; margin-bottom: 12px; }
 .count-badge { background: var(--surface2); color: var(--text2); font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
 .count-badge.pendiente { background: var(--amber-pale); color: var(--amber); }
+/* 🔧 NUEVO: "Pedidos aprobados" en azul y "Pedidos confirmados" en verde
+   — mismos tonos que ya usa el proyecto para los NÚMEROS de pedido
+   (.pedido-num-aprobado/.pedido-num-confirmado, ver más abajo), así el
+   color del contador queda consistente con el color del número. */
+.count-badge.aprobado { background: var(--blue-pale); color: var(--blue); }
+.count-badge.confirmado { background: var(--green-pale); color: var(--green); }
 
 .ped-envio { font-size: 11.5px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
 .ped-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
@@ -112,17 +118,21 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .ped-fecha { font-size: 11px; color: var(--text3); }
 .empty-state { background: var(--surface); border: 1px dashed var(--border2); border-radius: var(--radius); padding: 30px 20px; text-align: center; color: var(--text3); font-size: 13px; }
 
-/* ── ESTADÍSTICAS ── */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 20px; }
-.stat-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 18px; }
-.stat-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; font-size: 16px; }
-.stat-icon.blue { background: var(--blue-pale); }
-.stat-icon.green { background: var(--green-pale); }
-.stat-icon.purple { background: var(--purple-pale); }
-.stat-icon.amber { background: var(--amber-pale); }
-.stat-label { font-size: 11.5px; color: var(--text2); font-weight: 600; margin-bottom: 4px; }
-.stat-value { font-size: 21px; font-weight: 800; }
-.stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+/* ── ESTADÍSTICAS ──
+   🔧 REDISEÑADO: las 4 tarjetas gigantes (.stat-card, ocupando toda la
+   pantalla en celular) se reemplazan por cintas desplegables compactas
+   (.stat-cinta, reusa el patrón .cinta-plegable de más abajo) — el dato
+   clave queda visible en la cinta cerrada y el detalle se ve al abrirla.
+   Ver _statCintaHTML()/renderEstadisticas() en el script. */
+.stat-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; }
+.stat-icon.blue { background: var(--blue-pale); color: var(--blue); }
+.stat-icon.green { background: var(--green-pale); color: var(--green); }
+.stat-icon.purple { background: var(--purple-pale); color: var(--purple); }
+.stat-icon.amber { background: var(--amber-pale); color: var(--amber); }
+.stat-cinta { margin-bottom: 8px; }
+.stat-cinta-row { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.stat-cinta-row .stat-icon { flex-shrink: 0; }
+.stat-cinta-label { font-size: 12px; color: var(--text2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .mini-list { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px 16px; }
 .mini-list-title { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
@@ -147,12 +157,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .meter-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--blue), var(--green)); transition: width .4s ease; }
 .meter-fill.pendiente { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 
-/* ── CINTAS POR REVENDEDOR (pestaña "Pedidos" / "Pendiente para despachar") ── */
-.cinta { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden; }
-.cinta-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.cinta-vendedor { font-size: 15px; font-weight: 800; }
-.cinta-pedidos-nums { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
-.cinta-body { padding: 6px 18px 4px; }
+/* ── CINTAS POR REVENDEDOR (pestaña "Pedidos" / "Pendiente para despachar") ──
+   🔧 REDISEÑADO: ya no son tarjetas siempre abiertas (.cinta/.cinta-head/
+   .cinta-body, que quedaron sin uso) — ahora cada pedido es una cinta
+   DESPLEGABLE (reusa el mismo patrón .cinta-plegable de "Todos los
+   pedidos enviados", ver más abajo) que se abre al tocarla. */
 .cinta-sub { padding: 10px 0; border-bottom: 1px dashed var(--border); }
 .cinta-sub:last-child { border-bottom: none; }
 .cinta-sub-cat { font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
@@ -176,20 +185,21 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 
 @media (max-width: 640px) { .wrap { padding: 14px 12px 50px; } }
 
-/* ── RESPONSIVE: botones/acciones apretados en celular ── */
+/* ── RESPONSIVE: botones/tabs "cinta" bajitos y compactos, apilados uno
+   abajo del otro, texto SIEMPRE en un solo renglón (nada de "Listos
+   para\ndespachar" partido en 2 líneas ni de grilla 2x2 gigante). ── */
 @media (max-width: 480px) {
     .page-head { flex-direction: column; align-items: stretch; }
-    .page-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .page-head-actions .btn-refresh, .page-head-actions .btn-oficializar { flex: 1 1 140px; justify-content: center; }
-    .menu-nav { gap: 6px; }
-    .menu-btn { flex: 1 1 calc(50% - 6px); justify-content: center; padding: 9px 10px; }
+    .page-head-actions { display: flex; flex-direction: column; gap: 7px; }
+    .page-head-actions .btn-refresh, .page-head-actions .btn-oficializar { width: 100%; justify-content: center; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+    .menu-nav { flex-direction: column; gap: 6px; }
+    .menu-btn { width: 100%; justify-content: flex-start; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
     .cinta-foot { flex-direction: column; }
-    .cinta-foot .cinta-btn { width: 100%; justify-content: center; }
-    .cinta-head { flex-direction: column; align-items: flex-start; }
-    .sub-tabs { flex-wrap: wrap; }
-    .sub-tabs .sub-tab-btn { flex: 1 1 calc(50% - 6px); text-align: center; }
+    .cinta-foot .cinta-btn { width: 100%; justify-content: center; font-size: 11.5px; padding: 8px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sub-tabs { flex-direction: column; flex-wrap: nowrap; }
+    .sub-tabs .sub-tab-btn { width: 100%; text-align: center; white-space: nowrap; }
     .chart-filters { flex-wrap: wrap; }
-    .chart-filters .chart-filter-btn { flex: 1 1 calc(50% - 6px); text-align: center; }
+    .chart-filters .chart-filter-btn { flex: 1 1 calc(50% - 6px); text-align: center; white-space: nowrap; }
 }
 .page-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .btn-oficializar { display: flex; align-items: center; gap: 7px; padding: 9px 15px; background: var(--green-pale); color: var(--green); border: 1px solid rgba(0,201,110,.3); border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: all .18s; }
@@ -202,22 +212,42 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .sub-view { display: none; }
 .sub-view.show { display: block; }
 
-/* ── CINTAS "cortina" (Todos los pedidos enviados) ── */
+/* ── CINTAS "cortina" (patrón único y consistente en TODO el panel:
+   "Todos los pedidos enviados", "Pedidos pendientes/aprobados/
+   confirmados", "Listos para despachar" y "Estadísticas") ── */
 .cinta-plegable { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
 .cinta-plegable-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; cursor: pointer; flex-wrap: wrap; user-select: none; }
 .cinta-plegable-head:hover { background: var(--surface2); }
-.cinta-plegable-num { font-size: 13.5px; font-weight: 800; }
-.cinta-plegable-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
-.cinta-plegable-right { display: flex; align-items: center; gap: 12px; }
-.cinta-plegable-total { font-size: 14.5px; font-weight: 800; color: var(--blue); }
+.cinta-plegable-head > div:first-child { min-width: 0; flex: 1 1 auto; }
+.cinta-plegable-num { font-size: 13.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cinta-plegable-sub { font-size: 11px; color: var(--text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cinta-plegable-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.cinta-plegable-total { font-size: 14.5px; font-weight: 800; color: var(--blue); white-space: nowrap; }
 .cinta-plegable-chevron { transition: transform .2s ease; color: var(--text3); flex-shrink: 0; }
 .cinta-plegable.open .cinta-plegable-chevron { transform: rotate(180deg); }
 .cinta-plegable-detalle { max-height: 0; overflow: hidden; transition: max-height .25s ease; border-top: 1px solid transparent; }
-.cinta-plegable.open .cinta-plegable-detalle { max-height: 1000px; border-top-color: var(--border); }
+.cinta-plegable.open .cinta-plegable-detalle { max-height: 4000px; border-top-color: var(--border); }
 .cinta-plegable-body { padding: 12px 18px 16px; }
+/* Cintas anidadas (pedidos dentro de una cinta de estado) — separadas
+   levemente entre sí, sin el margen extra del último elemento. */
+.cinta-plegable-body .cinta-plegable { margin-bottom: 10px; }
+.cinta-plegable-body .cinta-plegable:last-child { margin-bottom: 0; }
 .estado-pill { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
 .estado-pill.camino { background: var(--blue-pale); color: var(--blue); }
 .estado-pill.entregado { background: var(--green-pale); color: var(--green); }
+/* 🔧 Override de compacidad para celular — va DESPUÉS de la definición
+   base de arriba (misma especificidad; si quedara antes, la regla base
+   la pisaría igual en mobile porque gana la que aparece último en el
+   documento) para garantizar que "número + total" de cada cinta NUNCA
+   se corten en 2 líneas (ni las cintas de pedidos ni las de Estadísticas,
+   que reusan este mismo patrón). */
+@media (max-width: 480px) {
+    .cinta-plegable-head { padding: 11px 14px; flex-wrap: nowrap; }
+    .cinta-plegable-right { gap: 7px; flex-shrink: 0; }
+    .cinta-plegable-total { font-size: 12.5px; max-width: 28vw; overflow: hidden; text-overflow: ellipsis; }
+    .cinta-plegable-num { font-size: 12.5px; }
+    .cinta-plegable-sub { font-size: 10.5px; }
+}
 
 /* ── Número de pedido: color por estado (sección "Pedidos") ── */
 .pedido-num-aprobado { color: var(--blue); font-weight: 700; }
@@ -779,6 +809,64 @@ const ICO_STAT_MONEY = '<svg width="17" height="17" viewBox="0 0 24 24" fill="no
 const ICO_STAT_TROFEO = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a1 1 0 0 0-1 1v1a4 4 0 0 0 4 4M17 5h3a1 1 0 0 1 1 1v1a4 4 0 0 1-4 4"/></svg>';
 const ICO_STAT_UNIDADES = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7"/><path d="M2 7h20v5H2z"/><path d="M12 7v13M12 7 9.5 3.5A1.5 1.5 0 1 1 11 2a2 2 0 0 1 1 1.73M12 7l2.5-3.5A1.5 1.5 0 1 0 13 2a2 2 0 0 0-1 1.73"/></svg>';
 const ICO_CAMINO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h1"/><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1"/><circle cx="6.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>';
+// 🔧 NUEVO: las funciones de abajo usan ICO_CHEVRON (mismo ícono de
+// chevron que ya usa renderCintaPlegable, declarado más abajo en este
+// mismo archivo) — es seguro porque solo se lee dentro del BODY de estas
+// funciones, en tiempo de ejecución (cuando ya se cargó todo el script),
+// nunca al definirlas.
+
+// ── Patrón único de "cinta desplegable" (pedido §3 del usuario: mismo
+// comportamiento y mismo estilo visual en Pendientes/Aprobados/
+// Confirmados/Listos para despachar/Todos los pedidos enviados) ──
+// Cinta de UN pedido individual: nombre y apellido del revendedor +
+// número de pedido a la izquierda, total al final (derecha) — al tocarla
+// se despliega mostrando el pedido completo (bodyHtml).
+function _cintaPedidoInterna(titulo, sub, subClass, total, bodyHtml) {
+    return `<div class="cinta-plegable">
+        <div class="cinta-plegable-head" onclick="this.parentElement.classList.toggle('open')">
+            <div>
+                <div class="cinta-plegable-num">${esc(titulo)}</div>
+                ${sub ? `<div class="cinta-plegable-sub${subClass ? ' ' + subClass : ''}">${sub}</div>` : ''}
+            </div>
+            <div class="cinta-plegable-right">
+                <span class="cinta-plegable-total">${total}</span>
+                ${ICO_CHEVRON}
+            </div>
+        </div>
+        <div class="cinta-plegable-detalle">
+            <div class="cinta-plegable-body">${bodyHtml}</div>
+        </div>
+    </div>`;
+}
+
+// Cinta de UN estado completo (Pendientes/Aprobados/Confirmados o una
+// sección de Estadísticas): colapsada por defecto, con el título y el
+// contador/dato clave visibles en la cabecera — al tocarla se despliega
+// mostrando el texto explicativo del estado y la lista de pedidos.
+function _estadoCintaHTML(estadoKey, titulo, badgeHtml, descHtml, bodyHtml) {
+    return `<div class="cinta-plegable" id="estado-${esc(estadoKey)}">
+        <div class="cinta-plegable-head" onclick="this.parentElement.classList.toggle('open')">
+            <div class="cinta-plegable-num" style="font-size:15px">${esc(titulo)}</div>
+            <div class="cinta-plegable-right">
+                ${badgeHtml}
+                ${ICO_CHEVRON}
+            </div>
+        </div>
+        <div class="cinta-plegable-detalle">
+            <div class="cinta-plegable-body">
+                ${descHtml ? `<div class="section-sub" style="margin-bottom:10px">${descHtml}</div>` : ''}
+                ${bodyHtml}
+            </div>
+        </div>
+    </div>`;
+}
+
+// Lista de productos de un pedido, en el mismo formato en toda la app.
+function _listaProductosHTML(productos) {
+    return `<ul class="cinta-items">
+        ${(Array.isArray(productos) && productos.length) ? productos.map(it => `<li><span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad) || 1}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
+    </ul>`;
+}
 
 // ── Tab: Pedidos (cintas por revendedor) ──
 // 🔧 NUEVO: agrupa los documentos de vista previa (pedidosProveedoresPreview)
@@ -796,30 +884,20 @@ function _agruparPreviewPorRevendedor(lista) {
     return orden.map(k => grupos[k]);
 }
 
-// Tarjeta de solo lectura (SIN botones/acciones) — usada por "Pedidos
+// Cinta de solo lectura (SIN botones/acciones) — usada por "Pedidos
 // pendientes" y "Pedidos aprobados", que son un adelanto de lo que se
 // viene, no algo accionable todavía (ver aclaración del pedido: "cuando
 // los pedidos están en confirmados [de pedidos.html] no debe tener
-// ninguna acción").
-// 🔧 NUEVO: numColorClass colorea el código identificatorio del
-// revendedor (no hay un "número de pedido" real todavía en esta etapa,
-// ver nota de handleListarPreview en workerproveedores_worker.js — la
-// preview no manda numeroPedido) — "Pedidos aprobados" en azul,
-// "Pedidos pendientes" queda sin tocar (sin clase, como estaba).
+// ninguna acción"). Al tocarla se despliega mostrando todos los
+// productos del pedido.
+// 🔧 numColorClass colorea el código identificatorio del revendedor (no
+// hay un "número de pedido" real todavía en esta etapa, ver nota de
+// handleListarPreview en workerproveedores_worker.js — la preview no
+// manda numeroPedido ni total) — "Pedidos aprobados" en azul, "Pedidos
+// pendientes" queda sin tocar (sin clase, como estaba).
 function _renderPreviewCard(g, numColorClass) {
-    return `<div class="cinta" style="opacity:.92">
-        <div class="cinta-head">
-            <div>
-                <div class="cinta-vendedor">${esc(g.nombreRevendedor)}</div>
-                ${g.codigoVendedor ? `<div class="cinta-pedidos-nums${numColorClass ? ' ' + numColorClass : ''}">Código ${esc(g.codigoVendedor)}</div>` : ''}
-            </div>
-        </div>
-        <div class="cinta-body">
-            <ul class="cinta-items">
-                ${g.productos.length ? g.productos.map(it => `<li><span>${esc(it.nombre)}</span><b>x${it.cantidad}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
-            </ul>
-        </div>
-    </div>`;
+    const sub = g.codigoVendedor ? 'Código ' + esc(g.codigoVendedor) : '';
+    return _cintaPedidoInterna(g.nombreRevendedor, sub, numColorClass, '—', _listaProductosHTML(g.productos));
 }
 
 function renderNuevosPedidos() {
@@ -836,31 +914,28 @@ function renderNuevosPedidos() {
     const previewPendientes = _agruparPreviewPorRevendedor(PEDIDOS_PROVEEDOR_PREVIEW.filter(p => p.estadoPedido === 'aprobado'));
     const previewAprobados = _agruparPreviewPorRevendedor(PEDIDOS_PROVEEDOR_PREVIEW.filter(p => p.estadoPedido === 'confirmado'));
 
-    document.getElementById('nuevos-content').innerHTML = `
-    <div class="section-block">
-        <div class="section-title-row">
-            <div class="section-title">Pedidos pendientes</div>
-            <span class="count-badge pendiente">${previewPendientes.length}</span>
-        </div>
-        <div class="section-sub">Adelanto de lo que se viene — todavía esperando que el revendedor complete el pago. Sin acciones todavía.</div>
-        ${previewPendientes.length ? previewPendientes.map(g => _renderPreviewCard(g)).join('') : '<div class="empty-state">No hay pedidos pendientes por ahora.</div>'}
-    </div>
-    <div class="section-block">
-        <div class="section-title-row">
-            <div class="section-title">Pedidos aprobados</div>
-            <span class="count-badge pendiente">${previewAprobados.length}</span>
-        </div>
-        <div class="section-sub">Pago ya confirmado del lado del revendedor — todavía no se te mandó formalmente. Sin acciones todavía.</div>
-        ${previewAprobados.length ? previewAprobados.map(g => _renderPreviewCard(g, 'pedido-num-aprobado')).join('') : '<div class="empty-state">No hay pedidos aprobados por ahora.</div>'}
-    </div>
-    <div class="section-block">
-        <div class="section-title-row">
-            <div class="section-title">Pedidos confirmados</div>
-            <span class="count-badge">${cintas.length}</span>
-        </div>
-        <div class="section-sub">Un pedido por revendedor, con todos los productos que te pidió (Listos para preparar).</div>
-        ${cintas.length ? cintas.map(c => renderCinta(c, 'n_' + c.key, true, 'pedido-num-confirmado')).join('') : '<div class="empty-state">No hay pedidos confirmados por ahora.</div>'}
-    </div>`;
+    // 🔧 REDISEÑADO: cada estado (Pendientes/Aprobados/Confirmados) es
+    // ahora una cinta desplegable — colapsada por defecto, con el texto
+    // explicativo y la lista de pedidos (también en cintas) al abrirla.
+    document.getElementById('nuevos-content').innerHTML =
+        _estadoCintaHTML(
+            'pendientes', 'Pedidos pendientes',
+            `<span class="count-badge pendiente">${previewPendientes.length}</span>`,
+            'Adelanto de lo que se viene — todavía esperando que el revendedor complete el pago. Sin acciones todavía.',
+            previewPendientes.length ? previewPendientes.map(g => _renderPreviewCard(g)).join('') : '<div class="empty-state">No hay pedidos pendientes por ahora.</div>'
+        ) +
+        _estadoCintaHTML(
+            'aprobados', 'Pedidos aprobados',
+            `<span class="count-badge aprobado">${previewAprobados.length}</span>`,
+            'Pago ya confirmado del lado del revendedor — todavía no se te mandó formalmente. Sin acciones todavía.',
+            previewAprobados.length ? previewAprobados.map(g => _renderPreviewCard(g, 'pedido-num-aprobado')).join('') : '<div class="empty-state">No hay pedidos aprobados por ahora.</div>'
+        ) +
+        _estadoCintaHTML(
+            'confirmados', 'Pedidos confirmados',
+            `<span class="count-badge confirmado">${cintas.length}</span>`,
+            'Un pedido por revendedor, con todos los productos que te pidió (Listos para preparar).',
+            cintas.length ? cintas.map(c => renderCinta(c, 'n_' + c.key, true, 'pedido-num-confirmado')).join('') : '<div class="empty-state">No hay pedidos confirmados por ahora.</div>'
+        );
 }
 
 // ── Tab: Pendiente para despachar ──
@@ -939,34 +1014,36 @@ function renderEnviados() {
         : '<div class="empty-state">Todavía no hay entregas confirmadas.</div>';
 }
 
-// Cinta = TODO el pedido de un revendedor en una sola unidad, sin ningún
-// botón en medio del contenido — solo el/los botones al final.
+// Cinta = TODO el pedido de un revendedor en una sola unidad, desplegable
+// (mismo patrón que el resto del panel) — nombre y apellido del
+// revendedor + número de pedido a la izquierda, total al final. Al
+// tocarla se despliega con todos los productos y, al final, el/los
+// botones de acción (ningún botón queda "suelto" fuera de la cinta).
 function renderCinta(c, cintaId, enPreparacion, numColorClass) {
     const envio = c.datosEnvio || {};
     const ubicacion = [envio.ciudad, envio.provincia].filter(Boolean).join(', ');
     const fecha = c.enviadoEn ? new Date(c.enviadoEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    // 🔧 "Pasar a Listo para despachar" — MISMA función que ya usaba el
+    // botón "En preparación" (marcarEnPreparacion, sin tocar su lógica:
+    // pasa el pedido a ESTADO_PENDIENTE_DESPACHO, que alimenta la pestaña
+    // "Listos para despachar") — solo se renombra la etiqueta visible
+    // para que responda directamente a "¿tiene la opción de pasar a
+    // Listo para despachar?". "Descargar boleta" (descargarBoletaEnvio)
+    // ya existía tal cual, solo se adapta al nuevo diseño de cinta.
     const botones = enPreparacion
-        ? `<button class="cinta-btn cinta-btn-prep" onclick="marcarEnPreparacion('${cintaId}')">${ICO_PREPARACION}En preparación</button>
-           <button class="cinta-btn cinta-btn-boleta" onclick="descargarBoletaEnvio('${cintaId}')">${ICO_BOLETA}Boleta de envío</button>`
+        ? `<button class="cinta-btn cinta-btn-prep" onclick="marcarEnPreparacion('${cintaId}')">${ICO_PREPARACION}Listo para despachar</button>
+           <button class="cinta-btn cinta-btn-boleta" onclick="descargarBoletaEnvio('${cintaId}')">${ICO_BOLETA}Descargar boleta</button>`
         : `<button class="cinta-btn cinta-btn-camino" onclick="marcarPedidoEnCamino('${cintaId}')">${ICO_CAMINO}Pedido en camino</button>`;
-    return `
-    <div class="cinta">
-        <div class="cinta-head">
-            <div>
-                <div class="cinta-vendedor">${esc(c.nombreRevendedor)}</div>
-                <div class="cinta-pedidos-nums${numColorClass ? ' ' + numColorClass : ''}">Pedido${c.pedidoIds.length !== 1 ? 's' : ''} Nº ${c.pedidoIds.map(id => esc(String(id || '—'))).join(', ')}</div>
-            </div>
+    const sub = `Pedido${c.pedidoIds.length !== 1 ? 's' : ''} Nº ${c.pedidoIds.map(id => esc(String(id || '—'))).join(', ')}`;
+    const bodyHtml = `
+        ${_listaProductosHTML(c.productos)}
+        ${ubicacion || envio.direccion || envio.telefono ? `<div class="ped-envio"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(ubicacion || '—')}${envio.direccion ? ' — ' + esc(envio.direccion) : ''}${envio.telefono ? '<br><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' + esc(envio.telefono) : ''}</div>` : ''}
+        <div class="ped-foot">
+            <span class="ped-fecha">${fecha}</span>
             <span class="ped-total">${money(c.totalMayorista)}</span>
         </div>
-        <div class="cinta-body">
-            <ul class="cinta-items">
-                ${c.productos.length ? c.productos.map(it => `<li><span>${esc(it.nombre)}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${it.cantidad}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
-            </ul>
-            ${ubicacion || envio.direccion || envio.telefono ? `<div class="ped-envio"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(ubicacion || '—')}${envio.direccion ? ' — ' + esc(envio.direccion) : ''}${envio.telefono ? '<br><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' + esc(envio.telefono) : ''}</div>` : ''}
-            <div class="ped-fecha" style="margin-top:6px">${fecha}</div>
-        </div>
-        <div class="cinta-foot">${botones}</div>
-    </div>`;
+        <div class="cinta-foot">${botones}</div>`;
+    return _cintaPedidoInterna(c.nombreRevendedor, sub, numColorClass, money(c.totalMayorista), bodyHtml);
 }
 
 // ── Cambios de estado (POST /api/pedido-proveedor-estado) ──
@@ -1130,51 +1207,50 @@ function renderEstadisticas() {
     const { ranking: rankingPendientes, unidades: unidadesPendientes } = _rankingProductosDe(pendientes);
     const productoMasVendido = rankingOficiales[0] || rankingPendientes[0] || null;
 
+    // 🔧 REDISEÑADO: las 4 tarjetas gigantes ahora son cintas desplegables
+    // compactas (_statCintaHTML) — el dato clave queda a la vista en la
+    // cinta cerrada, el detalle se ve al abrirla (pedido: "Estadísticas
+    // ... armadas en cintas desplegables").
     let html = '';
-    html += `<div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon blue">${ICO_STAT_PEDIDOS}</div>
-            <div class="stat-label">Total de pedidos</div>
-            <div class="stat-value">${todos.length}</div>
-            <div class="stat-sub">${pendientes.length} pendientes · ${oficiales.length} oficiales (en camino)</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green">${ICO_STAT_MONEY}</div>
-            <div class="stat-label">Total vendido (oficial, precios reales)</div>
-            <div class="stat-value">${money(totalConPreciosReales)}</div>
-            <div class="stat-sub">${productosSinMatch.size ? productosSinMatch.size + ' producto(s) sin precio en restoprecios' : oficiales.length ? 'Todos los productos matchearon' : 'Todavía sin pedidos oficiales'}</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon purple">${ICO_STAT_TROFEO}</div>
-            <div class="stat-label">Producto más vendido</div>
-            <div class="stat-value" style="font-size:15px">${productoMasVendido ? esc(productoMasVendido.nombre) : '—'}</div>
-            <div class="stat-sub">${productoMasVendido ? productoMasVendido.cantidad + ' unidades' : 'Sin datos todavía'}</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon amber">${ICO_STAT_UNIDADES}</div>
-            <div class="stat-label">Unidades totales pedidas</div>
-            <div class="stat-value">${unidadesOficiales + unidadesPendientes}</div>
-            <div class="stat-sub">${unidadesOficiales} oficiales · ${unidadesPendientes} pendientes</div>
-        </div>
-    </div>`;
+    html += _statCintaHTML('blue', ICO_STAT_PEDIDOS, 'Total de pedidos', String(todos.length),
+        `${pendientes.length} pendientes · ${oficiales.length} oficiales (en camino)`);
+    html += _statCintaHTML('green', ICO_STAT_MONEY, 'Total vendido (oficial)', money(totalConPreciosReales),
+        `Precios reales de restoprecios. ${productosSinMatch.size ? productosSinMatch.size + ' producto(s) sin precio en restoprecios.' : oficiales.length ? 'Todos los productos matchearon.' : 'Todavía sin pedidos oficiales.'}`);
+    html += _statCintaHTML('purple', ICO_STAT_TROFEO, 'Producto más vendido', productoMasVendido ? esc(productoMasVendido.nombre) : '—',
+        productoMasVendido ? `${productoMasVendido.cantidad} unidades pedidas en total.` : 'Sin datos todavía.');
+    html += _statCintaHTML('amber', ICO_STAT_UNIDADES, 'Unidades totales pedidas', String(unidadesOficiales + unidadesPendientes),
+        `${unidadesOficiales} oficiales · ${unidadesPendientes} pendientes`);
 
-    html += `<div class="stats-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Frecuencia de venta — Oficiales <span class="badge-pill oficial">En camino</span></div>
-    <div class="mini-list">${_renderMeterList(rankingOficiales, '')}</div>`;
+    // 🔧 NUEVO: resumen de ventas del PERÍODO seleccionado (mismo filtro
+    // semana/quincena/mes/año que ya usa el gráfico de más abajo, ver
+    // actualizarGraficoVentas → _actualizarResumenPeriodo) — pedido del
+    // usuario: "que las estadísticas se armen en cintas... con datos
+    // también de períodos de ventas". Los spans se completan/actualizan
+    // en _actualizarResumenPeriodo() (llamada también al abrir esta vista
+    // y al cambiar de período).
+    html += _statCintaHTML('blue', ICO_STAT_MONEY, 'Ventas del período seleccionado', '<span id="stats-periodo-valor">—</span>',
+        '<span id="stats-periodo-sub">Elegí el período en "Ventas por período", más abajo.</span>');
 
-    html += `<div class="stats-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Frecuencia de venta — Pendientes <span class="badge-pill pendiente">Todavía no despachados</span></div>
-    <div class="mini-list">${_renderMeterList(rankingPendientes, 'pendiente')}</div>`;
+    html += _estadoCintaHTML('frecuencia-oficiales', 'Frecuencia de venta — Oficiales',
+        '<span class="badge-pill oficial">En camino</span>',
+        'Productos ya despachados (pedido marcado "Pedido en camino"), de mayor a menor cantidad pedida.',
+        `<div class="mini-list">${_renderMeterList(rankingOficiales, '')}</div>`);
 
-    // 🔧 NUEVO: "Productos más vendidos" — reubicado DEBAJO de "Frecuencia
-    // de venta — Pendientes Todavía no despachados" (pedido explícito).
-    // Ranking combinado (oficiales + pendientes), paginado de a 10, con
-    // nombres siempre en un renglón (ver .meter-row-name en CSS).
+    html += _estadoCintaHTML('frecuencia-pendientes', 'Frecuencia de venta — Pendientes',
+        '<span class="badge-pill pendiente">Sin despachar</span>',
+        'Productos todavía no despachados (pedido sin marcar "Pedido en camino"), de mayor a menor cantidad pedida.',
+        `<div class="mini-list">${_renderMeterList(rankingPendientes, 'pendiente')}</div>`);
+
+    // 🔧 "Productos más vendidos" — ranking combinado (oficiales +
+    // pendientes), paginado de a 10, con nombres siempre en un renglón
+    // (ver .meter-row-name en CSS). Mismo id que usa renderMasVendidosPagina().
     const { ranking: rankingTotal } = _rankingProductosDe(todos);
     MAS_VENDIDOS_RANKING = rankingTotal;
     MAS_VENDIDOS_PAGINA = 0;
-    html += `<div class="stats-section-title">${ICO_STAT_TROFEO}Productos más vendidos</div>
-    <div class="mini-list" id="mas-vendidos-content"></div>`;
+    html += _estadoCintaHTML('mas-vendidos', 'Productos más vendidos', '', '',
+        `<div class="mini-list" id="mas-vendidos-content"></div>`);
 
-    // ── Panel de ventas (línea fina, filtro por período) ──
+    // ── Panel de ventas (línea fina, filtro por período, con ejes) ──
     html += `<div class="chart-panel">
         <div class="chart-panel-head">
             <div class="stats-section-title" style="margin:0">${ICO_STAT_MONEY}Ventas por período</div>
@@ -1192,6 +1268,27 @@ function renderEstadisticas() {
 
     renderMasVendidosPagina();
     actualizarGraficoVentas(CHART_PERIODO);
+}
+
+// 🔧 NUEVO: cinta compacta de un dato de estadística — el valor clave
+// queda visible en la cabecera (cerrada), el detalle/sub se ve al
+// desplegarla. Mismo patrón .cinta-plegable que el resto del panel.
+function _statCintaHTML(colorClass, icon, label, valor, sub) {
+    return `<div class="cinta-plegable stat-cinta">
+        <div class="cinta-plegable-head" onclick="this.parentElement.classList.toggle('open')">
+            <div class="stat-cinta-row">
+                <span class="stat-icon ${colorClass}">${icon}</span>
+                <span class="stat-cinta-label">${esc(label)}</span>
+            </div>
+            <div class="cinta-plegable-right">
+                <span class="cinta-plegable-total" style="color:var(--text)">${valor}</span>
+                ${ICO_CHEVRON}
+            </div>
+        </div>
+        <div class="cinta-plegable-detalle">
+            <div class="cinta-plegable-body" style="padding-top:0;color:var(--text3);font-size:11.5px;line-height:1.5">${sub}</div>
+        </div>
+    </div>`;
 }
 
 // ── Paginado de "Productos más vendidos" (10 por bloque) ──
@@ -1272,37 +1369,111 @@ function _bucketsVentas(periodo) {
     return out;
 }
 
+// 🔧 REDISEÑADO: se agregan ejes (pedido del usuario) —
+//   · Eje de PRECIOS a la izquierda, de abajo hacia arriba, ascendente,
+//     de 10.000 en 10.000 (el techo se redondea al múltiplo de 10.000
+//     siguiente al valor más alto de venta del período).
+//   · Eje de TIEMPO arriba, de principio a fin, con los mismos labels
+//     que ya arma _bucketsVentas para cada período (días para
+//     semana/quincena/mes, meses para año) — se muestra un subconjunto
+//     parejo de etiquetas para que nunca queden amontonadas/en 2 líneas.
 function _svgLineaFina(datos) {
-    const W = 600, H = 130, PAD = 10;
     if (!datos.length) return '<div class="chart-empty">Sin ventas en este período.</div>';
     const valores = datos.map(d => d.valor);
-    const max = Math.max(...valores, 1);
-    const min = Math.min(...valores, 0);
-    const rango = (max - min) || 1;
-    const pasoX = datos.length > 1 ? (W - PAD*2) / (datos.length - 1) : 0;
+    const maxValor = Math.max(...valores, 0);
+    // Techo del eje Y: múltiplo de 10.000 siguiente al máximo (mínimo
+    // 10.000, para que siempre haya al menos una marca de escala).
+    const maxEje = Math.max(10000, Math.ceil((maxValor || 1) / 10000) * 10000);
+    const pasosY = [];
+    for (let v = 10000; v <= maxEje; v += 10000) pasosY.push(v);
+
+    const W = 600, H = 170;
+    const PAD_L = 50, PAD_R = 8, PAD_T = 20, PAD_B = 12;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+
+    const pasoX = datos.length > 1 ? plotW / (datos.length - 1) : 0;
     const puntos = datos.map((d, i) => {
-        const x = PAD + i * pasoX;
-        const y = H - PAD - ((d.valor - min) / rango) * (H - PAD*2);
+        const x = PAD_L + i * pasoX;
+        const y = PAD_T + plotH - (Math.max(0, d.valor) / maxEje) * plotH;
         return [x, y];
     });
     const path = puntos.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
     const total = valores.reduce((a,b) => a+b, 0);
     const puntosCirculo = puntos.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2" fill="var(--blue,#0066ff)"/>`).join('');
+
+    // Eje Y: una línea guía + etiqueta "10k/20k/30k..." por cada marca.
+    const ejeY = pasosY.map(v => {
+        const y = PAD_T + plotH - (v / maxEje) * plotH;
+        return `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W - PAD_R}" y2="${y.toFixed(1)}" stroke="var(--border2,rgba(255,255,255,.12))" stroke-width="1" stroke-dasharray="2,3"/>` +
+               `<text x="${PAD_L - 6}" y="${y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="var(--text3,#5a6070)">${(v/1000).toLocaleString('es-AR')}k</text>`;
+    }).join('');
+
+    // Eje X (arriba): máximo ~6 etiquetas parejas para que nunca se
+    // amontonen (días/semanas/meses según el período elegido, ver label
+    // de cada bucket en _bucketsVentas).
+    const maxEtiquetas = 6;
+    const salto = Math.max(1, Math.ceil(datos.length / maxEtiquetas));
+    const ejeX = puntos.map((p, i) => {
+        if (i % salto !== 0 && i !== puntos.length - 1) return '';
+        return `<text x="${p[0].toFixed(1)}" y="${(PAD_T - 7).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--text3,#5a6070)">${esc(datos[i].label)}</text>`;
+    }).join('');
+
     return `<div class="chart-svg-wrap">
         <div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">Total del período: <b style="color:var(--text2)">${money(total)}</b></div>
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Gráfico de ventas por período">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de ventas por período, con eje de precios de 10.000 en 10.000 y eje de tiempo">
+            ${ejeY}
+            ${ejeX}
             <path d="${path}" fill="none" stroke="#0066ff" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
             ${puntosCirculo}
         </svg>
     </div>`;
 }
 
+// ── Rango real de fechas de cada período (mismo criterio que
+// _bucketsVentas) — usado por _actualizarResumenPeriodo() para contar
+// pedidos/total SIN depender de los buckets diarios/mensuales del
+// gráfico. ──
+const PERIODO_LABEL = { semana: 'Semana', quincena: 'Quincena', mes: 'Mes', 'año': 'Año' };
+function _rangoPeriodo(periodo) {
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    if (periodo === 'año') {
+        return { inicio: new Date(hoy.getFullYear(), hoy.getMonth() - 11, 1), fin: new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1) };
+    }
+    const dias = periodo === 'semana' ? 7 : periodo === 'quincena' ? 15 : 30;
+    const inicio = new Date(hoy);
+    inicio.setDate(inicio.getDate() - (dias - 1));
+    const fin = new Date(hoy);
+    fin.setDate(fin.getDate() + 1);
+    return { inicio, fin };
+}
+
+// 🔧 NUEVO: sincroniza la cinta "Ventas del período seleccionado" (ver
+// _statCintaHTML en renderEstadisticas) con el mismo filtro de período
+// que ya usa el gráfico — mismo criterio de "ventas" (pedidos
+// en_camino/entregado) que _bucketsVentas, sin tocar esa función.
+function _actualizarResumenPeriodo(periodo) {
+    const valEl = document.getElementById('stats-periodo-valor');
+    const subEl = document.getElementById('stats-periodo-sub');
+    if (!valEl && !subEl) return;
+    const { inicio, fin } = _rangoPeriodo(periodo);
+    const ventasPeriodo = PEDIDOS_PROVEEDOR.filter(p => {
+        if (p.estado !== ESTADO_EN_CAMINO && p.estado !== ESTADO_ENTREGADO) return false;
+        const f = new Date(p.enviadoEn || 0);
+        return f >= inicio && f < fin;
+    });
+    const totalPeriodo = ventasPeriodo.reduce((s,p) => s + (Number(p.totalMayorista)||0), 0);
+    if (valEl) valEl.textContent = money(totalPeriodo);
+    if (subEl) subEl.textContent = `${ventasPeriodo.length} pedido${ventasPeriodo.length !== 1 ? 's' : ''} despachado${ventasPeriodo.length !== 1 ? 's' : ''} en este período (${PERIODO_LABEL[periodo] || periodo}).`;
+}
+
 function actualizarGraficoVentas(periodo) {
     CHART_PERIODO = periodo;
     document.querySelectorAll('#chart-filtros .chart-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.periodo === periodo));
     const cont = document.getElementById('chart-svg-content');
-    if (!cont) return;
-    cont.innerHTML = _svgLineaFina(_bucketsVentas(periodo));
+    if (cont) cont.innerHTML = _svgLineaFina(_bucketsVentas(periodo));
+    _actualizarResumenPeriodo(periodo);
 }
 
 // ── Modal: Registro de Proveedor Oficial ──
