@@ -161,6 +161,90 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .toast.err { border-color: rgba(244,63,94,.35); color: var(--red); }
 
 @media (max-width: 640px) { .wrap { padding: 14px 12px 50px; } }
+
+/* ── RESPONSIVE: botones/acciones apretados en celular ── */
+@media (max-width: 480px) {
+    .page-head { flex-direction: column; align-items: stretch; }
+    .page-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .page-head-actions .btn-refresh, .page-head-actions .btn-oficializar { flex: 1 1 140px; justify-content: center; }
+    .menu-nav { gap: 6px; }
+    .menu-btn { flex: 1 1 calc(50% - 6px); justify-content: center; padding: 9px 10px; }
+    .cinta-foot { flex-direction: column; }
+    .cinta-foot .cinta-btn { width: 100%; justify-content: center; }
+    .cinta-head { flex-direction: column; align-items: flex-start; }
+    .sub-tabs { flex-wrap: wrap; }
+    .sub-tabs .sub-tab-btn { flex: 1 1 calc(50% - 6px); text-align: center; }
+    .chart-filters { flex-wrap: wrap; }
+    .chart-filters .chart-filter-btn { flex: 1 1 calc(50% - 6px); text-align: center; }
+}
+.page-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn-oficializar { display: flex; align-items: center; gap: 7px; padding: 9px 15px; background: var(--green-pale); color: var(--green); border: 1px solid rgba(0,201,110,.3); border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: all .18s; }
+.btn-oficializar:hover { filter: brightness(1.1); }
+
+/* ── SUB-TABS ("Todos los pedidos enviados") ── */
+.sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.sub-tab-btn { padding: 8px 15px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; }
+.sub-tab-btn.active { background: var(--blue-pale); color: var(--blue); border-color: rgba(0,102,255,.35); }
+.sub-view { display: none; }
+.sub-view.show { display: block; }
+
+/* ── CINTAS "cortina" (Todos los pedidos enviados) ── */
+.cinta-plegable { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+.cinta-plegable-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; cursor: pointer; flex-wrap: wrap; user-select: none; }
+.cinta-plegable-head:hover { background: var(--surface2); }
+.cinta-plegable-num { font-size: 13.5px; font-weight: 800; }
+.cinta-plegable-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.cinta-plegable-right { display: flex; align-items: center; gap: 12px; }
+.cinta-plegable-total { font-size: 14.5px; font-weight: 800; color: var(--blue); }
+.cinta-plegable-chevron { transition: transform .2s ease; color: var(--text3); flex-shrink: 0; }
+.cinta-plegable.open .cinta-plegable-chevron { transform: rotate(180deg); }
+.cinta-plegable-detalle { max-height: 0; overflow: hidden; transition: max-height .25s ease; border-top: 1px solid transparent; }
+.cinta-plegable.open .cinta-plegable-detalle { max-height: 1000px; border-top-color: var(--border); }
+.cinta-plegable-body { padding: 12px 18px 16px; }
+.estado-pill { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.estado-pill.camino { background: var(--blue-pale); color: var(--blue); }
+.estado-pill.entregado { background: var(--green-pale); color: var(--green); }
+
+/* ── Número de pedido: color por estado (sección "Pedidos") ── */
+.pedido-num-aprobado { color: var(--blue); font-weight: 700; }
+.pedido-num-confirmado { color: var(--green); font-weight: 700; }
+
+/* ── GRÁFICO DE VENTAS (línea fina, minimalista) ── */
+.chart-panel { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 16px 18px 12px; margin-top: 22px; }
+.chart-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.chart-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.chart-filter-btn { padding: 6px 13px; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); font-family: var(--font); transition: all .18s; }
+.chart-filter-btn.active { background: var(--blue-pale); color: var(--blue); border-color: rgba(0,102,255,.35); }
+.chart-svg-wrap { width: 100%; overflow: hidden; }
+.chart-svg-wrap svg { width: 100%; height: auto; display: block; }
+.chart-empty { text-align: center; color: var(--text3); font-size: 12.5px; padding: 30px 10px; }
+
+/* ── Paginado "más vendidos" ── */
+.meter-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
+.meter-pager button { padding: 6px 13px; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); font-family: var(--font); }
+.meter-pager button:disabled { opacity: .4; cursor: not-allowed; }
+.meter-pager span { font-size: 11.5px; color: var(--text3); }
+
+/* ── MODAL "Oficializar" ── */
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+.modal-backdrop.show { display: flex; }
+.modal-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 26px 24px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.modal-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+.modal-sub { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 18px; }
+.modal-field { margin-bottom: 13px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
+.modal-field input, .modal-field select { width: 100%; padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 13px; font-family: var(--font); }
+.modal-field input:focus, .modal-field select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+.modal-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal-check { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 18px; font-size: 11.5px; color: var(--text2); line-height: 1.5; }
+.modal-check input { margin-top: 2px; flex-shrink: 0; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-btn { flex: 1; padding: 12px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; font-family: var(--font); transition: all .18s; }
+.modal-btn-primary { background: var(--blue); color: #fff; }
+.modal-btn-primary:disabled { background: var(--surface2); color: var(--text3); cursor: not-allowed; }
+.modal-btn-cancel { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.modal-btn-cancel:hover { border-color: var(--red); color: var(--red); }
+@media (max-width: 480px) { .modal-row2 { grid-template-columns: 1fr; } .modal-box { padding: 20px 16px; } }
 </style>
 </head>
 <body>
@@ -182,7 +266,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             <div class="brand-mark">RW</div>
             <div class="brand-info">
                 <div class="brand-title">Panel de Proveedores</div>
-                <div class="brand-sub" id="brand-cat">—</div>
+                <div class="brand-sub" id="brand-cat"></div>
             </div>
         </div>
     </div>
@@ -190,12 +274,16 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
     <div class="wrap">
         <div class="page-head">
             <div class="page-title">Panel de Proveedores <span id="page-title-sub"></span></div>
-            <button class="btn-refresh" onclick="cargarDatos()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M3 12a9 9 0 0 1 15.3-6.5L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.5L3 16"/><path d="M3 21v-5h5"/></svg>Actualizar</button>
+            <div class="page-head-actions">
+                <button class="btn-refresh" onclick="cargarDatos()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M3 12a9 9 0 0 1 15.3-6.5L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.5L3 16"/><path d="M3 21v-5h5"/></svg>Actualizar</button>
+                <button class="btn-oficializar" onclick="abrirModalOficializar()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Oficializar</button>
+            </div>
         </div>
 
         <div class="menu-nav">
             <button class="menu-btn active" id="tab-btn-nuevos" onclick="cambiarTab('nuevos')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Pedidos</button>
-            <button class="menu-btn" id="tab-btn-despacho" onclick="cambiarTab('despacho')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Pendiente para despachar</button>
+            <button class="menu-btn" id="tab-btn-despacho" onclick="cambiarTab('despacho')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Listos para despachar</button>
+            <button class="menu-btn" id="tab-btn-enviados" onclick="cambiarTab('enviados')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M14 18V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h1"/><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1"/><circle cx="6.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>Todos los pedidos enviados</button>
             <button class="menu-btn" id="tab-btn-stats" onclick="cambiarTab('stats')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Estadísticas</button>
         </div>
 
@@ -207,6 +295,19 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             <div id="despacho-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
         </div>
 
+        <div class="view" id="view-enviados">
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" id="sub-tab-btn-camino" onclick="cambiarSubTabEnviados('camino')">Todavía no recibidos</button>
+                <button class="sub-tab-btn" id="sub-tab-btn-entregado" onclick="cambiarSubTabEnviados('entregado')">Entrega Confirmada</button>
+            </div>
+            <div class="sub-view show" id="sub-view-camino">
+                <div id="enviados-camino-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="sub-view" id="sub-view-entregado">
+                <div id="enviados-entregado-content"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+        </div>
+
         <div class="view" id="view-stats">
             <div id="stats-content"><div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div></div>
         </div>
@@ -214,6 +315,71 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ── Modal: Registro de Proveedor Oficial ── -->
+<div class="modal-backdrop" id="modal-oficializar-backdrop">
+    <div class="modal-box">
+        <div class="modal-title">Registro de Proveedor Oficial</div>
+        <div class="modal-sub">Súmate como proveedor oficial de nuestra plataforma. Completá este formulario y generemos una sociedad comercial</div>
+        <form id="form-oficializar" onsubmit="return false;">
+            <div class="modal-field">
+                <label>Nombre de la empresa / Razón social</label>
+                <input type="text" id="of-empresa" required>
+            </div>
+            <div class="modal-row2">
+                <div class="modal-field">
+                    <label>CUIT</label>
+                    <input type="text" id="of-cuit" required>
+                </div>
+                <div class="modal-field">
+                    <label>WhatsApp</label>
+                    <input type="text" id="of-whatsapp" required>
+                </div>
+            </div>
+            <div class="modal-field">
+                <label>Nombre y apellido del responsable</label>
+                <input type="text" id="of-responsable" required>
+            </div>
+            <div class="modal-field">
+                <label>Correo electrónico</label>
+                <input type="email" id="of-email" required>
+            </div>
+            <div class="modal-field">
+                <label>Rubro / categoría de productos</label>
+                <input type="text" id="of-rubro" required>
+            </div>
+            <div class="modal-row2">
+                <div class="modal-field">
+                    <label>Ciudad</label>
+                    <input type="text" id="of-ciudad" required>
+                </div>
+                <div class="modal-field">
+                    <label>Provincia</label>
+                    <input type="text" id="of-provincia" required>
+                </div>
+            </div>
+            <div class="modal-field">
+                <label>Tipo de proveedor</label>
+                <select id="of-tipo" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Fabricante">Fabricante</option>
+                    <option value="Importador">Importador</option>
+                    <option value="Mayorista">Mayorista</option>
+                    <option value="Distribuidor">Distribuidor</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <label class="modal-check">
+                <input type="checkbox" id="of-terminos">
+                Acepto los Términos y Condiciones para Proveedores Oficiales de la plataforma.
+            </label>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-primary" id="of-btn-enviar" disabled onclick="enviarRegistroOficial()">Registrarme como Proveedor Oficial</button>
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="cerrarModalOficializar()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -240,6 +406,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 
 const WORKER_PROVEEDORES = 'https://workerproveedores.tuweb.workers.dev';
 const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
+// 🔧 NUEVO: relay del formulario "Registro de Proveedor Oficial" (ver
+// registrodeproveedores_worker.js, ya construido por un compañero) —
+// contrato exacto de body en enviarRegistroOficial() más abajo.
+const REGISTRO_PROVEEDORES_WORKER = 'https://registrodeproveedores.tuweb.workers.dev/';
 // 🔧 Misma clave de administrador que usa pedidos.html para hablar con
 // este mismo Worker. Sin este Worker soportando un secret propio por
 // proveedor, es la única forma hoy de que este panel pueda leer/escribir
@@ -258,6 +428,13 @@ const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
 // transitorio sin ninguna pantalla que lo muestre sería código muerto.
 const ESTADO_PENDIENTE_DESPACHO = 'pendiente_despachar';
 const ESTADO_EN_CAMINO = 'en_camino';
+// 🔧 NUEVO: último estado del flujo — lo pone automáticamente
+// workerproveedores_worker.js cuando el revendedor confirma "Recibido"
+// desde su panel (POST /api/pedido-proveedor/marcar-recibido, ya
+// construido — este panel NUNCA llama a ese endpoint, solo LEE el
+// resultado vía el polling normal de cargarDatos()). Alimenta la
+// sub-pestaña "Entrega Confirmada" de "Todos los pedidos enviados".
+const ESTADO_ENTREGADO = 'entregado';
 
 let PROVEEDOR_ID_ACTUAL = null;   // id de PROVEEDORES_CONFIG, vía ?proveedor=
 let PEDIDOS_PROVEEDOR = [];
@@ -322,11 +499,21 @@ function cambiarTab(tab) {
     document.getElementById('view-' + tab).classList.add('show');
 }
 
+// ── Sub-pestañas de "Todos los pedidos enviados" ──
+function cambiarSubTabEnviados(sub) {
+    document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('sub-tab-btn-' + sub).classList.add('active');
+    document.querySelectorAll('.sub-view').forEach(v => v.classList.remove('show'));
+    document.getElementById('sub-view-' + sub).classList.add('show');
+}
+
 // ── Carga de datos ──
 async function cargarDatos() {
     if (!PROVEEDOR_ID_ACTUAL) return;
     document.getElementById('nuevos-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     document.getElementById('despacho-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+    document.getElementById('enviados-camino-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+    document.getElementById('enviados-entregado-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
 
     const filtro = `proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}`;
@@ -344,6 +531,8 @@ async function cargarDatos() {
         const msgErr = '<div class="empty-state">No se pudieron cargar los pedidos' + (window._lastFetchError && window._lastFetchError.status ? ` (código ${window._lastFetchError.status})` : '') + '. Probá "Actualizar".</div>';
         document.getElementById('nuevos-content').innerHTML = msgErr;
         document.getElementById('despacho-content').innerHTML = msgErr;
+        document.getElementById('enviados-camino-content').innerHTML = msgErr;
+        document.getElementById('enviados-entregado-content').innerHTML = msgErr;
         document.getElementById('stats-content').innerHTML = '<div class="empty-state">No se pudieron cargar las estadísticas.</div>';
         return;
     }
@@ -351,13 +540,17 @@ async function cargarDatos() {
     PEDIDOS_PROVEEDOR_PREVIEW = (previewRes && Array.isArray(previewRes.previews)) ? previewRes.previews : [];
 
     // Si entramos por enlace, el nombre del proveedor no viaja en la URL
-    // (solo el id) — se toma del primer pedido que tenga proveedorNombre
-    // cargado. Si todavía no hay ningún pedido, queda el id como fallback.
+    // (solo el id interno, ej. "prov_xxxx") — se toma del primer pedido
+    // que tenga proveedorNombre cargado. 🔧 CORREGIDO: antes, si todavía
+    // no había ningún pedido, se mostraba el id interno crudo (PROVEEDOR_ID_ACTUAL)
+    // al lado de "Panel de Proveedores" y en el banner — un código interno
+    // que nunca debe ser visible para el proveedor. Ahora, sin nombre
+    // cargado, se usa una etiqueta genérica en vez del id.
     if (PROVEEDOR_ID_ACTUAL) {
         const conNombre = PEDIDOS_PROVEEDOR.find(p => p.proveedorNombre);
-        const nombreProv = conNombre ? conNombre.proveedorNombre : PROVEEDOR_ID_ACTUAL;
-        document.getElementById('brand-cat').textContent = nombreProv;
-        document.getElementById('page-title-sub').textContent = '· ' + nombreProv;
+        const nombreProv = conNombre ? conNombre.proveedorNombre : '';
+        document.getElementById('brand-cat').textContent = nombreProv || 'Proveedor';
+        document.getElementById('page-title-sub').textContent = nombreProv ? '· ' + nombreProv : '';
     }
 
     CATALOGO_PRECIOS = {};
@@ -371,6 +564,7 @@ async function cargarDatos() {
 
     renderNuevosPedidos();
     renderPendienteDespacho();
+    renderEnviados();
     renderEstadisticas();
 }
 
@@ -433,8 +627,16 @@ function agruparPorRevendedor(lista) {
 
 // Un pedido pertenece a la pestaña principal "Pedidos" mientras no haya
 // pasado por "En preparación" ni por "Pedido en camino".
-function pedidosPrincipales() { return PEDIDOS_PROVEEDOR.filter(p => p.estado !== ESTADO_PENDIENTE_DESPACHO && p.estado !== ESTADO_EN_CAMINO); }
+function pedidosPrincipales() { return PEDIDOS_PROVEEDOR.filter(p => p.estado !== ESTADO_PENDIENTE_DESPACHO && p.estado !== ESTADO_EN_CAMINO && p.estado !== ESTADO_ENTREGADO); }
 function pedidosPendienteDespacho() { return PEDIDOS_PROVEEDOR.filter(p => p.estado === ESTADO_PENDIENTE_DESPACHO); }
+// 🔧 NUEVO: "Todos los pedidos enviados" — ya pasaron por "Pedido en
+// camino" (ver marcarPedidoEnCamino, sin tocar). Se dividen en dos
+// sub-estados: todavía no confirmados por el revendedor ('en_camino') y
+// ya confirmados como recibidos ('entregado', lo pone automáticamente
+// workerproveedores_worker.js cuando el revendedor toca "Recibido" en su
+// panel — acá solo se lee el resultado en el próximo refresh/polling).
+function pedidosEnCamino() { return PEDIDOS_PROVEEDOR.filter(p => p.estado === ESTADO_EN_CAMINO); }
+function pedidosEntregados() { return PEDIDOS_PROVEEDOR.filter(p => p.estado === ESTADO_ENTREGADO); }
 
 // ── Íconos SVG compactos para los botones de cada cinta ──
 const ICO_PREPARACION = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>';
@@ -460,7 +662,7 @@ function _agruparPreviewPorRevendedor(lista) {
     const orden = [];
     lista.forEach(p => {
         const key = (p.codigoVendedor || p.nombreRevendedor || '').toUpperCase();
-        if (!grupos[key]) { grupos[key] = { key, nombreRevendedor: p.nombreRevendedor || p.codigoVendedor || 'Revendedor', productos: [] }; orden.push(key); }
+        if (!grupos[key]) { grupos[key] = { key, codigoVendedor: p.codigoVendedor || '', nombreRevendedor: p.nombreRevendedor || p.codigoVendedor || 'Revendedor', productos: [] }; orden.push(key); }
         (Array.isArray(p.productos) ? p.productos : []).forEach(it => grupos[key].productos.push(it));
     });
     return orden.map(k => grupos[k]);
@@ -471,9 +673,19 @@ function _agruparPreviewPorRevendedor(lista) {
 // viene, no algo accionable todavía (ver aclaración del pedido: "cuando
 // los pedidos están en confirmados [de pedidos.html] no debe tener
 // ninguna acción").
-function _renderPreviewCard(g) {
+// 🔧 NUEVO: numColorClass colorea el código identificatorio del
+// revendedor (no hay un "número de pedido" real todavía en esta etapa,
+// ver nota de handleListarPreview en workerproveedores_worker.js — la
+// preview no manda numeroPedido) — "Pedidos aprobados" en azul,
+// "Pedidos pendientes" queda sin tocar (sin clase, como estaba).
+function _renderPreviewCard(g, numColorClass) {
     return `<div class="cinta" style="opacity:.92">
-        <div class="cinta-head"><div class="cinta-vendedor">${esc(g.nombreRevendedor)}</div></div>
+        <div class="cinta-head">
+            <div>
+                <div class="cinta-vendedor">${esc(g.nombreRevendedor)}</div>
+                ${g.codigoVendedor ? `<div class="cinta-pedidos-nums${numColorClass ? ' ' + numColorClass : ''}">Código ${esc(g.codigoVendedor)}</div>` : ''}
+            </div>
+        </div>
         <div class="cinta-body">
             <ul class="cinta-items">
                 ${g.productos.length ? g.productos.map(it => `<li><span>${esc(it.nombre)}</span><b>x${it.cantidad}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
@@ -503,7 +715,7 @@ function renderNuevosPedidos() {
             <span class="count-badge pendiente">${previewPendientes.length}</span>
         </div>
         <div class="section-sub">Adelanto de lo que se viene — todavía esperando que el revendedor complete el pago. Sin acciones todavía.</div>
-        ${previewPendientes.length ? previewPendientes.map(_renderPreviewCard).join('') : '<div class="empty-state">No hay pedidos pendientes por ahora.</div>'}
+        ${previewPendientes.length ? previewPendientes.map(g => _renderPreviewCard(g)).join('') : '<div class="empty-state">No hay pedidos pendientes por ahora.</div>'}
     </div>
     <div class="section-block">
         <div class="section-title-row">
@@ -511,15 +723,15 @@ function renderNuevosPedidos() {
             <span class="count-badge pendiente">${previewAprobados.length}</span>
         </div>
         <div class="section-sub">Pago ya confirmado del lado del revendedor — todavía no se te mandó formalmente. Sin acciones todavía.</div>
-        ${previewAprobados.length ? previewAprobados.map(_renderPreviewCard).join('') : '<div class="empty-state">No hay pedidos aprobados por ahora.</div>'}
+        ${previewAprobados.length ? previewAprobados.map(g => _renderPreviewCard(g, 'pedido-num-aprobado')).join('') : '<div class="empty-state">No hay pedidos aprobados por ahora.</div>'}
     </div>
     <div class="section-block">
         <div class="section-title-row">
             <div class="section-title">Pedidos confirmados</div>
             <span class="count-badge">${cintas.length}</span>
         </div>
-        <div class="section-sub">Un pedido por revendedor, con todos los productos que te pidió (de todas las categorías incluidas).</div>
-        ${cintas.length ? cintas.map(c => renderCinta(c, 'n_' + c.key, true)).join('') : '<div class="empty-state">No hay pedidos confirmados por ahora.</div>'}
+        <div class="section-sub">Un pedido por revendedor, con todos los productos que te pidió (Listos para preparar).</div>
+        ${cintas.length ? cintas.map(c => renderCinta(c, 'n_' + c.key, true, 'pedido-num-confirmado')).join('') : '<div class="empty-state">No hay pedidos confirmados por ahora.</div>'}
     </div>`;
 }
 
@@ -532,7 +744,7 @@ function renderPendienteDespacho() {
     document.getElementById('despacho-content').innerHTML = `
     <div class="section-block">
         <div class="section-title-row">
-            <div class="section-title">Pendiente para despachar</div>
+            <div class="section-title">Listos para despachar</div>
             <span class="count-badge pendiente">${cintas.length}</span>
         </div>
         <div class="section-sub">Pedidos que ya pasaron por "En preparación" — falta despacharlos.</div>
@@ -540,9 +752,68 @@ function renderPendienteDespacho() {
     </div>`;
 }
 
+// ── Tab: Todos los pedidos enviados (Todavía no recibidos / Entrega Confirmada) ──
+// 🔧 NUEVO: acá cada "cinta" es UN documento/pedido despachado (no
+// agrupado por revendedor como en las otras pestañas) — se pide mostrar
+// el número de pedido + total a la vista, y desplegar "como cortina"
+// para ver cantidad de productos y total detallado.
+const ICO_CHEVRON = '<svg class="cinta-plegable-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+
+function _numeroPedidoDe(p) {
+    if (Array.isArray(p.pedidoIds) && p.pedidoIds.length) return p.pedidoIds.map(id => String(id || '—')).join(', ');
+    return String(p.pedidoId || p.id || '—');
+}
+
+function renderCintaPlegable(p, estado) {
+    const cantidadProductos = (Array.isArray(p.productos) ? p.productos : []).reduce((s, it) => s + (Number(it.cantidad) || 0), 0);
+    const total = Number(p.totalMayorista) || 0;
+    const fecha = p.enviadoEn ? new Date(p.enviadoEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    const pill = estado === ESTADO_ENTREGADO
+        ? '<span class="estado-pill entregado">Entrega Confirmada</span>'
+        : '<span class="estado-pill camino">Todavía no recibido</span>';
+    return `
+    <div class="cinta-plegable">
+        <div class="cinta-plegable-head" onclick="this.parentElement.classList.toggle('open')">
+            <div>
+                <div class="cinta-plegable-num">Pedido Nº ${esc(_numeroPedidoDe(p))}</div>
+                <div class="cinta-plegable-sub">${esc(p.nombreRevendedor || p.codigoVendedor || 'Revendedor')} · ${pill}</div>
+            </div>
+            <div class="cinta-plegable-right">
+                <span class="cinta-plegable-total">${money(total)}</span>
+                ${ICO_CHEVRON}
+            </div>
+        </div>
+        <div class="cinta-plegable-detalle">
+            <div class="cinta-plegable-body">
+                <div class="section-sub" style="margin-bottom:8px">${cantidadProductos} producto${cantidadProductos !== 1 ? 's' : ''} en total</div>
+                <ul class="cinta-items">
+                    ${(Array.isArray(p.productos) && p.productos.length) ? p.productos.map(it => `<li><span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad) || 1}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
+                </ul>
+                <div class="ped-foot">
+                    <span class="ped-fecha">${fecha}</span>
+                    <span class="ped-total">${money(total)}</span>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderEnviados() {
+    const camino = pedidosEnCamino().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
+    const entregados = pedidosEntregados().sort((a,b) => String(b.enviadoEn||'').localeCompare(String(a.enviadoEn||'')));
+
+    document.getElementById('enviados-camino-content').innerHTML = camino.length
+        ? camino.map(p => renderCintaPlegable(p, ESTADO_EN_CAMINO)).join('')
+        : '<div class="empty-state">No hay pedidos todavía sin recibir.</div>';
+
+    document.getElementById('enviados-entregado-content').innerHTML = entregados.length
+        ? entregados.map(p => renderCintaPlegable(p, ESTADO_ENTREGADO)).join('')
+        : '<div class="empty-state">Todavía no hay entregas confirmadas.</div>';
+}
+
 // Cinta = TODO el pedido de un revendedor en una sola unidad, sin ningún
 // botón en medio del contenido — solo el/los botones al final.
-function renderCinta(c, cintaId, enPreparacion) {
+function renderCinta(c, cintaId, enPreparacion, numColorClass) {
     const envio = c.datosEnvio || {};
     const ubicacion = [envio.ciudad, envio.provincia].filter(Boolean).join(', ');
     const fecha = c.enviadoEn ? new Date(c.enviadoEn).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
@@ -555,7 +826,7 @@ function renderCinta(c, cintaId, enPreparacion) {
         <div class="cinta-head">
             <div>
                 <div class="cinta-vendedor">${esc(c.nombreRevendedor)}</div>
-                <div class="cinta-pedidos-nums">Pedido${c.pedidoIds.length !== 1 ? 's' : ''} Nº ${c.pedidoIds.map(id => esc(String(id || '—'))).join(', ')}</div>
+                <div class="cinta-pedidos-nums${numColorClass ? ' ' + numColorClass : ''}">Pedido${c.pedidoIds.length !== 1 ? 's' : ''} Nº ${c.pedidoIds.map(id => esc(String(id || '—'))).join(', ')}</div>
             </div>
             <span class="ped-total">${money(c.totalMayorista)}</span>
         </div>
@@ -765,7 +1036,213 @@ function renderEstadisticas() {
     html += `<div class="stats-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Frecuencia de venta — Pendientes <span class="badge-pill pendiente">Todavía no despachados</span></div>
     <div class="mini-list">${_renderMeterList(rankingPendientes, 'pendiente')}</div>`;
 
+    // 🔧 NUEVO: "Productos más vendidos" — reubicado DEBAJO de "Frecuencia
+    // de venta — Pendientes Todavía no despachados" (pedido explícito).
+    // Ranking combinado (oficiales + pendientes), paginado de a 10, con
+    // nombres siempre en un renglón (ver .meter-row-name en CSS).
+    const { ranking: rankingTotal } = _rankingProductosDe(todos);
+    MAS_VENDIDOS_RANKING = rankingTotal;
+    MAS_VENDIDOS_PAGINA = 0;
+    html += `<div class="stats-section-title">${ICO_STAT_TROFEO}Productos más vendidos</div>
+    <div class="mini-list" id="mas-vendidos-content"></div>`;
+
+    // ── Panel de ventas (línea fina, filtro por período) ──
+    html += `<div class="chart-panel">
+        <div class="chart-panel-head">
+            <div class="stats-section-title" style="margin:0">${ICO_STAT_MONEY}Ventas por período</div>
+            <div class="chart-filters" id="chart-filtros">
+                <button class="chart-filter-btn" data-periodo="semana" onclick="actualizarGraficoVentas('semana')">Semana</button>
+                <button class="chart-filter-btn" data-periodo="quincena" onclick="actualizarGraficoVentas('quincena')">Quincena</button>
+                <button class="chart-filter-btn" data-periodo="mes" onclick="actualizarGraficoVentas('mes')">Mes</button>
+                <button class="chart-filter-btn" data-periodo="año" onclick="actualizarGraficoVentas('año')">Año</button>
+            </div>
+        </div>
+        <div id="chart-svg-content"></div>
+    </div>`;
+
     document.getElementById('stats-content').innerHTML = html;
+
+    renderMasVendidosPagina();
+    actualizarGraficoVentas(CHART_PERIODO);
+}
+
+// ── Paginado de "Productos más vendidos" (10 por bloque) ──
+let MAS_VENDIDOS_RANKING = [];
+let MAS_VENDIDOS_PAGINA = 0;
+const MAS_VENDIDOS_POR_PAGINA = 10;
+
+function renderMasVendidosPagina() {
+    const el = document.getElementById('mas-vendidos-content');
+    if (!el) return;
+    const totalPaginas = Math.max(1, Math.ceil(MAS_VENDIDOS_RANKING.length / MAS_VENDIDOS_POR_PAGINA));
+    const inicio = MAS_VENDIDOS_PAGINA * MAS_VENDIDOS_POR_PAGINA;
+    const pagina = MAS_VENDIDOS_RANKING.slice(inicio, inicio + MAS_VENDIDOS_POR_PAGINA);
+    const max = MAS_VENDIDOS_RANKING[0] ? MAS_VENDIDOS_RANKING[0].cantidad : 1;
+
+    let html = '';
+    if (!pagina.length) {
+        html = '<div class="mini-row"><span class="mini-row-name">Sin pedidos todavía</span></div>';
+    } else {
+        html = pagina.map(r => {
+            const pct = Math.max(4, Math.round((r.cantidad / (max || 1)) * 100));
+            return `<div class="meter-row">
+                <div class="meter-row-top"><span class="meter-row-name" title="${esc(r.nombre)}">${esc(r.nombre)}</span><span class="meter-row-val">${r.cantidad} un.</span></div>
+                <div class="meter-track"><div class="meter-fill" style="width:${pct}%"></div></div>
+            </div>`;
+        }).join('');
+    }
+    if (totalPaginas > 1) {
+        html += `<div class="meter-pager">
+            <button onclick="paginarMasVendidos(-1)" ${MAS_VENDIDOS_PAGINA <= 0 ? 'disabled' : ''}>Anterior</button>
+            <span>Página ${MAS_VENDIDOS_PAGINA + 1} de ${totalPaginas}</span>
+            <button onclick="paginarMasVendidos(1)" ${MAS_VENDIDOS_PAGINA >= totalPaginas - 1 ? 'disabled' : ''}>Ver más</button>
+        </div>`;
+    }
+    el.innerHTML = html;
+}
+
+function paginarMasVendidos(delta) {
+    const totalPaginas = Math.max(1, Math.ceil(MAS_VENDIDOS_RANKING.length / MAS_VENDIDOS_POR_PAGINA));
+    MAS_VENDIDOS_PAGINA = Math.min(totalPaginas - 1, Math.max(0, MAS_VENDIDOS_PAGINA + delta));
+    renderMasVendidosPagina();
+}
+
+// ── Gráfico de ventas — línea fina tipo "electrocardiograma", SVG
+// inline liviano (sin librerías externas nuevas). Ventas = pedidos ya
+// despachados (en_camino/entregado), sumando totalMayorista (el total
+// que ya viene cargado en cada pedido — ver nota sobre "restoprecios"
+// más arriba: no existe ningún worker "totalprecios"/similar aparte de
+// RESTOPRECIOS_WORKER, que ya se usa arriba para las estadísticas de
+// "Total vendido"; acá se usa totalMayorista para no disparar N
+// búsquedas de precio real por cada bucket de fecha). ──
+let CHART_PERIODO = 'semana';
+
+function _bucketsVentas(periodo) {
+    const ventas = PEDIDOS_PROVEEDOR.filter(p => p.estado === ESTADO_EN_CAMINO || p.estado === ESTADO_ENTREGADO);
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+
+    if (periodo === 'año') {
+        const meses = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+            meses.push({ label: d.toLocaleDateString('es-AR', { month: 'short' }), inicio: new Date(d.getFullYear(), d.getMonth(), 1), fin: new Date(d.getFullYear(), d.getMonth() + 1, 1) });
+        }
+        return meses.map(m => ({ label: m.label, valor: ventas.filter(p => { const f = new Date(p.enviadoEn || 0); return f >= m.inicio && f < m.fin; }).reduce((s,p) => s + (Number(p.totalMayorista)||0), 0) }));
+    }
+
+    const dias = periodo === 'semana' ? 7 : periodo === 'quincena' ? 15 : 30;
+    const out = [];
+    for (let i = dias - 1; i >= 0; i--) {
+        const d = new Date(hoy);
+        d.setDate(d.getDate() - i);
+        const dFin = new Date(d);
+        dFin.setDate(dFin.getDate() + 1);
+        const valor = ventas.filter(p => { const f = new Date(p.enviadoEn || 0); return f >= d && f < dFin; }).reduce((s,p) => s + (Number(p.totalMayorista)||0), 0);
+        out.push({ label: d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }), valor });
+    }
+    return out;
+}
+
+function _svgLineaFina(datos) {
+    const W = 600, H = 130, PAD = 10;
+    if (!datos.length) return '<div class="chart-empty">Sin ventas en este período.</div>';
+    const valores = datos.map(d => d.valor);
+    const max = Math.max(...valores, 1);
+    const min = Math.min(...valores, 0);
+    const rango = (max - min) || 1;
+    const pasoX = datos.length > 1 ? (W - PAD*2) / (datos.length - 1) : 0;
+    const puntos = datos.map((d, i) => {
+        const x = PAD + i * pasoX;
+        const y = H - PAD - ((d.valor - min) / rango) * (H - PAD*2);
+        return [x, y];
+    });
+    const path = puntos.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const total = valores.reduce((a,b) => a+b, 0);
+    const puntosCirculo = puntos.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2" fill="var(--blue,#0066ff)"/>`).join('');
+    return `<div class="chart-svg-wrap">
+        <div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">Total del período: <b style="color:var(--text2)">${money(total)}</b></div>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Gráfico de ventas por período">
+            <path d="${path}" fill="none" stroke="#0066ff" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+            ${puntosCirculo}
+        </svg>
+    </div>`;
+}
+
+function actualizarGraficoVentas(periodo) {
+    CHART_PERIODO = periodo;
+    document.querySelectorAll('#chart-filtros .chart-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.periodo === periodo));
+    const cont = document.getElementById('chart-svg-content');
+    if (!cont) return;
+    cont.innerHTML = _svgLineaFina(_bucketsVentas(periodo));
+}
+
+// ── Modal: Registro de Proveedor Oficial ──
+function abrirModalOficializar() {
+    document.getElementById('form-oficializar').reset();
+    document.getElementById('of-btn-enviar').disabled = true;
+    document.getElementById('modal-oficializar-backdrop').classList.add('show');
+}
+function cerrarModalOficializar() {
+    document.getElementById('modal-oficializar-backdrop').classList.remove('show');
+}
+
+const OF_CAMPOS_IDS = ['of-empresa','of-cuit','of-responsable','of-whatsapp','of-email','of-rubro','of-ciudad','of-provincia','of-tipo'];
+
+function _validarFormOficializar() {
+    const todosCompletos = OF_CAMPOS_IDS.every(id => document.getElementById(id).value.trim() !== '');
+    const terminos = document.getElementById('of-terminos').checked;
+    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && terminos);
+}
+
+// Habilita el botón "Registrarme como Proveedor Oficial" solo cuando
+// todos los campos están completos Y el checkbox de términos tildado.
+// 🔧 Este <script> va al final del <body>, así que el DOM ya está
+// parseado acá mismo — atar los listeners directo (sin esperar
+// DOMContentLoaded, que ya disparó antes de llegar a esta línea).
+(function _initValidacionOficializar() {
+    [...OF_CAMPOS_IDS, 'of-terminos'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', _validarFormOficializar);
+        if (el) el.addEventListener('change', _validarFormOficializar);
+    });
+})();
+
+async function enviarRegistroOficial() {
+    const btn = document.getElementById('of-btn-enviar');
+    const body = {
+        empresa: document.getElementById('of-empresa').value.trim(),
+        cuit: document.getElementById('of-cuit').value.trim(),
+        responsable: document.getElementById('of-responsable').value.trim(),
+        whatsapp: document.getElementById('of-whatsapp').value.trim(),
+        email: document.getElementById('of-email').value.trim(),
+        rubro: document.getElementById('of-rubro').value.trim(),
+        ciudad: document.getElementById('of-ciudad').value.trim(),
+        provincia: document.getElementById('of-provincia').value.trim(),
+        tipoProveedor: document.getElementById('of-tipo').value,
+        aceptaTerminos: document.getElementById('of-terminos').checked === true,
+    };
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    try {
+        const res = await fetch(REGISTRO_PROVEEDORES_WORKER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data && data.ok) {
+            toast('¡Registro enviado! Nos pondremos en contacto pronto.', true);
+            cerrarModalOficializar();
+        } else {
+            toast((data && data.error) ? data.error : 'No se pudo enviar el registro. Probá de nuevo.', false);
+        }
+    } catch (e) {
+        toast('No se pudo conectar con el servidor. Probá de nuevo.', false);
+    } finally {
+        btn.textContent = 'Registrarme como Proveedor Oficial';
+        _validarFormOficializar();
+    }
 }
 
 // ── Init ──
