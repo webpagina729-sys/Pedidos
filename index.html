@@ -1343,6 +1343,8 @@ const CAT_ICONS = {
 let pedidos = [];          // pedidos crudos (workerpagos /api/pedidos), pago APROBADO
 let panelGestion = [];     // registros confirmados con costo/ganancia real
 let ranking = [];          // ranking de revendedores
+let pedidosStock = [];        // 🆕 NUEVO: docs crudos de la colección Firestore "pedidosStock" (reposición/reinversión, workerpagos /api/pedidos-stock)
+let pedidosStockGrupos = [];  // 🆕 NUEVO: mapeados a la misma forma mínima que panelGestion + estadoReal calculado (ver calcularEstadoPedidoStock)
 let vendorCache = {};      // codigoVendedor -> {nombre, apellido, whatsappRevendedor, telefono, email, nivel}
 let activeListaTab = 'retirar';
 let deleteTarget = null;
@@ -1691,7 +1693,7 @@ async function loadData() {
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
     document.getElementById('revmes-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando ranking...</p></div>';
 
-    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes] = await Promise.all([
+    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes] = await Promise.all([
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
@@ -1704,7 +1706,12 @@ async function loadData() {
         // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan
         // pedidos o no — antes "Info Rvndr" solo conocía a los que ya
         // tenían algún pedido/cliente.
-        fetchJson(WORKER_ESTADOS + '/api/listar-revendedores')
+        fetchJson(WORKER_ESTADOS + '/api/listar-revendedores'),
+        // 🆕 NUEVO: colección Firestore dedicada "pedidosStock" — pedidos de
+        // REPOSICIÓN DE STOCK (el revendedor comprándose mercadería
+        // mayorista A SÍ MISMO, vía stock.html), totalmente separada de
+        // "pedidos"/"panelGestion" (ver "Pedidos de Stock" más abajo).
+        fetchJson(WORKER_PAGOS + '/api/pedidos-stock')
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
     actualizarBadgeEnvios(); // 🔧 NUEVO: ídem para notificaciones de "Pedido en camino"
@@ -1820,12 +1827,45 @@ async function loadData() {
         nivel: r.nivel || 'Bronce'
     }));
 
+    // 🆕 NUEVO: "Pedidos de Stock" — mapea cada doc crudo de la colección
+    // Firestore "pedidosStock" (reposición/reinversión del revendedor a SÍ
+    // MISMO, vía stock.html) a un objeto con la MISMA forma mínima que ya
+    // consumen renderRevendedoresAnidados/renderCategoriasAnidadas de
+    // "Pedidos nuevos" (codigoVendedor/categoria/items/costoTotal/pedidoId/
+    // fecha) — así se puede reutilizar esa misma UI de cintas sin
+    // duplicarla. Ver calcularEstadoPedidoStock() para el estadoReal.
+    pedidosStock = Array.isArray(pedidosStockRes?.pedidos) ? pedidosStockRes.pedidos : [];
+    pedidosStockGrupos = calcularEstadoPedidoStock(pedidosStock.map(p => {
+        const items = (Array.isArray(p.productos) ? p.productos : []).map(pr => ({
+            nombre: pr.nombre || '—',
+            cantidad: Number(pr.cantidad || 1),
+            costoUnitario: Number(pr.precio || 0),
+            variante: pr.variante || '',
+        }));
+        const totalMayorista = Number(p.totalMayorista || 0);
+        return {
+            pedidoId: p.pedidoId,
+            codigoVendedor: (p.codigoVendedor || '').toUpperCase(),
+            categoria: (p.categoria || 'multishop').toLowerCase(),
+            items,
+            costoTotal: totalMayorista, // usado por renderCategoriasAnidadas (totalMayoristaCat)
+            totalMayorista,
+            fecha: p.fechaISO ? Date.parse(p.fechaISO) : (Number(p.fecha) || Date.now()),
+            estadoPago: (p.estadoPago || '').toUpperCase(),
+            estadoPedido: (p.estadoPedido || '').toUpperCase(),
+            datosEnvio: p.datosEnvio || {},
+            paymentId: p.paymentId || null,
+            fechaPago: p.fechaPago || null,
+        };
+    })).sort((a,b) => b.fecha - a.fecha);
+
     // Resolver nombres de revendedores para todos los códigos que aparecen
     const codes = new Set();
     pedidos.forEach(p => p.codigoVendedor && codes.add(p.codigoVendedor));
     panelGestion.forEach(g => g.codigoVendedor && codes.add(g.codigoVendedor));
     ranking.forEach(r => r.codigoVendedor && codes.add(r.codigoVendedor));
     CLIENTES_TODOS.forEach(c => c.codigoVendedor && codes.add(String(c.codigoVendedor).toUpperCase()));
+    pedidosStockGrupos.forEach(g => g.codigoVendedor && codes.add(g.codigoVendedor));
     await Promise.all([...codes].map(c => resolveVendor(c)));
 
     document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
@@ -1848,7 +1888,7 @@ async function loadData() {
     renderListaView();
     renderStatsView();
     renderRevmesView();
-    renderStockPedidosView(); // 🆕 NUEVO: "Pedidos de Stock" (circuito /api/pedidos)
+    renderPedidosStockView(); // 🆕 NUEVO: "Pedidos de Stock" (colección Firestore dedicada "pedidosStock")
     actualizarContadorRvndrHeader();
 
     // 🔧 NUEVO: avisa a workerproveedores.tuweb.workers.dev de los pedidos
@@ -1976,75 +2016,477 @@ function renderPedidosView() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🆕 NUEVO: "Pedidos de Stock" — circuito de REPOSICIÓN DE STOCK
-// (el revendedor comprándole mayorista a Revende Ways desde su propio
-// carrito en stock.html, guardado en la colección Firestore "pedidos"
-// vía /api/pedidos). Totalmente separado de "Pedidos nuevos"/"Lista de
-// pedidos" (circuito panelGestion: revendedor → SU cliente final) para
-// no mezclar ambos conceptos.
+// 🆕 REEMPLAZADO POR COMPLETO: "Pedidos de Stock" — circuito de
+// REPOSICIÓN DE STOCK / REINVERSIÓN (el revendedor comprándose mercadería
+// mayorista A SÍ MISMO desde su propio carrito en stock.html), colección
+// Firestore DEDICADA "pedidosStock" (workerpagos /api/pedidos-stock) —
+// totalmente separada de "pedidos"/"panelGestion". Antes (v1) esta vista
+// leía el array `pedidos` (colección "pedidos", compartida con otro
+// circuito) — eso hacía que pedidos ajenos/eliminados de OTRO circuito
+// pudieran filtrarse acá. Ahora usa su propia fuente dedicada.
 //
-// Reutiliza tal cual el array global `pedidos` que loadData() ya arma
-// en cada carga (ver más abajo, cerca de "let pedidos = []") — ya viene
-// filtrado a solo PENDIENTE/APROBADO (sin RECHAZADO) y sin eliminados,
-// así que acá no hay que repetir esa lógica ni pedir nada de nuevo.
+// Misma estructura de 3 cintas Pendientes/Aprobados/Confirmados que
+// "Pedidos nuevos" (ver renderPedidosView), reutilizando TAL CUAL
+// renderRevendedoresAnidados/renderCategoriasAnidadas (mismos estilos y
+// comportamiento de expandir/colapsar) — solo se les pasa un
+// renderizador de contenido/footer con mensajes de stock/reinversión
+// (panelGestionContenidoStock/renderFacturaGrupoFooterStock) y un
+// idPrefix para que sus ids de cinta nunca choquen con los de
+// "Pedidos nuevos" cuando coincide revendedor+categoría+estado.
+//
+// Estado (calcularEstadoPedidoStock, más abajo):
+//   Pendiente  = la suma de pedidos (por revendedor+categoría, sin contar
+//                los ya CONFIRMADO) todavía NO llega al mínimo de compra
+//                de esa categoría.
+//   Aprobado   = esa suma ya alcanzó o superó el mínimo.
+//   Confirmado = estadoPedido === 'CONFIRMADO' — lo pone SOLO el webhook
+//                de Mercado Pago al acreditar el pago (automático, sin
+//                botón manual acá).
 // ═══════════════════════════════════════════════════════════
-function renderStockPedidosView() {
+function renderPedidosStockView() {
     const wrap = document.getElementById('stockped-wrap');
     if (!wrap) return;
 
-    const pendientesCount = pedidos.filter(p => p.estadoPago === 'PENDIENTE').length;
-    const cntEl = document.getElementById('cnt-stockped');
-    if (cntEl) cntEl.textContent = String(pendientesCount);
+    document.getElementById('cnt-stockped').textContent = pedidosStockGrupos.filter(g => g.estadoReal !== 'confirmado').length;
 
-    if (!pedidos.length) {
-        wrap.innerHTML = `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📦</div><p>No hay pedidos de reposición de stock todavía.</p></div>`;
-        return;
-    }
+    let html = '';
+    ['pendiente','aprobado','confirmado'].forEach(estado => {
+        const gsDelEstado = pedidosStockGrupos.filter(g => g.estadoReal === estado);
+        const hayPedidos = gsDelEstado.length > 0;
+        const ribbonId = 'stockped-estado-rib-' + estado;
+        const revendedoresDelEstado = new Set(gsDelEstado.map(g => g.codigoVendedor || '—')).size;
 
-    wrap.innerHTML = pedidos.map(p => stockPedidoCard(p)).join('');
+        html += `<div class="estado-ribbon" id="${ribbonId}">
+            <div class="estado-head" onclick="toggleEstadoRibbon('${ribbonId}')">
+                <div class="estado-head-left">
+                    <span class="dot-status ${hayPedidos ? 'pulsing' : ''}" style="background:${ESTADO_DOT_COLOR[estado]};color:${ESTADO_DOT_COLOR[estado]}"></span>
+                    <span class="estado-title">${ESTADO_TITULOS[estado]}</span>
+                    <span class="cnt">${revendedoresDelEstado}</span>
+                </div>
+                <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="estado-body"><div class="estado-inner">
+                ${hayPedidos ? renderRevendedoresAnidados(gsDelEstado, estado, panelGestionContenidoStock, renderFacturaGrupoFooterStock, 'stk-') : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📦</div><p>${ESTADO_VACIO_MSG_STOCK[estado]}</p></div>`}
+            </div></div>
+        </div>`;
+    });
+
+    wrap.innerHTML = html;
 }
 
-function stockPedidoCard(p) {
-    const nombre = vendorLabel(p.codigoVendedor) || p.codigoVendedor || '—';
-    const c = p.cliente || {};
-    const esAprobado = p.estadoPago === 'APROBADO';
-    const estadoChip = esAprobado
-        ? `<span class="status-chip s-domicilio">✅ Confirmado</span>`
-        : `<span class="status-chip s-pendiente">⏳ Pendiente de pago</span>`;
+// Determina, para cada pedido de stock crudo, si va a Pendientes,
+// Aprobados o Confirmados — agrupando por revendedor+categoría (mismo
+// nivel al que se comparan sumas/mínimos hoy en "Pedidos nuevos", ver
+// enviarSeguimientoPendienteGrupo/MINIMO_ENTREGA_CATEGORIA).
+function calcularEstadoPedidoStock(grupos) {
+    const porGrupo = {};
+    grupos.forEach(g => {
+        const key = g.codigoVendedor + '|' + g.categoria;
+        (porGrupo[key] = porGrupo[key] || []).push(g);
+    });
+    Object.values(porGrupo).forEach(gs => {
+        // 🔧 El webhook de Mercado Pago es la ÚNICA vía a "confirmado" —
+        // se respeta tal cual venga en estadoPedido, sin importar la suma.
+        gs.forEach(g => { g.estadoReal = (g.estadoPedido === 'CONFIRMADO') ? 'confirmado' : null; });
+        const restantes = gs.filter(g => g.estadoReal !== 'confirmado');
+        if (!restantes.length) return;
+        const cat = restantes[0].categoria;
+        let alcanzaMinimo;
+        if (cat === 'calzados') {
+            // Calzados se mide en UNIDADES, no en $ — mismo criterio que
+            // superaMinimoYVencido48hs() en "Pedidos nuevos".
+            const totalU = restantes.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
+            alcanzaMinimo = totalU >= MINIMO_UNIDADES_CALZADOS;
+        } else {
+            const minimo = MINIMO_ENTREGA_CATEGORIA[cat] || 0;
+            const suma = restantes.reduce((s,g) => s + (Number(g.totalMayorista)||0), 0);
+            alcanzaMinimo = suma >= minimo;
+        }
+        restantes.forEach(g => { g.estadoReal = alcanzaMinimo ? 'aprobado' : 'pendiente'; });
+    });
+    return grupos;
+}
 
-    const rows = (p.items || []).map(it => `<tr>
-        <td><div class="prod-name">${esc(it.nombre)}</div></td>
+// Mismas 3 cintas que ESTADO_VACIO_MSG (Pedidos nuevos) pero con wording
+// de stock/reinversión — único texto que cambia (ver requerimiento).
+const ESTADO_VACIO_MSG_STOCK = {
+    pendiente:  'Acá van a aparecer los pedidos de stock apenas un revendedor sume productos a su carrito de reposición, mientras no llegue al mínimo de la categoría.',
+    aprobado:   'Acá aparecen los pedidos de stock que ya alcanzaron el mínimo de compra de su categoría, esperando la acreditación del pago mayorista.',
+    confirmado: 'Acá aparecen los pedidos de stock ya pagados y acreditados automáticamente por Mercado Pago.',
+};
+
+// Tarjeta de un pedido individual de stock — mismo layout que
+// panelGestionContenido (Pedidos nuevos), pero: (1) el precio de cada
+// producto es directo (it.costoUnitario, sin itemEconomiaReal/ganancia —
+// acá el revendedor compra mayorista PARA SÍ MISMO, no hay margen de
+// reventa que calcular en este pedido), y (2) el botón de Confirmados
+// llama a enviarFacturaYClasificarPedidoStock (equivalente stock de
+// enviarFacturaYClasificarPedido).
+function panelGestionContenidoStock(g) {
+    const fecha = ba(g.fecha);
+    const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
+    const estLbl = ESTADO_REAL_LABEL[g.estadoReal] || ESTADO_REAL_LABEL.pendiente;
+    const estadoBadge = `<span class="badge-estado-pago" style="background:${estLbl.bg};color:${estLbl.color};border:1px solid ${estLbl.border};border-radius:20px;font-size:10.5px;font-weight:700;padding:2px 9px;white-space:nowrap">${estLbl.txt}</span>`;
+
+    const rows = (g.items||[]).map(it => `<tr>
+        <td><div class="prod-name">${esc(it.nombre)}${it.variante ? `<div style="font-size:10.5px;color:var(--text2)">${esc(it.variante)}</div>` : ''}</div></td>
         <td class="qty-num">${it.cantidad}</td>
-        <td class="price-cell">${money(it.precio)}</td>
+        <td class="price-cell">${money(it.costoUnitario)}</td>
     </tr>`).join('');
 
-    const nombreCliente = fullName(c) || '—';
-    const direccionCompleta = [c.direccion, c.ciudad, c.provincia, c.cp].filter(Boolean).join(', ');
-
-    return `<div class="estado-ribbon" style="margin-bottom:10px">
-        <div class="estado-inner" style="padding:14px 16px">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <div class="vendor-avatar" style="width:26px;height:26px;font-size:10.5px">${initials(nombre)}</div>
-                    <span class="r-name">${esc(nombre)}</span>
-                    ${estadoChip}
-                </div>
-                <span class="r-date">${ba(p.fecha)}</span>
+    const stop = 'event.stopPropagation();';
+    const yaEnLista = pagoYaVerificadoStock(g.pedidoId);
+    return `<div class="pedido-block" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px">
+                <span class="r-name">Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()}</span>
+                ${estadoBadge}
             </div>
-            <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:var(--surface2);border-radius:8px">
-                <div><strong style="color:var(--text)">${esc(nombreCliente)}</strong>${c.email ? ' · ' + esc(c.email) : ''}${c.telefono ? ' · ' + esc(c.telefono) : ''}</div>
-                ${direccionCompleta ? `<div>${esc(direccionCompleta)}</div>` : ''}
-                ${c.observaciones ? `<div style="font-style:italic">"${esc(c.observaciones)}"</div>` : ''}
+            <span class="r-date">${fecha}</span>
+        </div>
+        <table class="prod-table">
+            <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Mayorista</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="order-foot">
+            <div>
+                <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total mayorista: <strong>${money(g.totalMayorista)}</strong></div>
             </div>
-            <table class="prod-table">
-                <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th></tr></thead>
-                <tbody>${rows}</tbody>
-            </table>
-            <div class="order-foot">
-                <div class="foot-meta">Total: <strong>${money(p.total)}</strong></div>
+            <div class="actions">
+                ${g.estadoReal === 'confirmado' ? (yaEnLista
+                    ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>`
+                    : `<button class="btn-act btn-pago-verificado" onclick="${stop}enviarFacturaYClasificarPedidoStock('${g.pedidoId}')">📤 (Enviar factura y clasificar pedido de stock)</button>`) : ''}
+                ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">Esperando a que se complete el mínimo de compra de esta categoría</span>` : ''}
+                ${g.estadoReal === 'aprobado' ? `<span class="status-chip s-espera">Mínimo de compra alcanzado — esperando la acreditación del pago mayorista</span>` : ''}
             </div>
         </div>
     </div>`;
+}
+
+// Footer grupal de "Pedidos de Stock" — MISMA estructura/botones que
+// renderFacturaGrupoFooter (Pedidos nuevos): Factura/Enviar Factura/
+// Hacer seguimiento/Reenviar Factura, pero con los mensajes de WhatsApp
+// reescritos sobre reinversión de ganancias y stock (ver
+// enviarSeguimiento*GrupoStock más abajo) — sin línea de "ganancia" (acá
+// no hay margen de reventa que calcular, el revendedor compra para sí
+// mismo).
+function renderFacturaGrupoFooterStock(gsCat, estado, codigo, cat) {
+    const stop = 'event.stopPropagation();';
+
+    if (estado === 'pendiente') {
+        if (!gsCat.some(g => (Date.now() - (Number(g.fecha)||0)) / 3600000 >= 48)) return '';
+        return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
+            <div class="actions" style="width:100%">
+                <button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoPendienteGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
+            </div>
+        </div>`;
+    }
+
+    if (estado !== 'aprobado' && estado !== 'confirmado') return '';
+    let totalMayoristaGrupo = 0;
+    let totalUnidGrupo = 0;
+    gsCat.forEach(g => {
+        totalMayoristaGrupo += Number(g.totalMayorista) || 0;
+        totalUnidGrupo += (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0);
+    });
+    const etiquetaFactura = estado === 'confirmado' ? '🧾 Factura (Pagada)' : '🧾 Factura (Pendiente de pago)';
+    const botonesSeguimiento = estado === 'aprobado'
+        ? `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoAprobadoGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
+           <button class="btn-act btn-wa btn-wa-reenviar" onclick="${stop}enviarBoletaPendienteGrupoStock('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
+        : `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoConfirmadoGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
+    return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
+        <div>
+            <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
+        </div>
+        <div class="actions">
+            <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupoStock('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
+            <button class="btn-act btn-wa btn-wa-enviar" onclick="${stop}compartirFacturaWhatsAppGrupoStock('${codigo}','${cat}','${estado}')">${ICO_ENVIAR_FACTURA}Enviar Factura</button>
+            ${botonesSeguimiento}
+        </div>
+    </div>`;
+}
+
+// ── Mensajes de seguimiento (WhatsApp) — MISMA mecánica que
+// enviarSeguimiento*Grupo (Pedidos nuevos), reescritos sobre reinversión
+// de ganancias y stock en vez de ventas a clientes. ──
+function _gsGrupoStock(codigo, categoria, estado) {
+    return pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+}
+async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, mensaje) {
+    const wa = vendorWa(codigo);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const doc = _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado);
+    if (doc) {
+        const filename = `Factura_Stock_${codigo}_${categoria}.pdf`;
+        doc.save(filename);
+        try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
+        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
+        return;
+    }
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+function enviarSeguimientoPendienteGrupoStock(codigo, categoria) {
+    const gs = _gsGrupoStock(codigo, categoria, 'pendiente');
+    if (!gs.length) { toast('No hay pedidos de stock pendientes en este grupo', 'err'); return; }
+    const nombreRevendedor = vendorLabel(codigo);
+    const totalGrupo = gs.reduce((s,g) => s + (Number(g.totalMayorista)||0), 0);
+    const montoSumado = Math.round(totalGrupo).toLocaleString('es-AR');
+    const minimo = categoria === 'calzados' ? 0 : (MINIMO_ENTREGA_CATEGORIA[categoria] || 0);
+    const montoRestante = Math.round(Math.max(0, minimo - totalGrupo)).toLocaleString('es-AR');
+    const msg = `Hola ${nombreRevendedor} 👋
+
+Vimos que tenés ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock (reinversión) de ${CAT_LABELS[categoria]||categoria} todavía pendiente${gs.length!==1?'s':''} de completar el mínimo de compra.
+
+Actualmente llevás sumado hasta el momento $${montoSumado} y te faltan $${montoRestante} para completar el objetivo de tu carrito de stock.
+
+Recordá que reinvertir tus ganancias en más stock te permite tener siempre mercadería lista para seguir vendiendo y creciendo.
+
+💡 Te recomendamos sumar más productos a tu carrito de reposición para alcanzar el mínimo más rápido.
+
+¡Vamos que falta muy poco para completar tu reposición! 🚀`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'pendiente', msg);
+}
+function enviarSeguimientoAprobadoGrupoStock(codigo, categoria) {
+    const gs = _gsGrupoStock(codigo, categoria, 'aprobado');
+    if (!gs.length) { toast('No hay pedidos de stock aprobados en este grupo', 'err'); return; }
+    const nombreRevendedor = vendorLabel(codigo);
+    const msg = `Hola ${nombreRevendedor} 👋
+Tu${gs.length!==1?'s':''} ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock de ${CAT_LABELS[categoria]||categoria} ya alcanzó${gs.length!==1?'ron':''} el mínimo de compra correctamente ✅
+Actualmente el equipo se encuentra atento a la acreditación de tu pago mayorista para comenzar con la preparación para despacho.
+Te recomendamos aprovechar este tiempo para seguir promocionando tus productos y reinvirtiendo tus ganancias.
+Apenas existan novedades sobre el envío de tu stock te mantendremos informado.
+Gracias por confiar en Revende Ways 🚀
+Quedamos Atentos!`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'aprobado', msg);
+}
+function enviarBoletaPendienteGrupoStock(codigo, categoria) {
+    const gs = _gsGrupoStock(codigo, categoria, 'aprobado');
+    if (!gs.length) { toast('No hay pedidos de stock aprobados en este grupo', 'err'); return; }
+    const nombreRevendedor = vendorLabel(codigo);
+    const totalGrupo = gs.reduce((s,g) => s + (Number(g.totalMayorista)||0), 0);
+    const montoRestante = Math.round(totalGrupo).toLocaleString('es-AR');
+    const msg = `Hola ${nombreRevendedor} 👋
+Te enviamos nuevamente la boleta correspondiente a tu${gs.length!==1?'s':''} ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock de ${CAT_LABELS[categoria]||categoria}.
+📦 Estado: Pendiente de pago
+💰 Monto pendiente: $${montoRestante}
+Cuanto antes se acredite el pago mayorista, antes podremos procesar y despachar tu stock.
+Una buena estrategia es reinvertir tus ganancias apenas puedas para no quedarte sin mercadería.
+¡Seguimos acompañándote en tu reposición! 🚀`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'aprobado', msg);
+}
+function enviarSeguimientoConfirmadoGrupoStock(codigo, categoria) {
+    const gs = _gsGrupoStock(codigo, categoria, 'confirmado');
+    if (!gs.length) { toast('No hay pedidos de stock confirmados en este grupo', 'err'); return; }
+    const nombreRevendedor = vendorLabel(codigo);
+    const msg = `Hola ${nombreRevendedor} 👋
+Te informamos que tu${gs.length!==1?'s':''} ${gs.length} pedido${gs.length!==1?'s':''} de reposición de stock de ${CAT_LABELS[categoria]||categoria} ha${gs.length!==1?'n':''} sido confirmado${gs.length!==1?'s':''} y procesado${gs.length!==1?'s':''} correctamente 📦✅
+Ya podés prepararte para recibir tu nueva mercadería y seguir reinvirtiendo en tu stock.
+
+Recordá que mantener stock disponible es clave para no perder ventas y seguir generando ganancias.
+
+¡Muchos éxitos con tu próxima reposición! 🚀
+Equipo Revende Ways🦒`;
+    _enviarMensajeConFacturaGrupoStock(codigo, categoria, 'confirmado', msg);
+}
+
+// ── Factura PDF de "Pedidos de Stock" — mismo diseño visual que
+// _generarFacturaProveedorPDF(Grupo) de Pedidos nuevos, pero usando
+// it.costoUnitario directo (sin itemEconomiaReal, no aplica: acá no hay
+// margen de reventa que calcular) y ambientado a stock/reinversión. ──
+function _generarFacturaProveedorPDFStock(pedidoId) {
+    const g = pedidosStockGrupos.find(x => x.pedidoId === pedidoId);
+    if (!g || !window.jspdf) return null;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
+    const pagado = g.estadoReal === 'confirmado';
+    const nombre = vendorLabel(g.codigoVendedor);
+    const info = vendorCache[g.codigoVendedor] || {};
+
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 0, W, 34, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Revende Ways', 14, 15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text(pagado ? 'Factura de stock / reinversión — PAGADA' : 'Factura de stock / reinversión — PENDIENTE DE PAGO', 14, 23);
+    doc.setFontSize(8);
+    doc.text(`Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()} · ${ba(g.fecha)}`, 14, 29);
+
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Facturado a:', 14, 46);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(nombre, 14, 53);
+    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
+    doc.text('Código: ' + g.codigoVendedor, 14, 65);
+
+    let y = 78;
+    doc.setFillColor(240,242,247);
+    doc.rect(14, y-6, W-28, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
+    y += 10;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+    (g.items||[]).forEach(it => {
+        if (y > H - 40) { doc.addPage(); y = 20; }
+        doc.setFontSize(9.5);
+        doc.text(String(it.nombre||'—').slice(0,50), 17, y);
+        doc.text(String(it.cantidad||1), W-70, y);
+        doc.text('$'+Math.round(it.costoUnitario||0).toLocaleString('es-AR'), W-17, y, { align:'right' });
+        y += 7;
+    });
+
+    y += 6;
+    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
+    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('TOTAL A PAGAR', W-86, y+7);
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+    doc.text('$'+Math.round(g.totalMayorista||0).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
+
+    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
+    return doc;
+}
+
+function _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado) {
+    const gs = pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+    if (!gs.length || !window.jspdf) return null;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
+    const pagado = estado === 'confirmado';
+    const nombre = vendorLabel(codigo);
+    const info = vendorCache[codigo] || {};
+
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 0, W, 34, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Revende Ways', 14, 15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text(pagado ? 'Factura de stock / reinversión — PAGADA' : 'Factura de stock / reinversión — PENDIENTE DE PAGO', 14, 23);
+    doc.setFontSize(8);
+    doc.text(`${gs.length} pedido(s) de stock · ${CAT_LABELS[categoria] || categoria}`, 14, 29);
+
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Facturado a:', 14, 46);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(nombre, 14, 53);
+    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
+    doc.text('Código: ' + codigo, 14, 65);
+
+    let y = 78;
+    doc.setFillColor(240,242,247);
+    doc.rect(14, y-6, W-28, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
+    y += 10;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+    let totalFactura = 0;
+    gs.forEach(g => {
+        if (y > H - 40) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...BLUE);
+        doc.text(`Pedido de Stock #${String(g.pedidoId||'—').slice(-8).toUpperCase()}`, 17, y);
+        y += 6;
+        doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+        (g.items||[]).forEach(it => {
+            if (y > H - 40) { doc.addPage(); y = 20; }
+            doc.setFontSize(9.5);
+            doc.text(String(it.nombre||'—').slice(0,50), 20, y);
+            doc.text(String(it.cantidad||1), W-70, y);
+            doc.text('$'+Math.round(it.costoUnitario||0).toLocaleString('es-AR'), W-17, y, { align:'right' });
+            y += 7;
+        });
+        totalFactura += Number(g.totalMayorista) || 0;
+        y += 2;
+    });
+
+    y += 6;
+    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
+    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text('TOTAL A PAGAR', W-86, y+7);
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+    doc.text('$'+Math.round(totalFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
+
+    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
+    return doc;
+}
+
+function descargarFacturaProveedorGrupoStock(codigo, categoria, estado) {
+    const doc = _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado);
+    if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
+    doc.save(`Factura_Stock_${codigo}_${categoria}.pdf`);
+    toast('Factura descargada', true);
+}
+
+async function compartirFacturaWhatsAppGrupoStock(codigo, categoria, estado) {
+    const doc = _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado);
+    if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
+    const filename = `Factura_Stock_${codigo}_${categoria}.pdf`;
+    const wa = vendorWa(codigo);
+    const mensaje = estado === 'confirmado' ? 'Te comparto la factura de tu reposición de stock ya pagada.' : 'Te comparto la factura de tu reposición de stock pendiente de pago.';
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
+    doc.save(filename);
+    try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
+}
+
+// "Pago Verificado" (stock) — mismo mecanismo que pagoYaVerificado/
+// enviarFacturaYClasificarPedido de Pedidos nuevos, con su propia clave
+// de localStorage (namespaced) para no mezclar ambos circuitos.
+const PAGO_VERIFICADO_STOCK_KEY = 'pagosVerificadosStock';
+function pagoYaVerificadoStock(pedidoId) {
+    try { return JSON.parse(localStorage.getItem(PAGO_VERIFICADO_STOCK_KEY) || '[]').includes(pedidoId); } catch(_) { return false; }
+}
+
+// "(Enviar factura y clasificar pedido de stock)" — equivalente EXACTO de
+// enviarFacturaYClasificarPedido (Pedidos nuevos) para "Pedidos de
+// Stock": marca el pago como verificado, manda el detalle a
+// workerproveedores.tuweb.workers.dev vía el MISMO
+// _enviarPedidoAWorkerProveedores (genérico, sin tocarlo — ver
+// requerimiento 4) con origen:'stock_reposicion' para poder distinguirlo
+// de 'clasificacion_confirmado' en proveedores.html si hiciera falta, y
+// comparte la factura pagada por WhatsApp con mensaje de reinversión.
+async function enviarFacturaYClasificarPedidoStock(pedidoId) {
+    const g = pedidosStockGrupos.find(x => x.pedidoId === pedidoId);
+    if (!g) { toast('No se encontró el pedido de stock', 'err'); return; }
+    if (!confirm('¿Confirmás que este pedido de stock/reinversión ya está pagado y acreditado? Se le va a enviar la factura al revendedor y el pedido pasa a "Enviar Pedidos".')) return;
+
+    const set = new Set(JSON.parse(localStorage.getItem(PAGO_VERIFICADO_STOCK_KEY) || '[]'));
+    set.add(pedidoId);
+    localStorage.setItem(PAGO_VERIFICADO_STOCK_KEY, JSON.stringify([...set]));
+
+    const info = vendorCache[g.codigoVendedor] || {};
+    const nombre = vendorLabel(g.codigoVendedor);
+    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: it.variante || '' }));
+    await _enviarPedidoAWorkerProveedores({
+        pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
+        productos, totalMayorista: g.totalMayorista, origen: 'stock_reposicion',
+    });
+
+    const doc = _generarFacturaProveedorPDFStock(pedidoId);
+    const wa = vendorWa(g.codigoVendedor);
+    const mensaje = `¡Gracias por reinvertir en tu stock, ${nombre}! 🙌 Tu pago de reposición ya fue acreditado — te comparto tu factura pagada. Ya estamos preparando tu mercadería para enviarla. ¡Cualquier consulta, estamos para ayudarte!`;
+    if (doc) {
+        const filename = `Factura_Stock_${String(pedidoId).slice(-8)}.pdf`;
+        doc.save(filename);
+    }
+    if (wa) {
+        try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
+        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    } else {
+        toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
+    }
+
+    toast('Pedido de stock enviado, clasificado y factura descargada', true);
+    renderPedidosStockView();
 }
 
 // 🔧 NUEVO: sincroniza automáticamente (sin que el dueño haga nada) los
@@ -2085,7 +2527,17 @@ async function _sincronizarPreviewProveedores() {
 function toggleEstadoRibbon(id) { document.getElementById(id)?.classList.toggle('expanded'); }
 
 // Sub-cintas por Revendedor (nombre y apellido) dentro de un estado.
-function renderRevendedoresAnidados(gsDelEstado, estado) {
+// 🆕 NUEVO: parámetros opcionales contenidoFn/footerFn/idPrefix — permiten
+// reutilizar TAL CUAL esta misma cinta (mismos estilos/comportamiento de
+// expandir-colapsar) para "Pedidos de Stock" (ver renderPedidosStockView),
+// pasando renderizadores de contenido/footer con mensajes de
+// stock/reinversión en vez de duplicar toda esta función. Si se omiten,
+// el comportamiento es EXACTAMENTE el de antes (panelGestionContenido /
+// renderFacturaGrupoFooter / sin prefijo) — "Pedidos nuevos" no cambia.
+function renderRevendedoresAnidados(gsDelEstado, estado, contenidoFn, footerFn, idPrefix) {
+    contenidoFn = contenidoFn || panelGestionContenido;
+    footerFn = footerFn || renderFacturaGrupoFooter;
+    idPrefix = idPrefix || '';
     const porVendedor = {};
     gsDelEstado.forEach(g => {
         const k = g.codigoVendedor || '—';
@@ -2095,7 +2547,7 @@ function renderRevendedoresAnidados(gsDelEstado, estado) {
 
     return Object.entries(porVendedor).map(([codigo, gs]) => {
         const nombre = vendorLabel(codigo);
-        const vId = `rv-${estado}-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const vId = `${idPrefix}rv-${estado}-${codigo}`.replace(/[^a-zA-Z0-9-]/g, '_');
         const totalU = gs.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
         return `<div class="ribbon" id="${vId}" style="margin-bottom:8px">
             <div class="ribbon-head" onclick="toggleRibbonEl('${vId}')">
@@ -2109,14 +2561,18 @@ function renderRevendedoresAnidados(gsDelEstado, estado) {
                 </div>
             </div>
             <div class="ribbon-body"><div class="ribbon-inner">
-                ${renderCategoriasAnidadas(gs, estado, codigo)}
+                ${renderCategoriasAnidadas(gs, estado, codigo, contenidoFn, footerFn, idPrefix)}
             </div></div>
         </div>`;
     }).join('');
 }
 
 // Sub-sub-cintas por Categoría dentro de un revendedor.
-function renderCategoriasAnidadas(gs, estado, codigo) {
+// (ver nota de renderRevendedoresAnidados sobre contenidoFn/footerFn/idPrefix)
+function renderCategoriasAnidadas(gs, estado, codigo, contenidoFn, footerFn, idPrefix) {
+    contenidoFn = contenidoFn || panelGestionContenido;
+    footerFn = footerFn || renderFacturaGrupoFooter;
+    idPrefix = idPrefix || '';
     const porCategoria = {};
     gs.forEach(g => {
         const cat = g.categoria || 'multishop';
@@ -2125,7 +2581,7 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
     });
 
     return Object.entries(porCategoria).map(([cat, gsCat]) => {
-        const catId = `catv-${estado}-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const catId = `${idPrefix}catv-${estado}-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
         const totalUnidCat = gsCat.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
         const totalMayoristaCat = gsCat.reduce((s,g) => s + Number(g.costoTotal||0), 0);
         return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
@@ -2141,8 +2597,8 @@ function renderCategoriasAnidadas(gs, estado, codigo) {
                 </div>
             </div>
             <div class="ribbon-body"><div class="ribbon-inner" style="padding:10px 12px">
-                ${gsCat.map(g => panelGestionContenido(g)).join('')}
-                ${renderFacturaGrupoFooter(gsCat, estado, codigo, cat)}
+                ${gsCat.map(g => contenidoFn(g)).join('')}
+                ${footerFn(gsCat, estado, codigo, cat)}
             </div></div>
         </div>`;
     }).join('');
