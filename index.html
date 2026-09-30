@@ -1746,7 +1746,10 @@ async function loadData() {
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
-        fetchJson(WORKER_ESTADOS + '/api/estados-pedidos'),
+        // 🔒 NUEVO: expone datos financieros internos de todos los
+        // revendedores (ganancia, total, totalMayorista) — se protegió con
+        // la misma clave de admin que el resto de datos sensibles.
+        fetchJson(WORKER_ESTADOS + '/api/estados-pedidos', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
         // 🔧 FIX: este endpoint se protegió con la misma clave de admin que
         // el resto de los datos sensibles ("Solo pedidos.html usa esta
         // vista completa"), pero nunca se actualizó esta llamada para
@@ -1755,7 +1758,9 @@ async function loadData() {
         // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan
         // pedidos o no — antes "Info Rvndr" solo conocía a los que ya
         // tenían algún pedido/cliente.
-        fetchJson(WORKER_ESTADOS + '/api/listar-revendedores'),
+        // 🔒 NUEVO: expone datos personales completos de cada revendedor —
+        // se protegió con la misma clave de admin.
+        fetchJson(WORKER_ESTADOS + '/api/listar-revendedores', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
         // 🆕 NUEVO: colección Firestore dedicada "pedidosStock" — pedidos de
         // REPOSICIÓN DE STOCK (el revendedor comprándose mercadería
         // mayorista A SÍ MISMO, vía stock.html), totalmente separada de
@@ -4311,7 +4316,8 @@ async function abrirAvisosPublicados() {
     const body = document.getElementById('avisos-lista-body');
     body.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando avisos...</p></div>';
 
-    const res = await fetchJson(WORKER_ESTADOS + '/api/avisos-lista');
+    // 🔒 NUEVO: panel administrativo — se protegió con la misma clave de admin.
+    const res = await fetchJson(WORKER_ESTADOS + '/api/avisos-lista', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
     const avisos = (res && res.ok && res.avisos) || [];
     if (!avisos.length) {
         body.innerHTML = '<p style="font-size:13px;color:var(--text2)">Todavía no publicaste ningún aviso.</p>';
