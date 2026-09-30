@@ -585,12 +585,29 @@ async function cargarDatos() {
     // adminKey (ver handleListarPedidosProveedor en
     // workerproveedores_worker.js) — antes el checkbox "No soy un robot"
     // de arriba era solo un gate visual de frontend, sin ningún chequeo en
-    // el backend. Se manda el token ya resuelto en el gate (ver
-    // onTurnstileGateOk) como ?turnstileToken=. El resto de los endpoints
-    // de este panel (preview, proveedor-pausado) siguen igual que antes —
-    // solo este listado de pedidos es el que expone datos sensibles.
+    // el backend.
+    //
+    // 🐛 FIX (bucle infinito de Turnstile): un turnstileToken de Cloudflare
+    // es de UN SOLO USO — reenviar el mismo token en cada llamada a
+    // cargarDatos() (refrescos con "Actualizar", polling, cambios de
+    // pestaña, o tras marcar un pedido "en preparación"/"en camino", ver
+    // marcarEnPreparacion/marcarPedidoEnCamino) hacía que la primera
+    // llamada pasara y TODAS las siguientes volvieran 403 → el panel
+    // mostraba el gate de nuevo en bucle, aunque el usuario ya lo había
+    // resuelto bien. Ahora: mientras tengamos un sessionToken vigente (ver
+    // window._sessionToken, guardado de la respuesta anterior) se manda
+    // ESE en vez del turnstileToken ya gastado — el backend lo valida sin
+    // volver a gastar/pedir un token de Turnstile nuevo. Recién la
+    // PRIMERA llamada de cada sesión de uso (sin sessionToken todavía)
+    // manda el turnstileToken real resuelto en el gate (ver
+    // onTurnstileGateOk). El resto de los endpoints de este panel
+    // (preview, proveedor-pausado) siguen igual que antes — solo este
+    // listado de pedidos es el que expone datos sensibles.
+    const paramVerificacion = window._sessionToken
+        ? `sessionToken=${encodeURIComponent(window._sessionToken)}`
+        : `turnstileToken=${encodeURIComponent(window._turnstileGateToken || '')}`;
     const [pedidosRes, preciosRes, previewRes] = await Promise.all([
-        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?${filtro}&turnstileToken=${encodeURIComponent(window._turnstileGateToken || '')}`),
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?${filtro}&${paramVerificacion}`),
         fetchJson(RESTOPRECIOS_WORKER),
         // 🔧 NUEVO: adelanto de pedidos "aprobado"/"confirmado" en
         // pedidos.html — de solo lectura, ver PEDIDOS_PROVEEDOR_PREVIEW.
@@ -630,6 +647,11 @@ async function cargarDatos() {
         document.getElementById('stats-content').innerHTML = '<div class="empty-state">No se pudieron cargar las estadísticas.</div>';
         return;
     }
+    // 🔒 NUEVO: el backend renueva/emite un sessionToken en cada respuesta
+    // exitosa (turnstileToken o sessionToken válido) — se guarda para que
+    // la PRÓXIMA llamada a cargarDatos() lo reenvíe a él en vez de volver
+    // a mandar el turnstileToken ya gastado (ver paramVerificacion arriba).
+    if (pedidosRes.sessionToken) window._sessionToken = pedidosRes.sessionToken;
     PEDIDOS_PROVEEDOR = Array.isArray(pedidosRes.pedidos) ? pedidosRes.pedidos : [];
     PEDIDOS_PROVEEDOR_PREVIEW = (previewRes && Array.isArray(previewRes.previews)) ? previewRes.previews : [];
 
@@ -1372,8 +1394,21 @@ function init() {
 // workerproveedores_worker.js): este checkbox ya no es solo un gate
 // visual de frontend.
 window._turnstileGateToken = null;
+// 🔒 NUEVO: token de sesión propio de corta duración (~40min) que devuelve
+// el backend junto con los datos la primera vez que valida un
+// turnstileToken real (ver sessionToken en handleListarPedidosProveedor,
+// workerproveedores_worker.js) — arregla el bucle infinito de Turnstile:
+// un turnstileToken de Cloudflare es de UN SOLO USO, así que reenviarlo
+// tal cual en cada llamada de cargarDatos() (refrescos, cambios de
+// pestaña, polling tras marcar un pedido) hacía que la primera pasara y
+// TODAS las siguientes volvieran 403. Ahora solo la PRIMERA llamada manda
+// turnstileToken; en cuanto el backend devuelve un sessionToken, TODAS
+// las llamadas siguientes de esta sesión de uso del panel lo reenvían a
+// él en vez del turnstileToken ya gastado (ver cargarDatos()).
+window._sessionToken = null;
 function onTurnstileGateOk(token) {
     window._turnstileGateToken = token;
+    window._sessionToken = null;
     document.getElementById('turnstile-gate-error').classList.remove('show');
     document.getElementById('turnstile-gate-retry-btn').classList.remove('show');
     document.getElementById('turnstile-gate').style.display = 'none';
@@ -1382,11 +1417,13 @@ function onTurnstileGateOk(token) {
 }
 function onTurnstileGateExpired() {
     window._turnstileGateToken = null;
+    window._sessionToken = null;
     document.getElementById('turnstile-gate-error').textContent = 'La verificación expiró. Volvé a marcar el casillero.';
     document.getElementById('turnstile-gate-error').classList.add('show');
 }
 function onTurnstileGateError() {
     window._turnstileGateToken = null;
+    window._sessionToken = null;
     document.getElementById('turnstile-gate-error').textContent = 'No se pudo cargar la verificación de seguridad. Probá reintentar.';
     document.getElementById('turnstile-gate-error').classList.add('show');
     document.getElementById('turnstile-gate-retry-btn').classList.add('show');
@@ -1398,11 +1435,20 @@ function onTurnstileGateError() {
 // vacío; cuando el usuario resuelva el checkbox de nuevo, onTurnstileGateOk()
 // vuelve a llamar a init() → entrarConProveedorId() → cargarDatos().
 function _mostrarErrorTurnstileBackend() {
+    // 🔒 Si ya teníamos un sessionToken (es decir, el usuario ya había
+    // pasado el gate y estuvo usando el panel con normalidad), este 403
+    // significa que esa sesión de verificación venció de verdad (pasaron
+    // los ~40min) — caso esperado, no el bug del token reusado. Mensaje
+    // distinto para que quede claro que no es un error recurrente.
+    const eraSesionVencida = !!window._sessionToken;
     window._turnstileGateToken = null;
+    window._sessionToken = null;
     document.getElementById('main').classList.remove('show');
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('turnstile-gate').style.display = 'flex';
-    document.getElementById('turnstile-gate-error').textContent = 'La verificación de seguridad venció o no es válida. Volvé a marcar el casillero para seguir.';
+    document.getElementById('turnstile-gate-error').textContent = eraSesionVencida
+        ? 'Tu sesión de verificación venció. Volvé a marcar el casillero para seguir.'
+        : 'La verificación de seguridad venció o no es válida. Volvé a marcar el casillero para seguir.';
     document.getElementById('turnstile-gate-error').classList.add('show');
     document.getElementById('turnstile-gate-retry-btn').classList.add('show');
     try {
