@@ -578,6 +578,14 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <button class="sidebar-btn menu-btn" data-view="stock" onclick="switchView('stock')" title="Stock">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         </button>
+        <!-- 🆕 NUEVO: circuito de REPOSICIÓN DE STOCK (el revendedor comprándole
+             mayorista a Revende Ways desde stock.html, colección Firestore
+             "pedidos" vía /api/pedidos) — a propósito separado de "Pedidos
+             nuevos"/"Lista de pedidos", que son el circuito panelGestion
+             (revendedor → SU cliente final). No mezclar ambos conceptos. -->
+        <button class="sidebar-btn menu-btn" data-view="stockped" onclick="switchView('stockped')" title="Pedidos de Stock">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 7.27 12 12l-8.5-4.73"/><path d="M12 22.08V12"/><path d="M20.5 16.73 12 12l8.5-4.73"/><path d="m3.5 7.27 8.5 4.73 8.5-4.73L12 2.5Z"/></svg>
+        </button>
         <div class="sidebar-sep"></div>
         <button class="sidebar-btn" style="position:relative" onclick="abrirEnvios()" title="Envíos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
@@ -660,6 +668,11 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                 Stock
             </button>
+            <!-- 🆕 NUEVO: ver comentario junto al botón del sidebar -->
+            <button class="menu-btn" data-view="stockped" onclick="switchView('stockped')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 7.27 12 12l-8.5-4.73"/><path d="M12 22.08V12"/><path d="M20.5 16.73 12 12l8.5-4.73"/><path d="m3.5 7.27 8.5 4.73 8.5-4.73L12 2.5Z"/></svg>
+                Pedidos de Stock <span class="cnt2" id="cnt-stockped">0</span>
+            </button>
         </div>
 
         <!-- VIEW: PEDIDOS NUEVOS -->
@@ -685,6 +698,15 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
         <div class="view" id="view-stock">
             <div id="stock-content"><div class="loader"><div class="spin"></div><p>Cargando stock...</p></div></div>
+        </div>
+
+        <!-- VIEW: PEDIDOS DE STOCK (reposición mayorista del revendedor a
+             Revende Ways, colección Firestore "pedidos" — circuito
+             totalmente distinto de "Pedidos nuevos"/"Lista de pedidos",
+             que son panelGestion: revendedor → SU cliente final). -->
+        <div class="view" id="view-stockped">
+            <div class="section-sub">Compras de stock mayorista que los revendedores hacen directo a Revende Ways desde su carrito (stock.html)</div>
+            <div id="stockped-wrap"></div>
         </div>
 
     </div>
@@ -1826,6 +1848,7 @@ async function loadData() {
     renderListaView();
     renderStatsView();
     renderRevmesView();
+    renderStockPedidosView(); // 🆕 NUEVO: "Pedidos de Stock" (circuito /api/pedidos)
     actualizarContadorRvndrHeader();
 
     // 🔧 NUEVO: avisa a workerproveedores.tuweb.workers.dev de los pedidos
@@ -1950,6 +1973,78 @@ function renderPedidosView() {
 
     wrap.innerHTML = html;
     _sincronizarPreviewProveedores();
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🆕 NUEVO: "Pedidos de Stock" — circuito de REPOSICIÓN DE STOCK
+// (el revendedor comprándole mayorista a Revende Ways desde su propio
+// carrito en stock.html, guardado en la colección Firestore "pedidos"
+// vía /api/pedidos). Totalmente separado de "Pedidos nuevos"/"Lista de
+// pedidos" (circuito panelGestion: revendedor → SU cliente final) para
+// no mezclar ambos conceptos.
+//
+// Reutiliza tal cual el array global `pedidos` que loadData() ya arma
+// en cada carga (ver más abajo, cerca de "let pedidos = []") — ya viene
+// filtrado a solo PENDIENTE/APROBADO (sin RECHAZADO) y sin eliminados,
+// así que acá no hay que repetir esa lógica ni pedir nada de nuevo.
+// ═══════════════════════════════════════════════════════════
+function renderStockPedidosView() {
+    const wrap = document.getElementById('stockped-wrap');
+    if (!wrap) return;
+
+    const pendientesCount = pedidos.filter(p => p.estadoPago === 'PENDIENTE').length;
+    const cntEl = document.getElementById('cnt-stockped');
+    if (cntEl) cntEl.textContent = String(pendientesCount);
+
+    if (!pedidos.length) {
+        wrap.innerHTML = `<div class="empty" style="padding:20px 8px"><div class="empty-icon">📦</div><p>No hay pedidos de reposición de stock todavía.</p></div>`;
+        return;
+    }
+
+    wrap.innerHTML = pedidos.map(p => stockPedidoCard(p)).join('');
+}
+
+function stockPedidoCard(p) {
+    const nombre = vendorLabel(p.codigoVendedor) || p.codigoVendedor || '—';
+    const c = p.cliente || {};
+    const esAprobado = p.estadoPago === 'APROBADO';
+    const estadoChip = esAprobado
+        ? `<span class="status-chip s-domicilio">✅ Confirmado</span>`
+        : `<span class="status-chip s-pendiente">⏳ Pendiente de pago</span>`;
+
+    const rows = (p.items || []).map(it => `<tr>
+        <td><div class="prod-name">${esc(it.nombre)}</div></td>
+        <td class="qty-num">${it.cantidad}</td>
+        <td class="price-cell">${money(it.precio)}</td>
+    </tr>`).join('');
+
+    const nombreCliente = fullName(c) || '—';
+    const direccionCompleta = [c.direccion, c.ciudad, c.provincia, c.cp].filter(Boolean).join(', ');
+
+    return `<div class="estado-ribbon" style="margin-bottom:10px">
+        <div class="estado-inner" style="padding:14px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <div class="vendor-avatar" style="width:26px;height:26px;font-size:10.5px">${initials(nombre)}</div>
+                    <span class="r-name">${esc(nombre)}</span>
+                    ${estadoChip}
+                </div>
+                <span class="r-date">${ba(p.fecha)}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:var(--surface2);border-radius:8px">
+                <div><strong style="color:var(--text)">${esc(nombreCliente)}</strong>${c.email ? ' · ' + esc(c.email) : ''}${c.telefono ? ' · ' + esc(c.telefono) : ''}</div>
+                ${direccionCompleta ? `<div>${esc(direccionCompleta)}</div>` : ''}
+                ${c.observaciones ? `<div style="font-style:italic">"${esc(c.observaciones)}"</div>` : ''}
+            </div>
+            <table class="prod-table">
+                <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="order-foot">
+                <div class="foot-meta">Total: <strong>${money(p.total)}</strong></div>
+            </div>
+        </div>
+    </div>`;
 }
 
 // 🔧 NUEVO: sincroniza automáticamente (sin que el dueño haga nada) los
