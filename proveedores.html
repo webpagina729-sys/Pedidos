@@ -494,9 +494,15 @@ async function fetchJson(url, opts) {
     try {
         const res = await fetch(url, opts);
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { window._lastFetchError = { status: res.status }; return null; }
+        // 🔎 FIX (diagnóstico): antes se descartaba el body de la respuesta
+        // en cualquier error (solo se guardaba el status), así que un 403
+        // de Turnstile nunca mostraba EN QUÉ fallaba (turnstileErrorCodes
+        // que ahora manda el backend, ver verificarTurnstile en
+        // workerproveedores_worker.js) — quedaba como un 403 "mudo" en la
+        // consola. Ahora se guarda el body completo también.
+        if (!res.ok) { window._lastFetchError = { status: res.status, body: data }; return null; }
         return data;
-    } catch (e) { window._lastFetchError = { status: 0 }; return null; }
+    } catch (e) { window._lastFetchError = { status: 0, body: null }; return null; }
 }
 
 // ── Identificación por enlace (?proveedor=<id>) ──
@@ -623,6 +629,12 @@ async function cargarDatos() {
         // carteles: se vuelve a pedir el checkbox "No soy un robot"
         // (mismo mecanismo de "Reintentar verificación" del gate inicial).
         if (window._lastFetchError && window._lastFetchError.status === 403) {
+            // 🔎 NUEVO (diagnóstico): loguea el motivo real que dio
+            // Cloudflare (turnstileErrorCodes, ver verificarTurnstile en
+            // workerproveedores_worker.js) — sin esto un 403 no decía POR
+            // QUÉ fallaba la verificación.
+            const codes = window._lastFetchError.body && window._lastFetchError.body.turnstileErrorCodes;
+            console.error('🔎 Turnstile 403 — motivo de Cloudflare:', codes && codes.length ? codes : '(el backend no mandó turnstileErrorCodes — puede que no esté desplegada la última versión de workerproveedores_worker.js)');
             _mostrarErrorTurnstileBackend();
             return;
         }
