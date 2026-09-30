@@ -469,6 +469,34 @@ function _leerProveedorIdDeUrl() {
     try { return new URLSearchParams(location.search).get('proveedor') || null; } catch(_) { return null; }
 }
 
+// 🐛 FIX: mensaje de "enlace inválido" — antes se reservaba SOLO para la
+// falta del parámetro ?proveedor= en la URL (rama de init(), ver abajo).
+// Pero cargarDatos() no tenía forma de mostrarlo cuando el backend SÍ
+// confirma explícitamente que el proveedorId no existe (404, o
+// {ok:false, error:"...no encontrado..."}), así que ese caso terminaba
+// mezclado con cualquier otro error de red/servidor bajo el mismo cartel
+// genérico "No se pudieron cargar los pedidos". Mensaje compartido para
+// no duplicarlo entre init() y cargarDatos().
+const MSG_ENLACE_INVALIDO = 'Este enlace no es válido o venció. Pedile a Revende Ways que te reenvíe tu enlace personal por WhatsApp — cada proveedor tiene el suyo propio y solo muestra sus pedidos.';
+
+function _mostrarEnlaceInvalido() {
+    document.getElementById('login-wrap-msg').textContent = MSG_ENLACE_INVALIDO;
+    document.getElementById('login-wrap').style.display = 'flex';
+    document.getElementById('main').classList.remove('show');
+}
+
+// Distingue "el backend confirma que este proveedorId no existe" (404, o
+// {ok:false, error:"..."} con un texto explícito de no-encontrado/inválido)
+// de cualquier otro fallo (red caída, timeout, CORS, 500, excepción no
+// capturada) — SOLO el primer caso debe mostrar el cartel de enlace
+// inválido; el resto es un problema de conectividad/backend, no del
+// enlace, y debe mostrar un error distinto y honesto (ver cargarDatos()).
+function _esProveedorNoEncontrado(pedidosRes) {
+    if (window._lastFetchError && window._lastFetchError.status === 404) return true;
+    const err = pedidosRes && pedidosRes.ok === false ? String(pedidosRes.error || '') : '';
+    return /no\s*encontrad|no\s*existe|inv[aá]lid|not\s*found/i.test(err);
+}
+
 // Entra directo con el id de proveedor que trae el enlace — es la
 // ÚNICA forma de entrar a este panel (ver nota de seguridad arriba).
 // 🔧 NUEVO: antes de mostrar el panel, consulta si Revende Ways pausó el
@@ -528,6 +556,19 @@ async function cargarDatos() {
     ]);
 
     if (!pedidosRes || !pedidosRes.ok) {
+        // El backend confirmó que este proveedorId no existe/no es válido
+        // (404, o {ok:false, error:"...no encontrado..."}) → SÍ es un
+        // enlace inválido, se vuelve a la pantalla de entrada con ese
+        // mensaje (nunca por un simple error de red/servidor, ver
+        // _esProveedorNoEncontrado más arriba).
+        if (_esProveedorNoEncontrado(pedidosRes)) {
+            _mostrarEnlaceInvalido();
+            return;
+        }
+        // Cualquier otro fallo (red caída, timeout, CORS, 500, excepción)
+        // NO es un enlace inválido — es un problema de conectividad/backend,
+        // así que el panel se mantiene abierto con un error honesto y
+        // distinto, reintentable con "Actualizar".
         const msgErr = '<div class="empty-state">No se pudieron cargar los pedidos' + (window._lastFetchError && window._lastFetchError.status ? ` (código ${window._lastFetchError.status})` : '') + '. Probá "Actualizar".</div>';
         document.getElementById('nuevos-content').innerHTML = msgErr;
         document.getElementById('despacho-content').innerHTML = msgErr;
@@ -1246,15 +1287,24 @@ async function enviarRegistroOficial() {
 }
 
 // ── Init ──
-// Única entrada posible: ?proveedor=<id> en la URL. Sin eso, se queda
-// en la pantalla de "enlace inválido" (ya visible por defecto en el
-// HTML) — no hay ningún otro camino para entrar al panel.
+// Única entrada posible: ?proveedor=<id> en la URL. El estado inicial
+// del HTML (login-wrap-msg) es SIEMPRE "Cargando los pedidos de su
+// categoría." — nunca el mensaje de enlace inválido. Ese mensaje de
+// error se escribe acá cuando falta el parámetro, y en cargarDatos()
+// cuando el backend confirma explícitamente que el proveedorId no existe
+// (ver _esProveedorNoEncontrado/_mostrarEnlaceInvalido más arriba) — en
+// NINGÚN otro caso (red caída, 500, excepción, etc.) se debe mostrar este
+// mensaje. 🔒 Regresión conocida: NO cambiar el <p id="login-wrap-msg">
+// del HTML para que arranque con el texto de "enlace inválido" — eso
+// hace que el error se vea por defecto mientras carga un enlace válido,
+// antes de que este init() y el fetch de cargarDatos() lleguen a
+// responder.
 (function init() {
     const proveedorId = _leerProveedorIdDeUrl();
     if (proveedorId) {
         entrarConProveedorId(proveedorId);
     } else {
-        document.getElementById('login-wrap-msg').textContent = 'Este enlace no es válido o venció. Pedile a Revende Ways que te reenvíe tu enlace personal por WhatsApp — cada proveedor tiene el suyo propio y solo muestra sus pedidos.';
+        _mostrarEnlaceInvalido();
     }
 })();
 </script>
