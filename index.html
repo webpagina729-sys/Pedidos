@@ -1345,6 +1345,7 @@ let panelGestion = [];     // registros confirmados con costo/ganancia real
 let ranking = [];          // ranking de revendedores
 let pedidosStock = [];        // 🆕 NUEVO: docs crudos de la colección Firestore "pedidosStock" (reposición/reinversión, workerpagos /api/pedidos-stock)
 let pedidosStockGrupos = [];  // 🆕 NUEVO: mapeados a la misma forma mínima que panelGestion + estadoReal calculado (ver calcularEstadoPedidoStock)
+let carritosStock = [];       // 🆕 NUEVO: docs crudos de la colección Firestore "carritosStock" — snapshot EN VIVO del carrito de stock.html, ANTES de pagar (workerpagos /api/carritos-stock). Ver calcularGruposCarritoStockEnVivo().
 let vendorCache = {};      // codigoVendedor -> {nombre, apellido, whatsappRevendedor, telefono, email, nivel}
 let activeListaTab = 'retirar';
 let deleteTarget = null;
@@ -1693,7 +1694,7 @@ async function loadData() {
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
     document.getElementById('revmes-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando ranking...</p></div>';
 
-    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes] = await Promise.all([
+    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes, carritosStockRes] = await Promise.all([
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
@@ -1711,7 +1712,13 @@ async function loadData() {
         // REPOSICIÓN DE STOCK (el revendedor comprándose mercadería
         // mayorista A SÍ MISMO, vía stock.html), totalmente separada de
         // "pedidos"/"panelGestion" (ver "Pedidos de Stock" más abajo).
-        fetchJson(WORKER_PAGOS + '/api/pedidos-stock')
+        fetchJson(WORKER_PAGOS + '/api/pedidos-stock'),
+        // 🆕 NUEVO: colección Firestore "carritosStock" — snapshot EN VIVO
+        // del carrito de reposición que un revendedor está armando en
+        // stock.html AHORA MISMO, antes de pagar/checkoutear. Totalmente
+        // separada de "pedidosStock" (pedidos ya pagados) — se mezcla solo
+        // en el RENDER de "Pedidos de Stock" (ver calcularGruposCarritoStockEnVivo).
+        fetchJson(WORKER_PAGOS + '/api/carritos-stock')
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
     actualizarBadgeEnvios(); // 🔧 NUEVO: ídem para notificaciones de "Pedido en camino"
@@ -1857,7 +1864,18 @@ async function loadData() {
             paymentId: p.paymentId || null,
             fechaPago: p.fechaPago || null,
         };
-    })).sort((a,b) => b.fecha - a.fecha);
+    }));
+
+    // 🆕 NUEVO: mezcla los carritos EN VIVO (colección "carritosStock",
+    // todavía sin pagar) dentro de las mismas cintas Pendientes/Aprobados de
+    // "Pedidos de Stock" — SOLO en el render, nunca se mezclan las
+    // colecciones de Firestore entre sí. Nunca caen en Confirmados (no
+    // tienen estadoPedido, el webhook de MP es la única vía a confirmado).
+    // Ver calcularGruposCarritoStockEnVivo() para el criterio.
+    carritosStock = Array.isArray(carritosStockRes?.carritos) ? carritosStockRes.carritos : [];
+    pedidosStockGrupos = pedidosStockGrupos
+        .concat(calcularGruposCarritoStockEnVivo(carritosStock))
+        .sort((a,b) => b.fecha - a.fecha);
 
     // Resolver nombres de revendedores para todos los códigos que aparecen
     const codes = new Set();
@@ -2107,6 +2125,48 @@ function calcularEstadoPedidoStock(grupos) {
     return grupos;
 }
 
+// 🆕 NUEVO: mapea cada doc crudo de "carritosStock" (snapshot EN VIVO del
+// carrito de un revendedor en stock.html, ANTES de pagar) a la misma forma
+// mínima que pedidosStockGrupos, para poder concatenarlos y reusar TAL
+// CUAL el render de cintas de "Pedidos de Stock". A diferencia de
+// calcularEstadoPedidoStock (que recalcula el mínimo sumando varios
+// documentos ya pagados), acá NO se recalcula nada: el propio carrito ya
+// trae su 'cumpleMinimo' calculado en stock.html con getCartMinimumStatus()
+// (la misma lógica que habilita/deshabilita el botón "Ir a Pagar"), así
+// que solo se traduce 1:1 a 'aprobado'/'pendiente'. Nunca 'confirmado' —
+// un carrito en vivo todavía no es un pedido pagado. pedidoId sintético
+// ('CART-{codigoVendedor}') estable, y esCarritoEnVivo:true para que el
+// footer grupal (renderFacturaGrupoFooterStock) sepa excluirlo de las
+// acciones de facturación/despacho a proveedores (no corresponde todavía).
+function calcularGruposCarritoStockEnVivo(carritos) {
+    return (Array.isArray(carritos) ? carritos : []).map(c => {
+        const items = (Array.isArray(c.productos) ? c.productos : []).map(pr => ({
+            nombre: pr.nombre || '—',
+            cantidad: Number(pr.cantidad || 1),
+            costoUnitario: Number(pr.precio || 0),
+            variante: '',
+        }));
+        const totalMayorista = Number(c.totalMayorista || 0);
+        const codigoVendedor = (c.codigoVendedor || '').toUpperCase();
+        return {
+            pedidoId: 'CART-' + codigoVendedor,
+            codigoVendedor,
+            categoria: (c.categoria || 'multishop').toLowerCase(),
+            items,
+            costoTotal: totalMayorista,
+            totalMayorista,
+            fecha: Number(c.actualizadoEn) || Date.now(),
+            estadoPago: '',
+            estadoPedido: '',
+            datosEnvio: {},
+            paymentId: null,
+            fechaPago: null,
+            estadoReal: c.cumpleMinimo ? 'aprobado' : 'pendiente',
+            esCarritoEnVivo: true,
+        };
+    });
+}
+
 // Mismas 3 cintas que ESTADO_VACIO_MSG (Pedidos nuevos) pero con wording
 // de stock/reinversión — único texto que cambia (ver requerimiento).
 const ESTADO_VACIO_MSG_STOCK = {
@@ -2136,11 +2196,20 @@ function panelGestionContenidoStock(g) {
 
     const stop = 'event.stopPropagation();';
     const yaEnLista = pagoYaVerificadoStock(g.pedidoId);
+    // 🆕 NUEVO: un carrito EN VIVO (todavía sin checkoutear/pagar, ver
+    // calcularGruposCarritoStockEnVivo) se identifica con "Carrito en
+    // vivo #CODIGO" en vez de "Pedido de Stock #ID" — no tiene un
+    // pedidoId real de Firestore todavía, para no confundirlo con un
+    // pedido ya creado.
+    const titulo = g.esCarritoEnVivo
+        ? `Carrito en vivo · ${esc(g.codigoVendedor)}`
+        : `Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()}`;
     return `<div class="pedido-block" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:8px">
-                <span class="r-name">Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()}</span>
+                <span class="r-name">${titulo}</span>
                 ${estadoBadge}
+                ${g.esCarritoEnVivo ? `<span class="status-chip s-espera" style="font-size:10px">🔴 En vivo</span>` : ''}
             </div>
             <span class="r-date">${fecha}</span>
         </div>
@@ -2156,8 +2225,8 @@ function panelGestionContenidoStock(g) {
                 ${g.estadoReal === 'confirmado' ? (yaEnLista
                     ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>`
                     : `<button class="btn-act btn-pago-verificado" onclick="${stop}enviarFacturaYClasificarPedidoStock('${g.pedidoId}')">📤 (Enviar factura y clasificar pedido de stock)</button>`) : ''}
-                ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">Esperando a que se complete el mínimo de compra de esta categoría</span>` : ''}
-                ${g.estadoReal === 'aprobado' ? `<span class="status-chip s-espera">Mínimo de compra alcanzado — esperando la acreditación del pago mayorista</span>` : ''}
+                ${g.estadoReal === 'pendiente' ? `<span class="status-chip s-espera">${g.esCarritoEnVivo ? 'El revendedor todavía está armando el carrito — falta completar el mínimo de compra' : 'Esperando a que se complete el mínimo de compra de esta categoría'}</span>` : ''}
+                ${g.estadoReal === 'aprobado' ? `<span class="status-chip s-espera">${g.esCarritoEnVivo ? 'Mínimo alcanzado en el carrito — esperando a que el revendedor complete el pago' : 'Mínimo de compra alcanzado — esperando la acreditación del pago mayorista'}</span>` : ''}
             </div>
         </div>
     </div>`;
@@ -2183,9 +2252,21 @@ function renderFacturaGrupoFooterStock(gsCat, estado, codigo, cat) {
     }
 
     if (estado !== 'aprobado' && estado !== 'confirmado') return '';
+
+    // 🆕 NUEVO: las acciones de este footer (descargar/enviar factura al
+    // proveedor) son de PEDIDOS YA CREADOS — un carrito EN VIVO
+    // (esCarritoEnVivo, ver calcularGruposCarritoStockEnVivo) todavía no se
+    // pagó ni se checkouteó, así que nunca debe entrar en la factura ni
+    // ofrecer ese botón. Se excluye acá, ANTES de sumar totales/armar
+    // acciones, sin tocar nada de lo que ya hacía este footer para los
+    // pedidos reales. 'confirmado' nunca tiene carritos en vivo (no
+    // aplica, pero se filtra igual por consistencia).
+    const gsCatReal = gsCat.filter(g => !g.esCarritoEnVivo);
+    if (!gsCatReal.length) return '';
+
     let totalMayoristaGrupo = 0;
     let totalUnidGrupo = 0;
-    gsCat.forEach(g => {
+    gsCatReal.forEach(g => {
         totalMayoristaGrupo += Number(g.totalMayorista) || 0;
         totalUnidGrupo += (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0);
     });
@@ -2196,7 +2277,7 @@ function renderFacturaGrupoFooterStock(gsCat, estado, codigo, cat) {
         : `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoConfirmadoGrupoStock('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
-            <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
+            <div class="foot-meta"><strong>${gsCatReal.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
         </div>
         <div class="actions">
             <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupoStock('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
@@ -2210,7 +2291,12 @@ function renderFacturaGrupoFooterStock(gsCat, estado, codigo, cat) {
 // enviarSeguimiento*Grupo (Pedidos nuevos), reescritos sobre reinversión
 // de ganancias y stock en vez de ventas a clientes. ──
 function _gsGrupoStock(codigo, categoria, estado) {
-    return pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+    const gs = pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+    // 🆕 NUEVO: en 'aprobado'/'confirmado' esta lista alimenta la factura/PDF
+    // real al proveedor — un carrito EN VIVO (esCarritoEnVivo, todavía sin
+    // pagar) nunca debe colarse ahí. En 'pendiente' sí se deja (solo se usa
+    // para el mensaje de seguimiento/recordatorio, no genera factura).
+    return estado === 'pendiente' ? gs : gs.filter(x => !x.esCarritoEnVivo);
 }
 async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, mensaje) {
     const wa = vendorWa(codigo);
