@@ -1171,27 +1171,67 @@ const CATEGORIA_LABEL_OBJETIVO = {
 };
 
 // Revendedores "activos" en cada categoría = con al menos un pedido
-// pendiente ahí (todavía no llegó al mínimo, o ya lo llegó pero no lo
-// confirmó). Se agrupa sumando el total mayorista de sus pedidos
-// pendientes de esa categoría, contra el objetivo de esa categoría.
+// pendiente O aprobado ahí (del flujo retail de panelGestion: pendiente =
+// todavía no llegó al mínimo o no fue confirmado; aprobado = ya llegó al
+// mínimo y está esperando confirmación). 🔧 FIX: antes solo contaba
+// 'pendiente' y dejaba afuera a los revendedores que ya habían llegado al
+// mínimo (estado 'aprobado'), lo que hacía que la estadística diera 0 de
+// forma incorrecta. Se agrupa sumando el total mayorista y la cantidad de
+// esos pedidos activos de esa categoría, contra el objetivo de esa
+// categoría, y se guarda además:
+//   - primeraFecha: fecha del pedido activo más antiguo de ese
+//     revendedor en la categoría (usada como proxy de "continuidad": más
+//     antiguo = viene activo desde hace más tiempo sin interrupción).
+//   - tuvoConfirmado: si ese revendedor ya tuvo, alguna vez, un pedido
+//     confirmado en esa categoría (estadoReal === 'confirmado'), usado
+//     solo para el orden, no para el conteo de "activo".
 function revendedoresActivosPorCategoria() {
     const porCategoria = {};
     panelGestion.forEach(g => {
-        if (g.estadoReal !== 'pendiente') return;
+        if (g.estadoReal !== 'pendiente' && g.estadoReal !== 'aprobado') return;
         const cat = g.categoria;
         if (!cat) return;
         if (!porCategoria[cat]) porCategoria[cat] = {};
-        if (!porCategoria[cat][g.codigoVendedor]) porCategoria[cat][g.codigoVendedor] = 0;
-        porCategoria[cat][g.codigoVendedor] += totalMayoristaPedido(g);
+        if (!porCategoria[cat][g.codigoVendedor]) {
+            porCategoria[cat][g.codigoVendedor] = { total: 0, cantidad: 0, primeraFecha: Infinity };
+        }
+        const acc = porCategoria[cat][g.codigoVendedor];
+        acc.total += totalMayoristaPedido(g);
+        acc.cantidad += 1;
+        const fecha = Number(g.fecha) || 0;
+        if (fecha && fecha < acc.primeraFecha) acc.primeraFecha = fecha;
+    });
+    // Revendedores que ya tuvieron pedidos confirmados por categoría (se usa
+    // solo como criterio de prioridad de orden, ver sort() más abajo).
+    const confirmadosPorCategoria = {};
+    panelGestion.forEach(g => {
+        if (g.estadoReal !== 'confirmado') return;
+        const cat = g.categoria;
+        if (!cat) return;
+        if (!confirmadosPorCategoria[cat]) confirmadosPorCategoria[cat] = new Set();
+        confirmadosPorCategoria[cat].add(g.codigoVendedor);
     });
     const resultado = {};
     Object.keys(porCategoria).forEach(cat => {
         const objetivo = MINIMO_ENTREGA_CATEGORIA[cat] || 0;
-        resultado[cat] = Object.entries(porCategoria[cat]).map(([codigo, total]) => ({
-            codigo, total,
+        const confirmados = confirmadosPorCategoria[cat] || new Set();
+        resultado[cat] = Object.entries(porCategoria[cat]).map(([codigo, acc]) => ({
+            codigo, total: acc.total,
+            cantidad: acc.cantidad,
+            primeraFecha: acc.primeraFecha,
+            tuvoConfirmado: confirmados.has(codigo),
             objetivo,
-            faltante: Math.max(0, objetivo - total),
-        })).sort((a, b) => b.total - a.total);
+            faltante: Math.max(0, objetivo - acc.total),
+        })).sort((a, b) => {
+            // 1) Prioridad a los que ya llegaron a Confirmados alguna vez en
+            //    esta categoría, por encima de todo lo demás.
+            if (a.tuvoConfirmado !== b.tuvoConfirmado) return (b.tuvoConfirmado ? 1 : 0) - (a.tuvoConfirmado ? 1 : 0);
+            // 2) Continuidad: pedido activo más antiguo primero (viene activo
+            //    desde hace más tiempo sin interrupción).
+            if (a.primeraFecha !== b.primeraFecha) return a.primeraFecha - b.primeraFecha;
+            // 3) Cantidad de pedidos activos (pendiente+aprobado) en la categoría.
+            return b.cantidad - a.cantidad;
+        });
     });
     return resultado;
 }
