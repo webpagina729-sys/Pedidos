@@ -1278,19 +1278,20 @@ function renderEstadisticas() {
 
     const { ranking: rankingOficiales, unidades: unidadesOficiales } = _rankingProductosDe(oficiales);
     const { ranking: rankingPendientes, unidades: unidadesPendientes } = _rankingProductosDe(pendientes);
-    const productoMasVendido = rankingOficiales[0] || rankingPendientes[0] || null;
 
-    // 🔧 REDISEÑADO: las 4 tarjetas gigantes ahora son cintas desplegables
+    // 🔧 REDISEÑADO: las 3 tarjetas gigantes ahora son cintas desplegables
     // compactas (_statCintaHTML) — el dato clave queda a la vista en la
     // cinta cerrada, el detalle se ve al abrirla (pedido: "Estadísticas
     // ... armadas en cintas desplegables").
+    // 🔧 FIX: se sacó la cinta "Producto más vendido" que estaba acá
+    // (entre "Tu Facturación" y "Unidades totales pedidas") — quedaba
+    // duplicada con el ranking completo en barras medidoras de
+    // "Productos más vendidos", que ya va al final del todo.
     let html = '';
     html += _statCintaHTML('blue', ICO_STAT_PEDIDOS, 'Total de pedidos', String(todos.length),
         `${pendientes.length} pendientes · ${oficiales.length} oficiales (en camino)`);
     html += _statCintaHTML('green', ICO_STAT_MONEY, 'Tu Facturación', money(totalConPreciosReales),
         'Facturación del proveedor basada en pedidos en camino y entregados.');
-    html += _statCintaHTML('purple', ICO_STAT_TROFEO, 'Producto más vendido', productoMasVendido ? esc(productoMasVendido.nombre) : '—',
-        productoMasVendido ? `${productoMasVendido.cantidad} unidades pedidas en total.` : 'Sin datos todavía.');
     html += _statCintaHTML('amber', ICO_STAT_UNIDADES, 'Unidades totales pedidas', String(unidadesOficiales + unidadesPendientes),
         `${unidadesOficiales} oficiales · ${unidadesPendientes} pendientes`);
 
