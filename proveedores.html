@@ -1463,8 +1463,13 @@ function _svgLineaFina(datos) {
     const pasosY = [];
     for (let v = 10000; v <= maxEje; v += 10000) pasosY.push(v);
 
-    const W = 600, H = 170;
-    const PAD_L = 50, PAD_R = 8, PAD_T = 20, PAD_B = 12;
+    // 🔧 PROFESIONALIZADO: antes PAD_T=20 dejaba la etiqueta de precio más
+    // alta ("10k") pegada justo donde arranca el área de trazado, y las
+    // fechas del eje X se dibujaban apenas 7px por encima — se pisaban.
+    // Ahora el eje X (fechas) tiene su propia franja arriba, separada del
+    // techo del gráfico por un margen real, así nunca se superponen.
+    const W = 600, H = 190;
+    const PAD_L = 54, PAD_R = 10, PAD_T = 38, PAD_B = 12;
     const plotW = W - PAD_L - PAD_R;
     const plotH = H - PAD_T - PAD_B;
 
@@ -1483,20 +1488,25 @@ function _svgLineaFina(datos) {
     // labels de eje pasan a un gris claro/blanco para seguir siendo
     // legibles sobre ese fondo (antes usaban var(--text3), gris oscuro,
     // pensado para fondo claro/tarjeta).
+    // Etiquetas de precio compactas y "profesionales": $10K, $20K... en
+    // vez del "10k" suelto de antes (sin signo, minúscula, pegado al borde).
+    const _fmtEjeY = v => `$${(v/1000).toLocaleString('es-AR')}K`;
     const ejeY = pasosY.map(v => {
         const y = PAD_T + plotH - (v / maxEje) * plotH;
         return `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W - PAD_R}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.14)" stroke-width="1" stroke-dasharray="2,3"/>` +
-               `<text x="${PAD_L - 6}" y="${y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="#c7cbd6">${(v/1000).toLocaleString('es-AR')}k</text>`;
+               `<text x="${PAD_L - 8}" y="${y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" font-weight="600" fill="#d7dae2">${_fmtEjeY(v)}</text>`;
     }).join('');
 
     // Eje X (arriba): máximo ~6 etiquetas parejas para que nunca se
     // amontonen (días/semanas/meses según el período elegido, ver label
-    // de cada bucket en _bucketsVentas).
+    // de cada bucket en _bucketsVentas). Franja propia a y=12, bien
+    // separada del techo del área de trazado (PAD_T=38) — ya no se pisa
+    // con la etiqueta de precio más alta.
     const maxEtiquetas = 6;
     const salto = Math.max(1, Math.ceil(datos.length / maxEtiquetas));
     const ejeX = puntos.map((p, i) => {
         if (i % salto !== 0 && i !== puntos.length - 1) return '';
-        return `<text x="${p[0].toFixed(1)}" y="${(PAD_T - 7).toFixed(1)}" text-anchor="middle" font-size="9" fill="#c7cbd6">${esc(datos[i].label)}</text>`;
+        return `<text x="${p[0].toFixed(1)}" y="12" text-anchor="middle" font-size="9" fill="#9499a8">${esc(datos[i].label)}</text>`;
     }).join('');
 
     // Rectángulo de fondo negro del área de trazado (barras/línea) — pedido
