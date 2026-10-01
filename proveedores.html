@@ -385,10 +385,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 <div class="main" id="main">
     <div class="topbar">
         <div class="brand">
-            <img class="brand-mark" src="https://raw.githubusercontent.com/webpagina729-sys/Pedidos/main/envio.png" alt="Logo">
+            <img class="brand-mark" src="https://raw.githubusercontent.com/webpagina729-sys/Pedidos/main/envio.png?v=20261001" alt="Logo">
             <div class="brand-info">
                 <div class="brand-title">Panel de Proveedores</div>
-                <div class="brand-sub" id="brand-cat"></div>
+                <div class="brand-sub" id="brand-cat">Revende Ways</div>
             </div>
         </div>
     </div>
@@ -652,7 +652,7 @@ async function entrarConProveedorId(id) {
     PROVEEDOR_ID_ACTUAL = id;
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('main').classList.add('show');
-    document.getElementById('brand-cat').textContent = 'Cargando...';
+    document.getElementById('brand-cat').textContent = 'Revende Ways';
     document.getElementById('page-title-sub').textContent = '';
     cargarDatos();
 }
@@ -773,7 +773,7 @@ async function cargarDatos() {
     if (PROVEEDOR_ID_ACTUAL) {
         const conNombre = PEDIDOS_PROVEEDOR.find(p => p.proveedorNombre);
         const nombreProv = conNombre ? conNombre.proveedorNombre : '';
-        document.getElementById('brand-cat').textContent = nombreProv || 'Proveedor';
+        document.getElementById('brand-cat').textContent = 'Revende Ways';
         document.getElementById('page-title-sub').textContent = nombreProv ? '· ' + nombreProv : '';
     }
 
