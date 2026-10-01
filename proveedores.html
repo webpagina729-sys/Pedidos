@@ -1252,8 +1252,15 @@ function _renderMeterList(ranking, claseFill) {
 // PEDIDOS_PROVEEDOR tal cual lo trae cargarDatos(), en vivo.
 function renderEstadisticas() {
     const todos = PEDIDOS_PROVEEDOR;
-    const pendientes = todos.filter(p => p.estado !== ESTADO_EN_CAMINO);
-    const oficiales = todos.filter(p => p.estado === ESTADO_EN_CAMINO);
+    // 🔧 FIX: "oficiales" debe ser "ya despachado" = en camino O ya entregado
+    // (mismo criterio que usa el panel de Ventas por período más abajo,
+    // ver `ventas` en actualizarGraficoVentas). Antes solo contaba
+    // ESTADO_EN_CAMINO, así que apenas un pedido pasaba a ESTADO_ENTREGADO
+    // (viaje completo) dejaba de sumar en "Precio reales de proveedor",
+    // "Producto más vendido", "Unidades totales pedidas" y "Frecuencia de
+    // venta, Oficiales" — y encima quedaba mal contado como "pendiente".
+    const pendientes = todos.filter(p => p.estado !== ESTADO_EN_CAMINO && p.estado !== ESTADO_ENTREGADO);
+    const oficiales = todos.filter(p => p.estado === ESTADO_EN_CAMINO || p.estado === ESTADO_ENTREGADO);
 
     // Total con precios REALES tomados de restoprecios (no el totalMayorista
     // guardado en el pedido, que es lo que le cobro yo al revendedor) —
@@ -1280,8 +1287,8 @@ function renderEstadisticas() {
     let html = '';
     html += _statCintaHTML('blue', ICO_STAT_PEDIDOS, 'Total de pedidos', String(todos.length),
         `${pendientes.length} pendientes · ${oficiales.length} oficiales (en camino)`);
-    html += _statCintaHTML('green', ICO_STAT_MONEY, 'Precio reales de proveedor', money(totalConPreciosReales),
-        `Precios reales de restoprecios. ${productosSinMatch.size ? productosSinMatch.size + ' producto(s) sin precio en restoprecios.' : oficiales.length ? 'Todos los productos matchearon.' : 'Todavía sin pedidos oficiales.'}`);
+    html += _statCintaHTML('green', ICO_STAT_MONEY, 'Tu Facturación', money(totalConPreciosReales),
+        'Facturación del proveedor basada en pedidos en camino y entregados.');
     html += _statCintaHTML('purple', ICO_STAT_TROFEO, 'Producto más vendido', productoMasVendido ? esc(productoMasVendido.nombre) : '—',
         productoMasVendido ? `${productoMasVendido.cantidad} unidades pedidas en total.` : 'Sin datos todavía.');
     html += _statCintaHTML('amber', ICO_STAT_UNIDADES, 'Unidades totales pedidas', String(unidadesOficiales + unidadesPendientes),
