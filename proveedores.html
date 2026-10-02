@@ -1138,14 +1138,51 @@ async function marcarPedidoEnCamino(cintaId) {
     await cargarDatos();
 }
 
+// 🔧 NUEVO: workerpagos — mismo Worker que ya usa index (1).html
+// (_asignarNumerosPedido) para el número de pedido secuencial real (#N),
+// get-or-create por pedidoId. No existía ninguna referencia a este Worker
+// en proveedores.html todavía.
+const WORKER_PAGOS = 'https://workerpagos.tuweb.workers.dev';
+
+// Pide a workerpagos el numeroPedido secuencial real de cada pedidoId
+// (get-or-create, estable en todo el sistema) — devuelve { [pedidoId]: numeroPedido }.
+// No bloqueante: si falla, se devuelve {} y la boleta sigue mostrando el
+// id real de Firestore como antes, en vez de romperse.
+async function _obtenerNumerosPedidoReales(pedidoIds) {
+    const ids = [...new Set((pedidoIds || []).filter(Boolean).map(String))];
+    if (!ids.length) return {};
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(`${WORKER_PAGOS}/api/numeros-pedido`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
+            body: JSON.stringify({ pedidoIds: ids }),
+        });
+        clearTimeout(t);
+        if (!res.ok) return {};
+        const data = await res.json().catch(() => null);
+        return (data && data.numeros) || {};
+    } catch (_) { return {}; }
+}
+
 // ── Boleta de envío (PDF, sin precios/totales) ──
 // Mismo branding que las facturas de pedidos.html
 // (_generarFacturaProveedorPDFGrupo): header azul con "Revende Ways",
 // número de pedido real. Acá SIN productos con precio ni total — solo
 // los datos de envío que pide el cliente.
-function descargarBoletaEnvio(cintaId) {
+async function descargarBoletaEnvio(cintaId) {
     const c = CINTAS_ACTUALES[cintaId];
     if (!c || !window.jspdf) { toast('No se pudo generar la boleta', 'err'); return; }
+
+    // 🔧 NUEVO: antes se mostraba el pedidoId crudo de Firestore (o un id
+    // sintético para lotes agrupados) en vez del número de pedido real
+    // (#N) que ya se ve en index (1).html/pedidos.html — ahora se pide
+    // get-or-create a workerpagos justo antes de generar el PDF.
+    const numeros = await _obtenerNumerosPedidoReales(c.pedidoIds);
+    const pedidoNumsLabel = c.pedidoIds.map(id => numeros[String(id)] ? ('#' + numeros[String(id)]) : String(id || '—')).join(', ');
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const W = doc.internal.pageSize.getWidth();
@@ -1163,7 +1200,7 @@ function descargarBoletaEnvio(cintaId) {
 
     let y = 44;
     doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Pedido Nº: ' + c.pedidoIds.map(id => String(id || '—')).join(', '), 14, y);
+    doc.text('Pedido Nº: ' + pedidoNumsLabel, 14, y);
     y += 12;
 
     const filas = [
