@@ -2309,8 +2309,9 @@ function panelGestionContenidoStock(g) {
         : `Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()}`;
     return `<div class="pedido-block" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="r-name">${titulo}</span>
+                ${g.numeroPedido ? `<span style="background:var(--blue);color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;line-height:1.5">Nº ${esc(String(g.numeroPedido))}</span>` : ''}
                 ${estadoBadge}
                 ${g.esCarritoEnVivo ? `<span class="status-chip s-espera" style="font-size:10px">🔴 En vivo</span>` : ''}
             </div>
@@ -2962,8 +2963,9 @@ function panelGestionContenido(g) {
     const yaEnLista = pagoYaVerificado(g.pedidoId);
     return `<div class="pedido-block" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="r-name">Pedido #${String(g.pedidoId).slice(-8).toUpperCase()}</span>
+                ${g.numeroPedido ? `<span style="background:var(--blue);color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;line-height:1.5">Nº ${esc(String(g.numeroPedido))}</span>` : ''}
                 ${estadoBadge}
             </div>
             <span class="r-date">${fecha}</span>
@@ -4421,6 +4423,12 @@ async function confirmarEliminarAvisoPublicado() {
 // ═══════════════════════════════════════════════════════
 const ESTADOS_RECLAMO = ['Pendiente','En revisión','Información solicitada','Aprobado','Rechazado','Resuelto'];
 let RECLAMOS_CACHE = [];
+// 🔧 NUEVO: cache de existencia por reclamo — { [reclamoId]: true|false }.
+// true = el numeroPedido reclamado existe de verdad para ese código de
+// revendedor (ver /api/verificar-pedido en datosderevendedor worker, el
+// mismo chequeo que ya usa handleCrearReclamo al recibir el reclamo).
+// Ausente = todavía no se verificó (se muestra "Verificando…").
+let RECLAMOS_EXISTENCIA = {};
 
 async function abrirReclamos() {
     document.getElementById('reclamos-modal').classList.add('show');
@@ -4429,7 +4437,9 @@ async function abrirReclamos() {
 
     const res = await fetchJson(WORKER_RECLAMOS + '/api/listar-reclamos');
     RECLAMOS_CACHE = (res && res.ok && res.reclamos) || [];
+    RECLAMOS_EXISTENCIA = {};
     renderReclamosLista();
+    _verificarExistenciaReclamos();
 
     // Al abrir el panel se consideran todos "vistos" — el badge se apaga.
     const noVistos = RECLAMOS_CACHE.filter(r => !r.visto);
@@ -4444,13 +4454,44 @@ async function abrirReclamos() {
     actualizarBadgeReclamos(0);
 }
 
+// 🔧 NUEVO: para cada reclamo cargado, confirma contra Firestore (vía el
+// worker) si su numeroPedido + codigoRevendedor corresponde a un pedido
+// real — no bloquea el render inicial (RECLAMOS_EXISTENCIA empieza vacío,
+// se re-renderiza al terminar), así la lista aparece al instante.
+async function _verificarExistenciaReclamos() {
+    const pendientes = RECLAMOS_CACHE.filter(r => r && r.id && r.codigoRevendedor && r.numeroPedido);
+    if (!pendientes.length) return;
+    await Promise.all(pendientes.map(async r => {
+        try {
+            const url = `${WORKER_RECLAMOS}/api/verificar-pedido?codigo=${encodeURIComponent(r.codigoRevendedor)}&numeroPedido=${encodeURIComponent(r.numeroPedido)}`;
+            const data = await fetchJson(url);
+            RECLAMOS_EXISTENCIA[r.id] = !!(data && data.ok && data.existe);
+        } catch (_) {
+            // No bloqueante: si falla la verificación, el reclamo queda sin
+            // badge ("Verificando…") en vez de afirmar algo que no se pudo
+            // confirmar.
+        }
+    }));
+    renderReclamosLista();
+}
+
 function renderReclamosLista() {
     const body = document.getElementById('reclamos-body');
     if (!RECLAMOS_CACHE.length) {
         body.innerHTML = '<p style="font-size:13px;color:var(--text2)">Todavía no llegó ningún reclamo.</p>';
         return;
     }
-    body.innerHTML = RECLAMOS_CACHE.map(r => `
+    body.innerHTML = RECLAMOS_CACHE.map(r => {
+        // 🔧 NUEVO: badge compacto "Existente"/"Inexistente" junto al número
+        // de pedido — true/false viene de _verificarExistenciaReclamos();
+        // ausente todavía (fetch en curso) = "Verificando…" en gris.
+        const existeVal = RECLAMOS_EXISTENCIA[r.id];
+        const existeBadge = existeVal === true
+            ? `<span style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.35);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;white-space:nowrap">Existente</span>`
+            : existeVal === false
+            ? `<span style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;white-space:nowrap">Inexistente</span>`
+            : `<span style="color:var(--text2);font-size:10px;font-style:italic;white-space:nowrap">Verificando…</span>`;
+        return `
         <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
                 <strong style="font-size:13.5px">#${String(r.id).slice(-8).toUpperCase()}</strong>
@@ -4458,7 +4499,7 @@ function renderReclamosLista() {
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 14px;font-size:12.5px;margin-bottom:10px">
                 <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Revendedor</span>${esc(r.codigoRevendedor)}</div>
-                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Pedido</span>${esc(r.numeroPedido)}</div>
+                <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Pedido</span><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(r.numeroPedido)} ${existeBadge}</span></div>
                 <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Acción</span>${esc(r.accion)}</div>
                 <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Categoría</span>${esc(r.categoria)}</div>
                 <div><span style="display:block;color:var(--text2);font-size:10.5px;text-transform:uppercase">Unidades</span>${esc(String(r.cantidad))}</div>
@@ -4477,7 +4518,8 @@ function renderReclamosLista() {
                 <input id="reclamo-obs-${r.id}" placeholder="Observaciones internas" value="${esc(r.observacionesInternas||'')}" style="flex:2;min-width:160px">
                 <button class="btn-act" onclick="guardarEstadoReclamo('${r.id}')">Guardar</button>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 async function guardarEstadoReclamo(id) {
