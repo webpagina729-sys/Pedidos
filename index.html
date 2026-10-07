@@ -1534,7 +1534,7 @@ function catIcon(c) { return CAT_ICONS[c] || '<svg width="14" height="14" viewBo
 // Fuente de verdad de "lo que a mí me cuesta cada producto".
 // Se usa como PRIMER método (match exacto por nombre); si un
 // producto no aparece ahí (pedidos viejos, nombres raros, etc.)
-// se cae a la estimación por porcentaje/costo fijo de más abajo.
+// su ganancia queda en 0 y se avisa (calzados usan costo fijo).
 // ═══════════════════════════════════════════════════════════
 const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
 // 🔧 NUEVO: respaldo de precio mayorista — el precio que le cobramos al
@@ -1543,14 +1543,14 @@ const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
 // ese dato faltara, se consulta directamente el Worker de precios
 // mayoristas como último recurso.
 let PRECIOS_MAYORISTAS_REVENDEDOR = {};
-(function cargarPreciosMayoristasRevendedor() {
+const PRECIOS_MAYORISTAS_LISTOS = (function cargarPreciosMayoristasRevendedor() {
     try {
         const cache = JSON.parse(localStorage.getItem('_preciosMayoristasRevendedorCache') || 'null');
         if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
             PRECIOS_MAYORISTAS_REVENDEDOR = cache.data;
         }
     } catch(_) {}
-    fetch('https://preciosmayoristasrevendedores.tuweb.workers.dev/api/products')
+    return fetch('https://preciosmayoristasrevendedores.tuweb.workers.dev/api/products')
         .then(r => r.json())
         .then(productos => {
             const mapa = {};
@@ -1563,19 +1563,20 @@ let PRECIOS_MAYORISTAS_REVENDEDOR = {};
             }
             PRECIOS_MAYORISTAS_REVENDEDOR = mapa;
             try { localStorage.setItem('_preciosMayoristasRevendedorCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
+            if (typeof pedidos !== 'undefined' && pedidos.length && typeof renderPedidosView === 'function') renderPedidosView();
         })
         .catch(() => {});
 })();
 
 let CATALOGO_PRECIOS_WORKER = {};
-(function cargarCatalogoPreciosWorker() {
+const CATALOGO_PRECIOS_LISTOS = (function cargarCatalogoPreciosWorker() {
     try {
         const cache = JSON.parse(localStorage.getItem('_catalogoPreciosWorkerCache') || 'null');
         if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
             CATALOGO_PRECIOS_WORKER = cache.data;
         }
     } catch(_) {}
-    fetch(RESTOPRECIOS_WORKER)
+    return fetch(RESTOPRECIOS_WORKER)
         .then(r => r.json())
         .then(data => {
             const mapa = {};
@@ -1590,6 +1591,20 @@ let CATALOGO_PRECIOS_WORKER = {};
         })
         .catch(() => {});
 })();
+
+// Un producto "no coincide" (fue quitado del catálogo) cuando no existe ni en
+// el Worker restoprecios ni en el Worker preciosmayoristasrevendedores.
+// Solo se aplica con ambos catálogos cargados (≥500 productos cada uno) para
+// no borrar nada si un worker falla o responde incompleto.
+function productoQuitado(nombre) {
+    if (Object.keys(CATALOGO_PRECIOS_WORKER).length < 500) return false;
+    if (Object.keys(PRECIOS_MAYORISTAS_REVENDEDOR).length < 500) return false;
+    if (precioMayoristaRealPorNombre(nombre) != null) return false;
+    return PRECIOS_MAYORISTAS_REVENDEDOR[_limpiarNombreProducto(nombre)] == null;
+}
+function _sinProductosQuitados(items) {
+    return (Array.isArray(items) ? items : []).filter(it => !productoQuitado(it && it.nombre));
+}
 
 function _limpiarNombreProducto(s) {
     return String(s || '').trim().toUpperCase()
@@ -1621,27 +1636,6 @@ function precioMayoristaRealPorNombre(nombre) {
 // (se aplica sobre el valor que "entra al gestor de pedidos",
 //  es decir el costo mayorista congelado que guarda cada item)
 // ═══════════════════════════════════════════════════════════
-// Perfumes árabes: tabla de tramos. El % se resta del valor de
-// entrada para obtener el costo original real, y ese mismo %
-// representa la ganancia que queda al ingresar al gestor.
-function pctPerfumePorValor(v) {
-    if (v < 5000)  return 1.50;
-    if (v <= 10000) return 0.90;
-    if (v <= 15000) return 0.80;
-    if (v <= 20000) return 0.70;
-    if (v <= 25000) return 0.60;
-    if (v <= 30000) return 0.55;
-    if (v <= 35000) return 0.40;
-    if (v <= 40000) return 0.35;
-    return 0.30;
-}
-function calcPerfumeOriginal(valorEntrada) {
-    const v = Number(valorEntrada) || 0;
-    const pct = pctPerfumePorValor(v);
-    const ganancia = v * pct;
-    const costoOriginal = Math.max(0, v - ganancia);
-    return { costoOriginal, ganancia, pct };
-}
 // Calzados: costo fijo según sea adulto o niño
 function esNinoCalzado(it) {
     const cat = (it.catalogo || '').toLowerCase();
@@ -1651,8 +1645,8 @@ function esNinoCalzado(it) {
         || nm.includes('NIÑ') || nm.includes('NINO') || nm.includes('KIDS') || nm.includes('JUNIOR') || nm.includes('INFANTIL')
         || (talle > 0 && talle <= 36);
 }
-const COSTO_CALZADO_ADULTO = 30500;
-const COSTO_CALZADO_NINO   = 27000;
+const COSTO_CALZADO_ADULTO = 32500;
+const COSTO_CALZADO_NINO   = 22000;
 function calcCalzadoOriginal(it) {
     const costoOriginal = esNinoCalzado(it) ? COSTO_CALZADO_NINO : COSTO_CALZADO_ADULTO;
     return { costoOriginal };
@@ -1662,31 +1656,26 @@ function calcCalzadoOriginal(it) {
 // (costoUnitario/precioMayorista, ya guardado en cada item) menos lo que a
 // MÍ me cuesta ese mismo producto según mi proveedor real (Worker
 // restoprecios, por nombre). Si el producto no aparece en restoprecios
-// (nombre no matcheable), se cae a la estimación vieja por categoría,
-// para no perder el dato — pero SIEMPRE se marca cuál se usó, para poder
-// avisar al final qué productos faltan cargar en restoprecios.
+// no hay costo real: su ganancia queda en 0 (salvo calzados, costo fijo) y
+// se marca para avisar qué productos faltan cargar en restoprecios.
 const PRODUCTOS_SIN_RESTOPRECIOS = new Set();
 function itemEconomiaReal(it, categoria) {
     const qty = Number(it.cantidad || 1);
-    // Lo que el revendedor me paga A MÍ por unidad (precio mayorista mío).
-    let precioMayoristaMio = Number(it.costoUnitario ?? it.precioMayorista ?? it.precioCosto ?? 0);
-    // 🔧 NUEVO: si el pedido es viejo y no trae ese dato guardado, se
-    // busca como respaldo en el Worker de precios mayoristas.
-    if (!precioMayoristaMio) {
-        const ref = PRECIOS_MAYORISTAS_REVENDEDOR[_limpiarNombreProducto(it.nombre)];
-        if (ref != null) precioMayoristaMio = Number(ref);
-    }
+    // Lo que el revendedor me paga A MÍ por unidad = precio del producto en
+    // el Worker preciosmayoristasrevendedores (por nombre). Si el producto
+    // ya no está ahí, se usa el precio congelado en el propio item.
+    let precioMayoristaMio = Number(PRECIOS_MAYORISTAS_REVENDEDOR[_limpiarNombreProducto(it.nombre)] || 0);
+    if (!precioMayoristaMio) precioMayoristaMio = Number(it.costoUnitario ?? it.precioMayorista ?? it.precioCosto ?? 0);
 
+    // Lo que a MÍ me cuesta = precio del producto en el Worker restoprecios.
+    // Ganancia = precio mayorista − costo restoprecios. Si el producto no
+    // está en restoprecios no hay costo real: no se inventa ninguno (la
+    // ganancia de ese producto queda en 0 y se avisa abajo). Única
+    // excepción: calzados, que tienen costo fijo (adulto/niño).
     let miCostoUnit = precioMayoristaRealPorNombre(it.nombre);
     if (miCostoUnit == null) {
         PRODUCTOS_SIN_RESTOPRECIOS.add(`${it.nombre || '—'} (${categoria || '—'})`);
-        // Fallback: estimación vieja (solo para productos que no matchean
-        // contra restoprecios todavía).
-        if (categoria === 'calzados') {
-            miCostoUnit = calcCalzadoOriginal(it).costoOriginal;
-        } else {
-            miCostoUnit = calcPerfumeOriginal(precioMayoristaMio).costoOriginal;
-        }
+        miCostoUnit = categoria === 'calzados' ? calcCalzadoOriginal(it).costoOriginal : precioMayoristaMio;
     }
     const miGananciaUnit = precioMayoristaMio - miCostoUnit;
     return {
@@ -1832,6 +1821,17 @@ function _armarPedidosStockGrupos(pedidosStockRes, carritosStockRes) {
     carritosStock = Array.isArray(carritosStockRes?.carritos) ? carritosStockRes.carritos : [];
     pedidosStockGrupos = pedidosStockGrupos
         .concat(calcularGruposCarritoStockEnVivo(carritosStock))
+        // productos que ya no existen en el catálogo se quitan de todos lados;
+        // un pedido que solo tenía productos quitados desaparece completo
+        .map(g => {
+            const todos = Array.isArray(g.items) ? g.items : [];
+            const items = _sinProductosQuitados(todos);
+            if (todos.length && !items.length) return null;
+            if (items.length === todos.length) return g;
+            const tot = items.reduce((t, i) => t + Number(i.costoUnitario || 0) * Number(i.cantidad || 1), 0);
+            return Object.assign({}, g, { items, costoTotal: tot, totalMayorista: tot });
+        })
+        .filter(Boolean)
         .sort((a,b) => b.fecha - a.fecha);
 }
 
@@ -1894,7 +1894,14 @@ async function loadData() {
         // stock.html AHORA MISMO, antes de pagar/checkoutear. Totalmente
         // separada de "pedidosStock" (pedidos ya pagados) — se mezcla solo
         // en el RENDER de "Pedidos de Stock" (ver calcularGruposCarritoStockEnVivo).
-        fetchJson(WORKER_PAGOS + '/api/carritos-stock')
+        fetchJson(WORKER_PAGOS + '/api/carritos-stock'),
+        // Los dos catálogos de precios (preciosmayoristasrevendedores y
+        // restoprecios) deben estar cargados ANTES de calcular nada: con
+        // ellos se quitan los productos que ya no existen en el catálogo.
+        Promise.race([
+            Promise.all([PRECIOS_MAYORISTAS_LISTOS, CATALOGO_PRECIOS_LISTOS]),
+            new Promise(res => setTimeout(res, 8000))
+        ])
     ]);
     actualizarBadgeReclamos(); // 🔧 NUEVO: se actualiza cada vez que se carga/actualiza el panel
 
@@ -1934,17 +1941,20 @@ async function loadData() {
         // no se puede garantizar desde este panel).
         .filter(p => !ESTADOS_ELIMINADOS[p.pedidoId || p.id])
         .map(p => {
-            const items = (p.productos || p.items || []).map(pr => ({
+            const itemsTodos = (p.productos || p.items || []).map(pr => ({
                 nombre: pr.nombre || pr.title || '—',
                 cantidad: Number(pr.cantidad || pr.quantity || 1),
                 precio: Number(pr.precio || pr.unit_price || 0)
             }));
+            const items = _sinProductosQuitados(itemsTodos);
+            if (itemsTodos.length && !items.length) return null;
+            const quitados = itemsTodos.length - items.length;
             return {
                 id: p.pedidoId || p.id,
                 codigoVendedor: (p.codigoVendedor || '').toUpperCase(),
                 cliente: p.cliente || {},
                 items,
-                total: Number(p.total || 0),
+                total: quitados ? items.reduce((t, i) => t + i.precio * i.cantidad, 0) : Number(p.total || 0),
                 gananciaVendedor: Number(p.totalGananciaVendedor || 0),
                 nicho: p.nicho || catOf(items),
                 estadoPago: (p.estadoPago || '').toUpperCase(),
@@ -1952,6 +1962,7 @@ async function loadData() {
                 fechaPago: p.fechaPago || null
             };
         })
+        .filter(Boolean)
         .sort((a,b) => b.fecha - a.fecha);
 
     // 🔧 NUEVO: estado REAL de cada registro de panelGestion, según el
@@ -1968,6 +1979,10 @@ async function loadData() {
     panelGestion = (Array.isArray(panelRes?.panelGestion) ? panelRes.panelGestion : [])
         .filter(g => !ESTADOS_ELIMINADOS[g.pedidoId])
         .map(g => {
+            const itemsTodosG = Array.isArray(g.items) ? g.items : [];
+            const itemsG = _sinProductosQuitados(itemsTodosG);
+            if (itemsTodosG.length && !itemsG.length) return null; // todo el pedido eran productos quitados
+            const quitadosG = itemsTodosG.length - itemsG.length;
             let estadoReal = 'pendiente';
             if (ESTADOS_PAGADOS[g.pedidoId]) estadoReal = 'confirmado';
             else if (ESTADOS_CONFIRMADOS[g.pedidoId]) estadoReal = 'aprobado';
@@ -1978,10 +1993,12 @@ async function loadData() {
                 numeroPedido: g.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al registrar el pedido en panelGestion
                 codigoVendedor: (g.codigoVendedor || '').toUpperCase(),
                 categoria: (g.categoria || g.nicho || catOf(g.items)).toLowerCase(),
-                items: Array.isArray(g.items) ? g.items : [],
-                total: Number(g.total || 0),
-                costoTotal: Number(g.costoTotal || 0),
-                gananciaTotal: Number(g.gananciaTotal || 0),
+                items: itemsG,
+                // si se quitaron productos, los totales guardados ya no valen:
+                // se recalculan solo con los productos que quedan
+                total: quitadosG ? itemsG.reduce((t, i) => t + Number(i.precio || 0) * Number(i.cantidad || 1), 0) : Number(g.total || 0),
+                costoTotal: quitadosG ? 0 : Number(g.costoTotal || 0),
+                gananciaTotal: quitadosG ? itemsG.reduce((t, i) => t + Number(i.ganancia || 0) * Number(i.cantidad || 1), 0) : Number(g.gananciaTotal || 0),
                 fecha: g.fecha ? Date.parse(g.fecha) : Date.now(),
                 estadoReal,
                 fechaPago: pagoInfo && pagoInfo.fechaPago ? Date.parse(pagoInfo.fechaPago) : null,
@@ -2000,7 +2017,8 @@ async function loadData() {
                 })(),
                 cliente: g.clienteInfo || (typeof g.cliente === 'object' ? g.cliente : _parsearClienteString(g.cliente)) || g.envio || {},
             };
-        });
+        })
+        .filter(Boolean);
 
     ranking = (Array.isArray(rankRes?.ranking) ? rankRes.ranking : []).map(r => ({
         codigoVendedor: (r.codigoVendedor || '').toUpperCase(),
@@ -2905,7 +2923,7 @@ function renderCategoriasAnidadas(gs, estado, codigo, contenidoFn, footerFn, idP
     return Object.entries(porCategoria).map(([cat, gsCat]) => {
         const catId = `${idPrefix}catv-${estado}-${codigo}-${cat}`.replace(/[^a-zA-Z0-9-]/g, '_');
         const totalUnidCat = gsCat.reduce((s,g) => s + (g.items||[]).reduce((a,i)=>a+(Number(i.cantidad)||1),0), 0);
-        const totalMayoristaCat = gsCat.reduce((s,g) => s + Number(g.costoTotal||0), 0);
+        const totalMayoristaCat = gsCat.reduce((s,g) => s + (Number(g.costoTotal) || totalMayoristaPedido(g)), 0);
         return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
             <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
                 <div class="ribbon-main">
