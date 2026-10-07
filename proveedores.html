@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Revende Ways | Panel de Proveedores</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/webpagina729-sys/Pedidos/main/envio.png?v=20261001">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/webpagina729-sys/Pedidos/main/envio.png?v=20261001">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
 <!-- Boleta de envío en PDF (mismo patrón/branding que las facturas de pedidos.html) -->
@@ -70,6 +72,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .turnstile-gate-error.show { display: block; }
 .turnstile-gate-retry { display: none; width: 100%; margin-top: 12px; }
 .turnstile-gate-retry.show { display: block; }
+/* Pantalla de verificación: fondo blanco y textos negros (el botón queda igual) */
+#turnstile-gate { background: #fff; }
+#turnstile-gate .login-box { background: #fff; }
+#turnstile-gate .login-box h1, #turnstile-gate .login-box p { color: #000; }
+#turnstile-gate .turnstile-gate-icon { color: #000; }
 
 /* ── SHELL / HEADER ── */
 .main { display: none; }
