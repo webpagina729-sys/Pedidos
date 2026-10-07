@@ -1122,6 +1122,7 @@ const WORKER_PAGOS = 'https://workerpagos.tuweb.workers.dev';
 // Pagado) — sin esto, pedidos.html no tenía forma de saber en qué estado
 // real está cada pedido dentro del panel privado de cada revendedor.
 const WORKER_ESTADOS = 'https://panelgestionestados.tuweb.workers.dev';
+const WORKER_PRECIOS = 'https://preciosmayoristasrevendedores.tuweb.workers.dev';
 // 🔧 NUEVO: reclamos (cambios y devoluciones) desde devolucion.html
 // viven en datosderevendedor, junto con el resto de los datos del
 // revendedor y sus pedidos personales.
@@ -5647,16 +5648,27 @@ let VARIANTES_GLOBAL_DATA = {};
 // 🔧 NUEVO: categorías frenadas temporalmente — { [catalogo]: { hasta, dias } }
 let CATEGORIAS_FRENADAS_DATA = {};
 let stockCatActual = 'calzados';
+// Catálogo central (Worker de precios, KV): { clave: [ids] } de las categorías ya cargadas.
+let CATALOGOS_CENTRALES = {};
+// Las dos listas de perfumes (Perfumería y Belleza → perfumes) comparten un único catálogo central.
+function _claveCatalogoCentral(subcat) { return subcat === 'belleza_perfume' ? 'perfumes' : subcat; }
 let stockShown = 20;
 
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar, resFrenadas] = await Promise.all([
+    const [res, resVar, resFrenadas, resCatalogo] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
         fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
+        fetchJson(WORKER_PRECIOS + '/api/catalogo?categoria=todas'),
     ]);
+    CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
+    // El catálogo central manda: lo que ya no está en él se quita de las listas locales.
+    Object.keys(CATALOGO_PRODUCTOS_GLOBAL).forEach(sc => {
+        const vivos = CATALOGOS_CENTRALES[_claveCatalogoCentral(sc)];
+        if (vivos) CATALOGO_PRODUCTOS_GLOBAL[sc] = CATALOGO_PRODUCTOS_GLOBAL[sc].filter(p => vivos.includes(p.id));
+    });
     STOCK_GLOBAL_DATA = (res && res.ok && res.stock) || {};
     VARIANTES_GLOBAL_DATA = (resVar && resVar.ok && resVar.variantes) || {};
     CATEGORIAS_FRENADAS_DATA = (resFrenadas && resFrenadas.ok && resFrenadas.frenadas) || {};
@@ -5670,6 +5682,11 @@ async function renderStockView() {
             <input id="stock-search-input" class="rvndr-search" style="flex:1;min-width:200px;margin-bottom:0" placeholder="Buscar producto por nombre..." autocomplete="off"/>
         </div>
         <div id="stock-pausa-bar" style="margin-bottom:14px"></div>
+        ${Object.keys(CATALOGO_PRODUCTOS_GLOBAL).every(sc => CATALOGOS_CENTRALES[_claveCatalogoCentral(sc)]) ? '' : `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
+            <span style="font-size:12.5px;color:#c05621;">Hay categorías cuyo catálogo central todavía no fue cargado en el Worker.</span>
+            <button class="btn-act" style="flex-shrink:0" onclick="document.getElementById('catalogo-inicial-file').click()">Cargar catálogo inicial</button>
+            <input type="file" id="catalogo-inicial-file" accept="application/json,.json" style="display:none" onchange="importarCatalogoInicial(this)"/>
+        </div>`}
         <div id="stock-lista-wrap"></div>`;
     el.innerHTML = html;
 
@@ -5727,6 +5744,7 @@ function renderStockLista() {
             <button class="btn-act ${enStock ? 'btn-domicilio' : 'btn-del'}" style="flex-shrink:0" onclick="toggleStockGlobal('${p._subcat}',${p.id},${!enStock})">
                 ${enStock ? '✓ En stock' : '✕ Sin stock'}
             </button>
+            ${CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] ? `<button class="btn-act btn-del" style="flex-shrink:0" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})">🗑 Eliminar definitivamente</button>` : ''}
             ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._subcat}',${p.id})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
             </button>` : ''}
@@ -5859,6 +5877,45 @@ async function _guardarStockGlobalUnaCategoria(catalogo, productId, nuevoEnStock
 // se tocó. Aplica a las 12 subcategorías reales del catálogo (las 9
 // canónicas del selector, con "belleza"/"bazar"/"jugueteria" desplegadas
 // en sus subcategorías reales).
+// Carga única del catálogo central en el Worker (KV) desde el archivo catalogo_inicial.json.
+async function importarCatalogoInicial(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (e) { toast('El archivo no es un JSON válido', 'err'); return; }
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/importar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify(data)
+    });
+    if (res && res.ok) { toast('Catálogo cargado (' + res.cargadas.length + ' categorías)', true); renderStockView(); }
+    else toast('No se pudo cargar el catálogo' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
+}
+
+// Borra el producto de forma definitiva del catálogo central: desaparece de
+// todas las tiendas/paneles y de la lista de precios del Worker.
+async function eliminarProductoDefinitivo(subcat, productId) {
+    const producto = (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === productId);
+    if (!producto) return;
+    if (!confirm('¿Eliminar DEFINITIVAMENTE "' + producto.nombre + '"?\n\nDesaparece de todas las tiendas y paneles y no se puede deshacer.')) return;
+    const clave = _claveCatalogoCentral(subcat);
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/eliminar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: clave, id: productId })
+    });
+    if (res && res.ok) {
+        CATALOGOS_CENTRALES[clave] = CATALOGOS_CENTRALES[clave].filter(id => id !== productId);
+        Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
+            CATALOGO_PRODUCTOS_GLOBAL[sc] = CATALOGO_PRODUCTOS_GLOBAL[sc].filter(p => p.id !== productId);
+        });
+        renderStockLista();
+        toast('Producto eliminado definitivamente', true);
+    } else {
+        toast('No se pudo eliminar' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
+    }
+}
+
 async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
     if (!STOCK_GLOBAL_DATA[catalogo]) STOCK_GLOBAL_DATA[catalogo] = {};
     STOCK_GLOBAL_DATA[catalogo][productId] = nuevoEnStock;
