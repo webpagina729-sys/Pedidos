@@ -149,7 +149,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
    padding cómodo para que el texto no quede pegado al borde. */
 #view-stats .cinta-plegable { background: #1a1c22; border: 1px solid rgba(255,255,255,.08); border-radius: 4px; }
 #view-stats .cinta-plegable-head:hover { background: rgba(255,255,255,.04); }
-#view-stats .cinta-plegable.open .cinta-plegable-detalle { background: #2b2e37; }
+#view-stats .cinta-plegable.open > .cinta-plegable-detalle { background: #2b2e37; }
 #view-stats .cinta-plegable-body { padding: 18px 20px; }
 .stats-divider { height: 1px; background: var(--border2); border: none; margin: 20px 0; }
 
@@ -244,9 +244,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .cinta-plegable-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .cinta-plegable-total { font-size: 14.5px; font-weight: 800; color: var(--blue); white-space: nowrap; }
 .cinta-plegable-chevron { transition: transform .2s ease; color: var(--text3); flex-shrink: 0; }
-.cinta-plegable.open .cinta-plegable-chevron { transform: rotate(180deg); }
+.cinta-plegable.open > .cinta-plegable-head .cinta-plegable-chevron { transform: rotate(180deg); }
 .cinta-plegable-detalle { max-height: 0; overflow: hidden; transition: max-height .25s ease; border-top: 1px solid transparent; }
-.cinta-plegable.open .cinta-plegable-detalle { max-height: 4000px; border-top-color: var(--border); }
+.cinta-plegable.open > .cinta-plegable-detalle { max-height: 4000px; border-top-color: var(--border); }
 .cinta-plegable-body { padding: 12px 18px 16px; }
 /* Cintas anidadas (pedidos dentro de una cinta de estado) — separadas
    levemente entre sí, sin el margen extra del último elemento. */
@@ -793,10 +793,29 @@ async function cargarDatos() {
         });
     }
 
+    // En este panel SOLO entran los productos del Worker restoprecios, y sus
+    // precios son los de ese worker: lo que no coincide se quita, y el total
+    // de cada pedido se recalcula con los precios de restoprecios. Solo actúa
+    // con el catálogo cargado completo (≥500 productos) para no vaciar el
+    // panel si el worker falla o responde incompleto.
+    if (Object.keys(CATALOGO_PRECIOS).length >= 500) {
+        PEDIDOS_PROVEEDOR = _soloProductosRestoprecios(PEDIDOS_PROVEEDOR);
+        PEDIDOS_PROVEEDOR_PREVIEW = _soloProductosRestoprecios(PEDIDOS_PROVEEDOR_PREVIEW);
+    }
+
     renderNuevosPedidos();
     renderPendienteDespacho();
     renderEnviados();
     renderEstadisticas();
+}
+
+function _soloProductosRestoprecios(lista) {
+    return lista.map(doc => {
+        const productos = (Array.isArray(doc.productos) ? doc.productos : []).filter(it => precioRealPorNombre(it.nombre) != null);
+        if (!productos.length) return null; // el pedido solo tenía productos que no están en restoprecios
+        const totalMayorista = productos.reduce((t, it) => t + precioRealPorNombre(it.nombre) * (Number(it.cantidad) || 1), 0);
+        return Object.assign({}, doc, { productos, totalMayorista });
+    }).filter(Boolean);
 }
 
 // ── Agrupación por revendedor ("cintas") ──
@@ -1248,6 +1267,13 @@ function precioRealPorNombre(nombre) {
     if (porContenido.length) return CATALOGO_PRECIOS[porContenido[0]];
     const porContenido2 = keys.filter(k => k.includes(n) && n.length > 3).sort((a,b) => a.length - b.length);
     if (porContenido2.length) return CATALOGO_PRECIOS[porContenido2[0]];
+    // Calzados: restoprecios los tiene como precio general Adultos / Niños.
+    // Se reconocen por el talle "(T. xx)" del nombre (hasta 36 = niños).
+    const mt = String(nombre).match(/\(\s*T\.?\s*(\d+)\s*\)/i);
+    if (mt) {
+        const k = Number(mt[1]) <= 36 ? 'NIÑOS' : 'ADULTOS';
+        if (CATALOGO_PRECIOS[k] != null) return CATALOGO_PRECIOS[k];
+    }
     return null;
 }
 
