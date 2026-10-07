@@ -1035,6 +1035,22 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
      stock global. Mientras está pausada, el botón "Comenzar próximo
      pedido en este lugar" bloquea el acceso en index.html /
      mas-categorias.html / lenceria.html / suplementos.html. -->
+<div class="modal-overlay" id="cargarProductosModal">
+    <div class="modal-box" style="max-width:440px;text-align:left;max-height:90vh;overflow-y:auto">
+        <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Cargar productos · <span id="cargarProductosCat"></span></span></h3>
+        <div id="cargarProductosRepoBox"></div>
+        <div id="cargarProductosForm" style="display:none">
+            <select id="cargarProductosSub" class="rvndr-search" style="display:none"></select>
+            <div id="cargarProductosLista"></div>
+            <button class="btn-head" style="width:100%;justify-content:center;gap:6px;margin-top:4px" onclick="agregarFilaProducto()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Agregar otro producto</button>
+            <div class="modal-actions">
+                <button class="modal-cancel" onclick="cerrarCargarProductos()">Cancelar</button>
+                <button class="modal-confirm-btn" id="cargarProductosConfirmar" onclick="confirmarCargarProductos()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="pausaCategoriaModal">
     <div class="modal-box">
         <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg></div>
@@ -5650,6 +5666,8 @@ let CATEGORIAS_FRENADAS_DATA = {};
 let stockCatActual = 'calzados';
 // Catálogo central (Worker de precios, KV): { clave: [ids] } de las categorías ya cargadas.
 let CATALOGOS_CENTRALES = {};
+// Repositorio de imágenes guardado por categoría grande: { calzados: 'https://raw.githubusercontent.com/…/', … }
+let REPOS_CENTRALES = {};
 // Las dos listas de perfumes (Perfumería y Belleza → perfumes) comparten un único catálogo central.
 function _claveCatalogoCentral(subcat) { return subcat === 'belleza_perfume' ? 'perfumes' : subcat; }
 let stockShown = 20;
@@ -5664,11 +5682,15 @@ async function renderStockView() {
         fetchJson(WORKER_PRECIOS + '/api/catalogo?categoria=todas'),
     ]);
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
+    REPOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.repos) || {};
     // El catálogo central manda: lo que ya no está en él se quita de las listas locales.
     Object.keys(CATALOGO_PRODUCTOS_GLOBAL).forEach(sc => {
         const vivos = CATALOGOS_CENTRALES[_claveCatalogoCentral(sc)];
         if (vivos) CATALOGO_PRODUCTOS_GLOBAL[sc] = CATALOGO_PRODUCTOS_GLOBAL[sc].filter(p => vivos.includes(p.id));
     });
+    // Productos cargados desde este panel (viven solo en el Worker).
+    const agregados = (resCatalogo && resCatalogo.ok && resCatalogo.agregados) || {};
+    Object.keys(agregados).forEach(clave => _sumarProductosLocales(clave, agregados[clave]));
     STOCK_GLOBAL_DATA = (res && res.ok && res.stock) || {};
     VARIANTES_GLOBAL_DATA = (resVar && resVar.ok && resVar.variantes) || {};
     CATEGORIAS_FRENADAS_DATA = (resFrenadas && resFrenadas.ok && resFrenadas.frenadas) || {};
@@ -5744,7 +5766,7 @@ function renderStockLista() {
             <button class="btn-act ${enStock ? 'btn-domicilio' : 'btn-del'}" style="flex-shrink:0" onclick="toggleStockGlobal('${p._subcat}',${p.id},${!enStock})">
                 ${enStock ? '✓ En stock' : '✕ Sin stock'}
             </button>
-            ${CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] ? `<button class="btn-act btn-del" style="flex-shrink:0" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})">🗑 Eliminar definitivamente</button>` : ''}
+            ${CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] ? `<button class="btn-act btn-del" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Eliminar definitivamente</button>` : ''}
             ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._subcat}',${p.id})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
             </button>` : ''}
@@ -5785,14 +5807,15 @@ function renderStockPausaBar() {
     const cont = document.getElementById('stock-pausa-bar');
     if (!cont) return;
     const info = _infoPausaCategoria(stockCatActual);
+    const btnCargar = `<button class="btn-head" style="gap:6px" onclick="abrirCargarProductos()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cargar Productos</button>`;
     if (info) {
         const fecha = new Date(info.hasta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        cont.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
+        cont.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
             <span style="font-size:12.5px;color:#c05621;">⏸️ Categoría pausada hasta el ${fecha}</span>
             <button class="btn-act" style="flex-shrink:0" onclick="reactivarCategoriaAhora()">Reactivar ahora</button>
-        </div>`;
+        </div>${btnCargar}</div>`;
     } else {
-        cont.innerHTML = `<button class="btn-head" onclick="abrirPanelPausaCategoria()">⏸️ Parar Temporalmente esta categoría</button>`;
+        cont.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn-head" onclick="abrirPanelPausaCategoria()">⏸️ Parar Temporalmente esta categoría</button>${btnCargar}</div>`;
     }
 }
 
@@ -5877,6 +5900,129 @@ async function _guardarStockGlobalUnaCategoria(catalogo, productId, nuevoEnStock
 // se tocó. Aplica a las 12 subcategorías reales del catálogo (las 9
 // canónicas del selector, con "belleza"/"bazar"/"jugueteria" desplegadas
 // en sus subcategorías reales).
+// ═══════════════════════════════════════════════════════
+// CARGAR PRODUCTOS — alta de productos nuevos en el catálogo central
+// El repositorio de imágenes se guarda una sola vez por categoría (y se puede
+// editar/cambiar); todos los productos que se cargan toman sus imágenes de él.
+// ═══════════════════════════════════════════════════════
+const SUBCAT_LABELS = {
+    belleza_maquillaje: 'Maquillaje', belleza_perfume: 'Perfumes', bazar_bazar: 'Bazar', bazar_melamina: 'Melamina',
+    jugueteria_juguetes: 'Juguetes', jugueteria_peluches: 'Peluches'
+};
+const _ICO_EDITAR = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const _ICO_QUITAR = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+function _sumarProductosLocales(clave, productos) {
+    Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
+        productos.forEach(n => {
+            if (!CATALOGO_PRODUCTOS_GLOBAL[sc].some(p => p.id === n.id)) CATALOGO_PRODUCTOS_GLOBAL[sc].push({ id: n.id, nombre: n.nombre });
+        });
+    });
+    CATALOGOS_CENTRALES[clave] = CATALOGOS_CENTRALES[clave] || [];
+    productos.forEach(n => { if (!CATALOGOS_CENTRALES[clave].includes(n.id)) CATALOGOS_CENTRALES[clave].push(n.id); });
+}
+
+function abrirCargarProductos() {
+    document.getElementById('cargarProductosCat').textContent = STOCK_CAT_LABELS[stockCatActual] || stockCatActual;
+    const subcats = STOCK_CAT_SUBCATS[stockCatActual] || [stockCatActual];
+    const sel = document.getElementById('cargarProductosSub');
+    sel.innerHTML = subcats.map(sc => `<option value="${sc}">${esc(SUBCAT_LABELS[sc] || sc)}</option>`).join('');
+    sel.style.display = subcats.length > 1 ? 'block' : 'none';
+    document.getElementById('cargarProductosLista').innerHTML = '';
+    agregarFilaProducto();
+    if (REPOS_CENTRALES[stockCatActual]) mostrarRepoGuardado(); else mostrarRepoEditor(false);
+    document.getElementById('cargarProductosModal').classList.add('show');
+}
+
+function cerrarCargarProductos() {
+    document.getElementById('cargarProductosModal').classList.remove('show');
+}
+
+function mostrarRepoGuardado() {
+    document.getElementById('cargarProductosRepoBox').innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;margin:10px 0 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px">
+        <div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">Repositorio de imágenes</div><div style="font-size:12px;word-break:break-all">${esc(REPOS_CENTRALES[stockCatActual])}</div></div>
+        <button class="btn-act" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="mostrarRepoEditor(true)">${_ICO_EDITAR} Editar</button>
+    </div>`;
+    document.getElementById('cargarProductosForm').style.display = 'block';
+}
+
+function mostrarRepoEditor(conCancelar) {
+    document.getElementById('cargarProductosRepoBox').innerHTML = `<label style="display:block;font-size:12.5px;margin:10px 0 4px">Enlace de Repositorio</label>
+        <input id="cargarProductosRepoInput" class="rvndr-search" style="margin-bottom:10px" placeholder="https://github.com/usuario/repositorio" value="${esc(REPOS_CENTRALES[stockCatActual] || '')}" autocomplete="off"/>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+            ${conCancelar ? '<button class="modal-cancel" style="flex:1" onclick="mostrarRepoGuardado()">Cancelar</button>' : ''}
+            <button class="modal-confirm-btn" style="flex:1" onclick="guardarRepoCategoria()">Confirmar</button>
+        </div>`;
+    document.getElementById('cargarProductosForm').style.display = 'none';
+}
+
+async function guardarRepoCategoria() {
+    const repo = document.getElementById('cargarProductosRepoInput').value.trim();
+    if (!repo) { toast('Pegá el enlace del repositorio', 'err'); return; }
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: stockCatActual, repo })
+    });
+    if (res && res.ok) {
+        REPOS_CENTRALES[stockCatActual] = res.repo;
+        toast('Repositorio guardado', true);
+        mostrarRepoGuardado();
+    } else {
+        toast('No se pudo guardar el repositorio' + (window._lastFetchError?.status === 400 ? ': el enlace no es válido' : ''), 'err');
+    }
+}
+
+function agregarFilaProducto() {
+    const lista = document.getElementById('cargarProductosLista');
+    const n = lista.children.length + 1;
+    const fila = document.createElement('div');
+    fila.className = 'cp-fila';
+    fila.style.cssText = 'padding:11px;margin-bottom:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px';
+    fila.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:11.5px;font-weight:700;color:var(--text3)">Producto <span class="cp-num">${n}</span></span>
+            ${n > 1 ? `<button class="btn-act" style="width:26px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center" title="Quitar" onclick="quitarFilaProducto(this)">${_ICO_QUITAR}</button>` : ''}
+        </div>
+        <input class="rvndr-search cp-nombre" style="margin-bottom:6px" placeholder="Nombre del Producto" autocomplete="off"/>
+        <input class="rvndr-search cp-imagen" style="margin-bottom:6px" placeholder="Nombre de Imagen (ej: perfume1.png)" autocomplete="off"/>
+        <input class="rvndr-search cp-precio" style="margin-bottom:0" type="number" min="1" inputmode="numeric" placeholder="Precio Mayorista"/>`;
+    lista.appendChild(fila);
+    fila.querySelector('.cp-nombre').focus();
+}
+
+function quitarFilaProducto(btn) {
+    btn.closest('.cp-fila').remove();
+    document.querySelectorAll('#cargarProductosLista .cp-num').forEach((el, i) => { el.textContent = i + 1; });
+}
+
+async function confirmarCargarProductos() {
+    const sub = document.getElementById('cargarProductosSub').value;
+    const clave = _claveCatalogoCentral(sub);
+    if (!CATALOGOS_CENTRALES[clave]) { toast('Primero cargá el catálogo inicial', 'err'); return; }
+    const productos = Array.from(document.querySelectorAll('#cargarProductosLista .cp-fila')).map(f => ({
+        nombre: f.querySelector('.cp-nombre').value.trim(),
+        imagen: f.querySelector('.cp-imagen').value.trim(),
+        precio: Number(f.querySelector('.cp-precio').value)
+    }));
+    if (productos.some(x => !x.nombre || !x.imagen || !(x.precio > 0))) { toast('Completá nombre, imagen y precio de todos los productos', 'err'); return; }
+    const btn = document.getElementById('cargarProductosConfirmar');
+    btn.disabled = true;
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/agregar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: clave, canon: stockCatActual, productos })
+    });
+    btn.disabled = false;
+    if (res && res.ok) {
+        _sumarProductosLocales(clave, res.agregados);
+        cerrarCargarProductos();
+        renderStockLista();
+        toast(res.agregados.length + (res.agregados.length === 1 ? ' producto agregado' : ' productos agregados'), true);
+    } else {
+        toast('No se pudieron agregar los productos' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
+    }
+}
+
 // Carga única del catálogo central en el Worker (KV) desde el archivo catalogo_inicial.json.
 async function importarCatalogoInicial(input) {
     const file = input.files && input.files[0];
