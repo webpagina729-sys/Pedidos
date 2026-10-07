@@ -2028,11 +2028,6 @@ async function loadData() {
     renderEnviosView(); // 🆕 NUEVO: "Envíos"
     actualizarContadorRvndrHeader();
 
-    // 🔧 NUEVO: avisa a workerproveedores.tuweb.workers.dev de los pedidos
-    // recién "aprobados" para que el panel de proveedores (proveedores.html)
-    // los pueda mostrar como "Pendientes". Fire-and-forget: no bloquea el
-    // resto de la carga ni toca nada más acá (ver _notificarPedidosAprobadosAProveedores).
-    _notificarPedidosAprobadosAProveedores();
 
     // Avisar UNA vez por sesión si hay productos que no matchean contra
     // restoprecios (pedido explícito del dueño de la plataforma).
@@ -2745,9 +2740,17 @@ A seguir así con tu emprendimiento. 🚀
 // cada sincronización actualice el mismo registro en vez de duplicar.
 // No bloquea el render — es un "fire and forget" en segundo plano.
 async function _sincronizarPreviewProveedores() {
+    // Sin proveedores configurados (o sin pedidos cargados) no se toca nada:
+    // sería imposible distinguir "no hay nada que mostrar" de "todavía no
+    // cargó", y se borrarían vistas previas que sí corresponden.
+    if (!PROVEEDORES_CONFIG.length || !panelGestion.length) return;
+    for (const prov of PROVEEDORES_CONFIG) await _sincronizarCategoriasProveedor(prov);
     const grupos = {};
     panelGestion.forEach(g => {
         if (g.estadoReal !== 'aprobado' && g.estadoReal !== 'confirmado') return;
+        // Un pedido ya enviado al proveedor desde "Enviar Pedidos" pasa a
+        // "Confirmados" en proveedores.html: deja de ser vista previa.
+        if (pedidoYaRealizado(g.pedidoId)) return;
         const prov = proveedorDeCategoria(g.categoria);
         if (!prov) return; // sin proveedor asignado a esta categoría: nada que sincronizar
         const key = `${g.codigoVendedor}_${g.categoria}_${g.estadoReal}`;
@@ -2756,17 +2759,26 @@ async function _sincronizarPreviewProveedores() {
     });
     for (const key in grupos) {
         const grp = grupos[key];
-        const productos = grp.items.flatMap(g => (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1 })));
-        try {
-            await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-                body: JSON.stringify({
-                    codigoVendedor: grp.codigoVendedor, categoria: grp.categoria, estadoPedido: grp.estadoPedido,
-                    proveedorId: grp.proveedor.id, proveedorNombre: grp.proveedor.nombre,
-                    nombreRevendedor: vendorLabel(grp.codigoVendedor), productos,
-                })
-            });
-        } catch(_) { /* sincronización best-effort — si falla, se reintenta en el próximo render */ }
+        const productos = grp.items.flatMap(g => (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) })));
+        await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({
+                codigoVendedor: grp.codigoVendedor, categoria: grp.categoria, estadoPedido: grp.estadoPedido,
+                proveedorId: grp.proveedor.id, proveedorNombre: grp.proveedor.nombre,
+                nombreRevendedor: vendorLabel(grp.codigoVendedor), productos,
+            })
+        });
+    }
+    // Borra las vistas previas que ya no corresponden (el pedido pasó de
+    // "aprobado" a "confirmado", se envió al proveedor, se eliminó, etc.).
+    const existentes = await fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+    if (!existentes || !Array.isArray(existentes.previews)) return;
+    for (const pv of existentes.previews) {
+        if (grupos[pv.id]) continue;
+        await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview-eliminar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ codigoVendedor: pv.codigoVendedor, categoria: pv.categoria, estadoPedido: pv.estadoPedido })
+        });
     }
 }
 
@@ -3233,10 +3245,7 @@ function pagoYaVerificado(pedidoId) {
 //      clasificado por Revendedor → Categoría, con el detalle completo
 //      de productos+variante+cantidad, total mayorista y datos del
 //      revendedor — eso ya lo arma renderSeccionEnviarPedidos()).
-//   2) Manda ese mismo detalle a workerproveedores.tuweb.workers.dev,
-//      ANTES de redirigir a WhatsApp (queda guardado aunque el dueño no
-//      llegue a mandar el mensaje).
-//   3) Redirige directo al WhatsApp del revendedor con un agradecimiento
+//   2) Redirige directo al WhatsApp del revendedor con un agradecimiento
 //      y la factura ya paga.
 // ═══════════════════════════════════════════════════════════
 async function enviarFacturaYClasificarPedido(pedidoId) {
@@ -3249,17 +3258,9 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
     set.add(pedidoId);
     localStorage.setItem('pagosVerificados', JSON.stringify([...set]));
 
-    // 2) Mandar el detalle completo a workerproveedores.
-    const info = vendorCache[g.codigoVendedor] || {};
     const nombre = vendorLabel(g.codigoVendedor);
-    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) }));
-    const totalMayorista = totalMayoristaPedido(g);
-    await _enviarPedidoAWorkerProveedores({
-        pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
-        productos, totalMayorista, origen: 'clasificacion_confirmado',
-    });
 
-    // 3) Compartir la factura pagada por WhatsApp con un agradecimiento.
+    // 2) Compartir la factura pagada por WhatsApp con un agradecimiento.
     const doc = _generarFacturaProveedorPDF(pedidoId);
     const wa = vendorWa(g.codigoVendedor);
     const mensaje = `¡Gracias por tu compra, ${nombre}! 🙌 Tu pago ya fue verificado — te comparto tu factura pagada. Ya estamos preparando tu pedido para enviarlo. ¡Cualquier consulta, estamos para ayudarte!`;
@@ -3843,54 +3844,6 @@ async function _enviarPedidoAWorkerProveedores({ pedidoId, pedidoIds, codigo, ca
     }
 }
 
-// 🔧 NUEVO: sincroniza hacia workerproveedores.tuweb.workers.dev los
-// pedidos que llegan a estadoReal === 'aprobado' (aprobados en
-// index(1).html, todavía SIN pasar por "(Enviar factura y clasificar
-// pedido)"), para que el nuevo panel de proveedores (proveedores.html) los
-// pueda listar como "Pendientes". Es puramente aditivo:
-//   - Usa el mismo pedidoId como docId que ya usa
-//     enviarFacturaYClasificarPedido (vía _enviarPedidoAWorkerProveedores),
-//     así que cuando ese pedido se clasifique más adelante, el MISMO
-//     registro se sobreescribe con origen:'clasificacion_confirmado' y
-//     pasa a "Aprobados" en ese panel — no queda duplicado ni pisa nada.
-//   - No cambia ningún estado/botón/flujo de ESTE panel (pedidos.html):
-//     solo lee panelGestion (ya armado por loadData) y llama al mismo
-//     helper de POST que ya existe. Se llama de forma "fire-and-forget"
-//     (sin await en loadData) para no demorar el resto de la carga, y
-//     _enviarPedidoAWorkerProveedores ya atrapa sus propios errores.
-//   - Recuerda (localStorage, por navegador) qué pedidoId ya avisó, para
-//     no reenviar lo mismo en cada carga del panel — si dos navegadores
-//     lo reenvían igual no hay problema: es el mismo docId, se sobreescribe.
-const PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY = 'rw_pedidos_pendiente_proveedor_notificados_v1';
-function _yaNotificadoPendienteProveedor(pedidoId) {
-    try { return JSON.parse(localStorage.getItem(PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY) || '[]').includes(pedidoId); } catch(_) { return false; }
-}
-function _marcarNotificadoPendienteProveedor(pedidoId) {
-    try {
-        const set = new Set(JSON.parse(localStorage.getItem(PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY) || '[]'));
-        set.add(pedidoId);
-        localStorage.setItem(PROVEEDORES_PENDIENTE_NOTIFICADOS_KEY, JSON.stringify([...set]));
-    } catch(_) {}
-}
-async function _notificarPedidosAprobadosAProveedores() {
-    try {
-        const pendientes = (panelGestion || []).filter(g => g.estadoReal === 'aprobado' && !_yaNotificadoPendienteProveedor(g.pedidoId));
-        for (const g of pendientes) {
-            const info = vendorCache[g.codigoVendedor] || {};
-            const nombre = vendorLabel(g.codigoVendedor);
-            const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) }));
-            const totalMayorista = totalMayoristaPedido(g);
-            await _enviarPedidoAWorkerProveedores({
-                pedidoId: g.pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
-                productos, totalMayorista, origen: 'aprobado_pendiente',
-            });
-            _marcarNotificadoPendienteProveedor(g.pedidoId);
-        }
-    } catch (e) {
-        console.warn('No se pudieron sincronizar los pedidos "aprobado" pendientes con workerproveedores:', e);
-    }
-}
-
 // 🔧 REDISEÑADO: "categoriaOCsv" puede ser una sola categoría (como
 // siempre) o varias separadas por coma — cuando el proveedor asignado a
 // esas categorías es el mismo (ver proveedorDeCategoria()),
@@ -3941,18 +3894,10 @@ async function ejecutarPedido(codigo, categoriaOCsv) {
     });
     marcarPedidosRealizados(gsCat.map(g => g.pedidoId));
 
-    // 🔧 NUEVO: este grupo ya se mandó formalmente ("Enviar a proveedor")
-    // — se borra su vista previa (si existía) para que no quede un
-    // adelanto fantasma en "Pedidos pendientes"/"Pedidos aprobados" de
-    // proveedores.html duplicando lo que ahora ya está en "Confirmados".
-    for (const c of categorias) {
-        for (const estadoPedido of ['aprobado','confirmado']) {
-            fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview-eliminar', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-                body: JSON.stringify({ codigoVendedor: codigo, categoria: c, estadoPedido })
-            }).catch(()=>{});
-        }
-    }
+    // Este grupo ya se mandó formalmente ("Enviar a proveedor"): se
+    // actualizan las vistas previas de proveedores.html — lo enviado deja de
+    // figurar en "Pendientes"/"Aprobados" y pasa a "Confirmados".
+    _sincronizarPreviewProveedores();
 
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(msg)}`, '_blank');
     toast('Pedido enviado al proveedor y movido a "Pedidos Realizados"', true);
@@ -3982,10 +3927,24 @@ function _cargarProveedoresConfigLocal() {
 function _guardarProveedoresConfigLocal() {
     try { localStorage.setItem(PROVEEDORES_CONFIG_KEY, JSON.stringify(PROVEEDORES_CONFIG)); } catch(_) {}
 }
+// Se carga apenas inicia el panel: proveedorDeCategoria() la necesita para
+// saber a qué proveedor corresponde cada pedido (vista previa y "Enviar
+// Pedidos"). Antes solo se cargaba al abrir el modal de configuración, así
+// que sin abrirlo ningún pedido llegaba a proveedores.html.
+_cargarProveedoresConfigLocal();
 
 // Resuelve qué proveedor tiene asignada una categoría (el primero que la
 // incluya en su lista de categorías) — usado para agrupar facturas/envíos
 // de "Enviar Pedidos" por proveedor en vez de por categoría suelta.
+// Le avisa al Worker qué categorías tiene delegadas un proveedor — es lo que
+// hace que proveedores.html le muestre SOLO los pedidos de esas categorías.
+function _sincronizarCategoriasProveedor(prov) {
+    return fetchJson(WORKER_PROVEEDORES + '/api/proveedor-categorias', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ proveedorId: prov.id, categorias: prov.categorias || [] })
+    });
+}
+
 function proveedorDeCategoria(categoria) {
     return PROVEEDORES_CONFIG.find(p => (p.categorias || []).includes(categoria)) || null;
 }
@@ -4087,6 +4046,7 @@ async function guardarProveedor() {
             PROVEEDORES_CONFIG.push(proveedor);
         }
         _guardarProveedoresConfigLocal();
+        if (proveedor) await _sincronizarCategoriasProveedor(proveedor);
 
         // Mantiene vivo el mecanismo viejo (categoria -> número) para que
         // ejecutarPedido()/_enviarPedidoAWorkerProveedores() sigan
@@ -4150,6 +4110,7 @@ async function _copiarEnlaceProveedor() {
 
 function eliminarProveedor(id) {
     if (!confirm('¿Eliminar este proveedor? Sus categorías quedan sin proveedor asignado hasta que se reconfiguren.')) return;
+    _sincronizarCategoriasProveedor({ id, categorias: [] });
     PROVEEDORES_CONFIG = PROVEEDORES_CONFIG.filter(p => p.id !== id);
     _guardarProveedoresConfigLocal();
     _renderProveedoresConfigBody();
