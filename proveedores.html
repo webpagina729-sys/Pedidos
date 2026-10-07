@@ -802,12 +802,11 @@ function agruparPorRevendedor(lista) {
     const grupos = {};
     const orden = [];
     lista.forEach(p => {
-        const key = (p.codigoVendedor || p.nombreRevendedor || p.id || '').toUpperCase();
+        const key = (p.revendedorRef || p.nombreRevendedor || p.id || '').toUpperCase();
         if (!grupos[key]) {
             grupos[key] = {
                 key,
-                codigoVendedor: p.codigoVendedor || '',
-                nombreRevendedor: p.nombreRevendedor || p.codigoVendedor || 'Revendedor',
+                nombreRevendedor: p.nombreRevendedor || 'Revendedor',
                 docs: [],
                 pedidoIds: [],
                 productos: [],       // { nombre, variante, cantidad }
@@ -943,8 +942,8 @@ function _agruparPreviewPorRevendedor(lista) {
     const grupos = {};
     const orden = [];
     lista.forEach(p => {
-        const key = (p.codigoVendedor || p.nombreRevendedor || '').toUpperCase();
-        if (!grupos[key]) { grupos[key] = { key, codigoVendedor: p.codigoVendedor || '', nombreRevendedor: p.nombreRevendedor || p.codigoVendedor || 'Revendedor', productos: [] }; orden.push(key); }
+        const key = (p.revendedorRef || p.nombreRevendedor || '').toUpperCase();
+        if (!grupos[key]) { grupos[key] = { key, nombreRevendedor: p.nombreRevendedor || 'Revendedor', productos: [] }; orden.push(key); }
         (Array.isArray(p.productos) ? p.productos : []).forEach(it => grupos[key].productos.push(it));
     });
     return orden.map(k => grupos[k]);
@@ -962,8 +961,7 @@ function _agruparPreviewPorRevendedor(lista) {
 // manda numeroPedido ni total) — "Pedidos aprobados" en azul, "Pedidos
 // pendientes" queda sin tocar (sin clase, como estaba).
 function _renderPreviewCard(g, numColorClass) {
-    const sub = g.codigoVendedor ? 'Código ' + esc(g.codigoVendedor) : '';
-    return _cintaPedidoInterna(g.nombreRevendedor, sub, numColorClass, '—', _listaProductosHTML(g.productos));
+    return _cintaPedidoInterna(g.nombreRevendedor, '', numColorClass, '—', _listaProductosHTML(g.productos));
 }
 
 function renderNuevosPedidos() {
@@ -1045,7 +1043,7 @@ function renderCintaPlegable(p, estado) {
         <div class="cinta-plegable-head" onclick="this.parentElement.classList.toggle('open')">
             <div>
                 <div class="cinta-plegable-num">Pedido Nº ${esc(_numeroPedidoDe(p))}</div>
-                <div class="cinta-plegable-sub">${esc(p.nombreRevendedor || p.codigoVendedor || 'Revendedor')} · ${pill}</div>
+                <div class="cinta-plegable-sub">${esc(p.nombreRevendedor || 'Revendedor')} · ${pill}</div>
             </div>
             <div class="cinta-plegable-right">
                 <span class="cinta-plegable-total">${money(total)}</span>
@@ -1224,7 +1222,7 @@ async function descargarBoletaEnvio(cintaId) {
         y += 15;
     });
 
-    doc.save(`Boleta_Envio_${(c.codigoVendedor || c.nombreRevendedor || 'pedido').replace(/[^\w-]/g,'_')}.pdf`);
+    doc.save(`Boleta_Envio_${(c.nombreRevendedor || 'pedido').replace(/[^\w-]/g,'_')}.pdf`);
     toast('Boleta de envío descargada', true);
 }
 
