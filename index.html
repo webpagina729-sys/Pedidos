@@ -1793,6 +1793,72 @@ function _parsearClienteString(str) {
     return { nombre: partes[0] || '', apellido: partes.slice(1).join(' ') || '', telefono: '' };
 }
 
+// Arma pedidosStock/pedidosStockGrupos/carritosStock a partir de las
+// respuestas de /api/pedidos-stock y /api/carritos-stock. Lo usan loadData()
+// y el refresco liviano de "Pedidos de Stock" (ver abajo).
+function _armarPedidosStockGrupos(pedidosStockRes, carritosStockRes) {
+    pedidosStock = Array.isArray(pedidosStockRes?.pedidos) ? pedidosStockRes.pedidos : [];
+    pedidosStockGrupos = calcularEstadoPedidoStock(pedidosStock.map(p => {
+        const items = (Array.isArray(p.productos) ? p.productos : []).map(pr => ({
+            nombre: pr.nombre || '—',
+            cantidad: Number(pr.cantidad || 1),
+            costoUnitario: Number(pr.precio || 0),
+            variante: pr.variante || '',
+        }));
+        const totalMayorista = Number(p.totalMayorista || 0);
+        return {
+            pedidoId: p.pedidoId,
+            numeroPedido: p.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al crear el pedido de stock
+            codigoVendedor: (p.codigoVendedor || '').toUpperCase(),
+            categoria: (p.categoria || 'multishop').toLowerCase(),
+            items,
+            costoTotal: totalMayorista, // usado por renderCategoriasAnidadas (totalMayoristaCat)
+            totalMayorista,
+            fecha: p.fechaISO ? Date.parse(p.fechaISO) : (Number(p.fecha) || Date.now()),
+            estadoPago: (p.estadoPago || '').toUpperCase(),
+            estadoPedido: (p.estadoPedido || '').toUpperCase(),
+            datosEnvio: p.datosEnvio || {},
+            paymentId: p.paymentId || null,
+            fechaPago: p.fechaPago || null,
+        };
+    }));
+
+    // 🆕 NUEVO: mezcla los carritos EN VIVO (colección "carritosStock",
+    // todavía sin pagar) dentro de las mismas cintas Pendientes/Aprobados de
+    // "Pedidos de Stock" — SOLO en el render, nunca se mezclan las
+    // colecciones de Firestore entre sí. Nunca caen en Confirmados (no
+    // tienen estadoPedido, el webhook de MP es la única vía a confirmado).
+    // Ver calcularGruposCarritoStockEnVivo() para el criterio.
+    carritosStock = Array.isArray(carritosStockRes?.carritos) ? carritosStockRes.carritos : [];
+    pedidosStockGrupos = pedidosStockGrupos
+        .concat(calcularGruposCarritoStockEnVivo(carritosStock))
+        .sort((a,b) => b.fecha - a.fecha);
+}
+
+// Refresco liviano (cada 60s) SOLO de "Pedidos de Stock": un carrito pasa de
+// pendiente a aprobado en stock.html, y antes recién se veía —y llegaba a
+// proveedores.html— con el refresco completo de 20 minutos o al tocar
+// "Actualizar". Si alguna de las dos consultas falla no se toca nada.
+let _stockLivianoEnCurso = false;
+let _datosCargadosUnaVez = false; // el refresco liviano espera a que loadData() haya cargado todo (si no, el sync borraría vistas previas válidas)
+async function _refrescarStockYProveedores() {
+    if (_stockLivianoEnCurso || !_datosCargadosUnaVez) return;
+    _stockLivianoEnCurso = true;
+    try {
+        const [pRes, cRes] = await Promise.all([
+            fetchJson(WORKER_PAGOS + '/api/pedidos-stock'),
+            fetchJson(WORKER_PAGOS + '/api/carritos-stock'),
+        ]);
+        if (!pRes || !cRes) return;
+        _armarPedidosStockGrupos(pRes, cRes);
+        await Promise.all([...new Set(pedidosStockGrupos.map(g => g.codigoVendedor).filter(Boolean))].map(c => resolveVendor(c)));
+        renderPedidosStockView();
+        _sincronizarPreviewProveedores();
+    } catch (_) {
+    } finally { _stockLivianoEnCurso = false; }
+}
+setInterval(() => { _refrescarStockYProveedores(); }, 60000);
+
 async function loadData() {
     const pedidosWrap = document.getElementById('pedidos-estado-wrap');
     if (pedidosWrap) pedidosWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
@@ -1951,42 +2017,7 @@ async function loadData() {
     // "Pedidos nuevos" (codigoVendedor/categoria/items/costoTotal/pedidoId/
     // fecha) — así se puede reutilizar esa misma UI de cintas sin
     // duplicarla. Ver calcularEstadoPedidoStock() para el estadoReal.
-    pedidosStock = Array.isArray(pedidosStockRes?.pedidos) ? pedidosStockRes.pedidos : [];
-    pedidosStockGrupos = calcularEstadoPedidoStock(pedidosStock.map(p => {
-        const items = (Array.isArray(p.productos) ? p.productos : []).map(pr => ({
-            nombre: pr.nombre || '—',
-            cantidad: Number(pr.cantidad || 1),
-            costoUnitario: Number(pr.precio || 0),
-            variante: pr.variante || '',
-        }));
-        const totalMayorista = Number(p.totalMayorista || 0);
-        return {
-            pedidoId: p.pedidoId,
-            numeroPedido: p.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al crear el pedido de stock
-            codigoVendedor: (p.codigoVendedor || '').toUpperCase(),
-            categoria: (p.categoria || 'multishop').toLowerCase(),
-            items,
-            costoTotal: totalMayorista, // usado por renderCategoriasAnidadas (totalMayoristaCat)
-            totalMayorista,
-            fecha: p.fechaISO ? Date.parse(p.fechaISO) : (Number(p.fecha) || Date.now()),
-            estadoPago: (p.estadoPago || '').toUpperCase(),
-            estadoPedido: (p.estadoPedido || '').toUpperCase(),
-            datosEnvio: p.datosEnvio || {},
-            paymentId: p.paymentId || null,
-            fechaPago: p.fechaPago || null,
-        };
-    }));
-
-    // 🆕 NUEVO: mezcla los carritos EN VIVO (colección "carritosStock",
-    // todavía sin pagar) dentro de las mismas cintas Pendientes/Aprobados de
-    // "Pedidos de Stock" — SOLO en el render, nunca se mezclan las
-    // colecciones de Firestore entre sí. Nunca caen en Confirmados (no
-    // tienen estadoPedido, el webhook de MP es la única vía a confirmado).
-    // Ver calcularGruposCarritoStockEnVivo() para el criterio.
-    carritosStock = Array.isArray(carritosStockRes?.carritos) ? carritosStockRes.carritos : [];
-    pedidosStockGrupos = pedidosStockGrupos
-        .concat(calcularGruposCarritoStockEnVivo(carritosStock))
-        .sort((a,b) => b.fecha - a.fecha);
+    _armarPedidosStockGrupos(pedidosStockRes, carritosStockRes);
 
     // Resolver nombres de revendedores para todos los códigos que aparecen
     const codes = new Set();
@@ -2025,6 +2056,7 @@ async function loadData() {
     renderStatsView();
     renderRevmesView();
     renderPedidosStockView(); // 🆕 NUEVO: "Pedidos de Stock" (colección Firestore dedicada "pedidosStock")
+    _datosCargadosUnaVez = true;
     renderEnviosView(); // 🆕 NUEVO: "Envíos"
     actualizarContadorRvndrHeader();
 
@@ -2745,6 +2777,7 @@ A seguir así con tu emprendimiento. 🚀
 // categoria + estadoReal) para que el id del documento sea estable y
 // cada sincronización actualice el mismo registro en vez de duplicar.
 // No bloquea el render — es un "fire and forget" en segundo plano.
+let _ultimoAvisoSyncProveedores = '';
 async function _sincronizarPreviewProveedores() {
     // Sin proveedores configurados (o sin pedidos cargados) no se toca nada:
     // sería imposible distinguir "no hay nada que mostrar" de "todavía no
@@ -2752,35 +2785,37 @@ async function _sincronizarPreviewProveedores() {
     if (!PROVEEDORES_CONFIG.length || (!panelGestion.length && !pedidosStockGrupos.length)) return;
     for (const prov of PROVEEDORES_CONFIG) await _sincronizarCategoriasProveedor(prov);
     const grupos = {};
+    const sinProveedor = new Set(); // categorías con pedidos aprobados/confirmados pero sin proveedor asignado
     panelGestion.forEach(g => {
         if (g.estadoReal !== 'aprobado' && g.estadoReal !== 'confirmado') return;
         // Un pedido ya enviado al proveedor desde "Enviar Pedidos" pasa a
         // "Confirmados" en proveedores.html: deja de ser vista previa.
         if (pedidoYaRealizado(g.pedidoId)) return;
         const prov = proveedorDeCategoria(g.categoria);
-        if (!prov) return; // sin proveedor asignado a esta categoría: nada que sincronizar
+        if (!prov) { sinProveedor.add(g.categoria); return; } // sin proveedor asignado a esta categoría: nada que sincronizar
         const key = `${g.codigoVendedor}_${g.categoria}_${g.estadoReal}`;
         if (!grupos[key]) grupos[key] = { codigoVendedor: g.codigoVendedor, categoria: g.categoria, estadoPedido: g.estadoReal, proveedor: prov, items: [] };
         grupos[key].items.push(g);
     });
-    // "Pedidos de Stock" (reposición del revendedor): mismo criterio. Los
-    // carritos en vivo (sin pagar) no son un pedido todavía, y los ya
-    // enviados al proveedor con "Enviar y clasificar" pasan a "Confirmados"
-    // (documento real), así que dejan de ser vista previa.
+    // "Pedidos de Stock" (reposición del revendedor): mismo criterio, tal
+    // como se ven en pedidos.html (incluye el carrito en vivo que ya
+    // alcanzó el mínimo, "aprobado"). Los ya enviados al proveedor con
+    // "Enviar y clasificar" pasan a "Confirmados" (documento real), así que
+    // dejan de ser vista previa.
     pedidosStockGrupos.forEach(g => {
-        if (g.esCarritoEnVivo) return;
         if (g.estadoReal !== 'aprobado' && g.estadoReal !== 'confirmado') return;
         if (pagoYaVerificadoStock(g.pedidoId)) return;
         const prov = proveedorDeCategoria(g.categoria);
-        if (!prov) return;
+        if (!prov) { sinProveedor.add(g.categoria); return; }
         const key = `${g.codigoVendedor}_${g.categoria}_${g.estadoReal}`;
         if (!grupos[key]) grupos[key] = { codigoVendedor: g.codigoVendedor, categoria: g.categoria, estadoPedido: g.estadoReal, proveedor: prov, items: [] };
         grupos[key].items.push(g);
     });
+    let fallosEnvio = 0;
     for (const key in grupos) {
         const grp = grupos[key];
         const productos = grp.items.flatMap(g => (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) })));
-        await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview', {
+        const resPrev = await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
             body: JSON.stringify({
                 codigoVendedor: grp.codigoVendedor, categoria: grp.categoria, estadoPedido: grp.estadoPedido,
@@ -2788,7 +2823,16 @@ async function _sincronizarPreviewProveedores() {
                 nombreRevendedor: nombreParaProveedor(grp.codigoVendedor), productos,
             })
         });
+        if (!resPrev || !resPrev.ok) fallosEnvio++;
     }
+    // Avisos visibles (una sola vez por mensaje) para que no falle en silencio.
+    const avisos = [];
+    if (sinProveedor.size) avisos.push('Hay pedidos de ' + [...sinProveedor].map(c => CAT_LABELS[c] || c).join(', ') + ' sin proveedor asignado: no se envían a proveedores.html. Asignalo en "WhatsApp de proveedores".');
+    if (fallosEnvio) avisos.push('No se pudieron enviar ' + fallosEnvio + ' grupo(s) de pedidos a proveedores' + (window._lastFetchError && window._lastFetchError.status ? ' (error ' + window._lastFetchError.status + ')' : '') + '.');
+    const msgAvisos = avisos.join(' ');
+    if (msgAvisos && msgAvisos !== _ultimoAvisoSyncProveedores) toast(msgAvisos, 'err');
+    _ultimoAvisoSyncProveedores = msgAvisos;
+
     // Borra las vistas previas que ya no corresponden (el pedido pasó de
     // "aprobado" a "confirmado", se envió al proveedor, se eliminó, etc.).
     const existentes = await fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
