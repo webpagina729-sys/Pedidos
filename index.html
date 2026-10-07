@@ -3687,10 +3687,18 @@ function renderSeccionEnviarPedidos(paraEjecutar) {
 // revendedor, categoría y nombre de producto — ver filtrarPedidosRealizados.
 let realizadosCompletos = []; // último `realizados` recibido, sin filtrar
 let realizadosSearchQuery = ''; // texto tipeado en el buscador, se conserva entre re-renders de renderListaView
+// Al buscar por texto (producto, revendedor, categoría…) se busca en TODOS
+// los pedidos, en cualquier estado — no solo en los ya enviados al
+// proveedor — para poder encontrar, por ejemplo, un producto que está en un
+// pedido todavía pendiente/aprobado/confirmado. Sin texto, la lista sigue
+// mostrando solo los realizados.
+function _baseBusquedaRealizados() {
+    return (realizadosSearchQuery || '').trim() ? panelGestion : realizadosCompletos;
+}
 function renderSeccionPedidosRealizados(realizados) {
     realizadosCompletos = realizados;
     const ribbonId = 'lista-rib-realizados';
-    const filtrados = filtrarPedidosRealizados(realizados, realizadosSearchQuery);
+    const filtrados = filtrarPedidosRealizados(_baseBusquedaRealizados(), realizadosSearchQuery);
 
     const buscador = `<div class="search-ico-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -3702,7 +3710,7 @@ function renderSeccionPedidosRealizados(realizados) {
             <div class="estado-head-left">
                 <span class="dot-status" style="background:#8b93a7;color:#8b93a7"></span>
                 <span class="estado-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Pedidos Realizados</span>
-                <span class="cnt" id="realizados-cnt-badge">${realizados.length}</span>
+                <span class="cnt" id="realizados-cnt-badge">${(realizadosSearchQuery || '').trim() ? filtrados.length : realizados.length}</span>
             </div>
             <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -3721,7 +3729,7 @@ function renderSeccionPedidosRealizados(realizados) {
 function renderCuerpoPedidosRealizados(gs) {
     if (_numeroBuscado(realizadosSearchQuery)) return _renderResultadosNumeroPedido();
     if (!gs.length) {
-        return realizadosCompletos.length
+        return (realizadosSearchQuery || '').trim() || realizadosCompletos.length
             ? `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🔍</div><p>Sin resultados para "${esc(realizadosSearchQuery)}".</p></div>`
             : `<div class="empty" style="padding:20px 8px"><div class="empty-icon">✅</div><p>Todavía no hay pedidos enviados al proveedor.</p></div>`;
     }
@@ -3743,7 +3751,7 @@ function renderCuerpoPedidosRealizados(gs) {
             return `<div class="ribbon" id="${catId}" style="margin-bottom:8px">
                 <div class="ribbon-head" onclick="toggleRibbonEl('${catId}')" style="background:var(--surface2)">
                     <div class="ribbon-main"><span style="font-size:14px">${catIcon(cat)}</span><span class="r-name">${CAT_LABELS[cat]||cat}</span><span class="r-code">${gsCat.length} ped. · ${totalU} unid.</span></div>
-                    <span class="status-chip s-lista">✅ Enviado al proveedor</span>
+                    ${(() => { const real = gsCat.every(g => pedidoYaRealizado(g.pedidoId)); const l = ESTADO_REAL_LABEL[gsCat[0].estadoReal]; return real || !l ? '<span class="status-chip s-lista">✅ Enviado al proveedor</span>' : `<span class="status-chip s-lista" style="background:${l.bg};color:${l.color};border-color:${l.border}">${l.txt}</span>`; })()}
                 </div>
                 <div class="ribbon-body"><div class="ribbon-inner">
                     <table class="prod-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th></tr></thead><tbody>${rows}</tbody></table>
@@ -3801,7 +3809,7 @@ function onRealizadosSearchInput(value) {
 }
 
 function _repintarRealizados() {
-    const filtrados = filtrarPedidosRealizados(realizadosCompletos, realizadosSearchQuery);
+    const filtrados = filtrarPedidosRealizados(_baseBusquedaRealizados(), realizadosSearchQuery);
     const wrap = document.getElementById('realizados-cuerpo-wrap');
     if (wrap) wrap.innerHTML = renderCuerpoPedidosRealizados(filtrados);
     const badge = document.getElementById('realizados-cnt-badge');
