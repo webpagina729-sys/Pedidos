@@ -2053,6 +2053,11 @@ function vendorLabel(codigo) {
     const nm = v ? fullName(v) : '';
     return nm || codigo || 'Revendedor';
 }
+// Nombre y apellido para lo que ve el proveedor: NUNCA cae al código del revendedor.
+function nombreParaProveedor(codigo) {
+    const v = vendorCache[(codigo||'').toUpperCase()];
+    return (v ? fullName(v) : '') || 'Revendedor';
+}
 // 🔧 FIX: los enlaces wa.me llevaban a la pantalla de "contactos" en vez
 // de abrir el chat directo cuando el número no estaba guardado en la
 // agenda. Causa real: wa.me solo abre el chat directo si el número viene
@@ -2728,6 +2733,7 @@ A seguir así con tu emprendimiento. 🚀
 
     toast('Pedido de stock enviado, clasificado y factura descargada', true);
     renderPedidosStockView();
+    _sincronizarPreviewProveedores();
 }
 
 // 🔧 NUEVO: sincroniza automáticamente (sin que el dueño haga nada) los
@@ -2743,7 +2749,7 @@ async function _sincronizarPreviewProveedores() {
     // Sin proveedores configurados (o sin pedidos cargados) no se toca nada:
     // sería imposible distinguir "no hay nada que mostrar" de "todavía no
     // cargó", y se borrarían vistas previas que sí corresponden.
-    if (!PROVEEDORES_CONFIG.length || !panelGestion.length) return;
+    if (!PROVEEDORES_CONFIG.length || (!panelGestion.length && !pedidosStockGrupos.length)) return;
     for (const prov of PROVEEDORES_CONFIG) await _sincronizarCategoriasProveedor(prov);
     const grupos = {};
     panelGestion.forEach(g => {
@@ -2757,6 +2763,20 @@ async function _sincronizarPreviewProveedores() {
         if (!grupos[key]) grupos[key] = { codigoVendedor: g.codigoVendedor, categoria: g.categoria, estadoPedido: g.estadoReal, proveedor: prov, items: [] };
         grupos[key].items.push(g);
     });
+    // "Pedidos de Stock" (reposición del revendedor): mismo criterio. Los
+    // carritos en vivo (sin pagar) no son un pedido todavía, y los ya
+    // enviados al proveedor con "Enviar y clasificar" pasan a "Confirmados"
+    // (documento real), así que dejan de ser vista previa.
+    pedidosStockGrupos.forEach(g => {
+        if (g.esCarritoEnVivo) return;
+        if (g.estadoReal !== 'aprobado' && g.estadoReal !== 'confirmado') return;
+        if (pagoYaVerificadoStock(g.pedidoId)) return;
+        const prov = proveedorDeCategoria(g.categoria);
+        if (!prov) return;
+        const key = `${g.codigoVendedor}_${g.categoria}_${g.estadoReal}`;
+        if (!grupos[key]) grupos[key] = { codigoVendedor: g.codigoVendedor, categoria: g.categoria, estadoPedido: g.estadoReal, proveedor: prov, items: [] };
+        grupos[key].items.push(g);
+    });
     for (const key in grupos) {
         const grp = grupos[key];
         const productos = grp.items.flatMap(g => (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it) })));
@@ -2765,7 +2785,7 @@ async function _sincronizarPreviewProveedores() {
             body: JSON.stringify({
                 codigoVendedor: grp.codigoVendedor, categoria: grp.categoria, estadoPedido: grp.estadoPedido,
                 proveedorId: grp.proveedor.id, proveedorNombre: grp.proveedor.nombre,
-                nombreRevendedor: vendorLabel(grp.codigoVendedor), productos,
+                nombreRevendedor: nombreParaProveedor(grp.codigoVendedor), productos,
             })
         });
     }
@@ -2774,7 +2794,7 @@ async function _sincronizarPreviewProveedores() {
     const existentes = await fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
     if (!existentes || !Array.isArray(existentes.previews)) return;
     for (const pv of existentes.previews) {
-        if (grupos[pv.id]) continue;
+        if (grupos[`${pv.codigoVendedor}_${pv.categoria}_${pv.estadoPedido}`]) continue;
         await fetchJson(WORKER_PROVEEDORES + '/api/pedido-proveedor-preview-eliminar', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
             body: JSON.stringify({ codigoVendedor: pv.codigoVendedor, categoria: pv.categoria, estadoPedido: pv.estadoPedido })
@@ -3630,7 +3650,7 @@ function renderSeccionPedidosRealizados(realizados) {
 
     const buscador = `<div class="search-ico-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="realizados-search-input" class="rvndr-search" placeholder="Buscar por N° de pedido, revendedor, código, categoría o producto..." autocomplete="off" value="${esc(realizadosSearchQuery)}" oninput="onRealizadosSearchInput(this.value)">
+        <input type="text" id="realizados-search-input" class="rvndr-search" placeholder="Buscar por N° de pedido (#0000001), revendedor, código, categoría o producto..." autocomplete="off" value="${esc(realizadosSearchQuery)}" oninput="onRealizadosSearchInput(this.value)">
     </div>`;
 
     return `<div class="estado-ribbon" id="${ribbonId}">
@@ -3655,6 +3675,7 @@ function renderSeccionPedidosRealizados(realizados) {
 // reusarla al tipear en el buscador sin reconstruir toda la sección
 // (así el input no pierde el foco mientras se escribe).
 function renderCuerpoPedidosRealizados(gs) {
+    if (_numeroBuscado(realizadosSearchQuery)) return _renderResultadosNumeroPedido();
     if (!gs.length) {
         return realizadosCompletos.length
             ? `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🔍</div><p>Sin resultados para "${esc(realizadosSearchQuery)}".</p></div>`
@@ -3695,21 +3716,17 @@ function renderCuerpoPedidosRealizados(gs) {
     }).join('');
 }
 
-// Filtro del buscador de "Pedidos Realizados": si lo tipeado es un
-// número (con o sin "#"), matchea EXACTO por numeroPedido (así buscar
-// "42" no trae "#420"); si no, o además, busca coincidencia parcial
-// (contiene, case-insensitive) en revendedor, código de revendedor,
-// categoría y nombre de producto.
+// Filtro del buscador de "Pedidos Realizados": un número de hasta 7
+// cifras (con o sin "#") se busca aparte por N° de pedido (Firebase);
+// el resto es coincidencia parcial (contiene, case-insensitive) en
+// revendedor, código de revendedor, categoría y nombre de producto.
 function filtrarPedidosRealizados(gs, query) {
     const q = (query || '').trim();
     if (!q) return gs;
 
-    const soloNumero = q.replace(/^#/, '').trim();
-    const esNumero = /^\d+$/.test(soloNumero);
-    if (esNumero) {
-        const n = Number(soloNumero);
-        return gs.filter(g => Number(g.numeroPedido) === n);
-    }
+    // Un número de hasta 7 cifras (con o sin "#") es un N° de pedido por
+    // revendedor y se busca en Firebase (ver buscarPorNumeroPedido).
+    if (_numeroBuscado(q)) return [];
 
     const qLower = q.toLowerCase();
     return gs.filter(g => {
@@ -3728,11 +3745,109 @@ function filtrarPedidosRealizados(gs, query) {
 // contador (el input no se toca, así conserva foco y cursor).
 function onRealizadosSearchInput(value) {
     realizadosSearchQuery = value;
+    const numero = _numeroBuscado(value);
+    clearTimeout(_realizadosNumTimer);
+    if (numero) {
+        realizadosNumEstado = { numero, cargando: true, error: '', data: null };
+        _repintarRealizados();
+        _realizadosNumTimer = setTimeout(() => buscarPorNumeroPedido(numero), 350);
+        return;
+    }
+    _repintarRealizados();
+}
+
+function _repintarRealizados() {
     const filtrados = filtrarPedidosRealizados(realizadosCompletos, realizadosSearchQuery);
     const wrap = document.getElementById('realizados-cuerpo-wrap');
     if (wrap) wrap.innerHTML = renderCuerpoPedidosRealizados(filtrados);
     const badge = document.getElementById('realizados-cnt-badge');
-    if (badge) badge.textContent = filtrados.length;
+    if (badge) {
+        const d = realizadosNumEstado.data;
+        badge.textContent = _numeroBuscado(realizadosSearchQuery)
+            ? (d ? d.revendedores.length + d.clientes.length : 0)
+            : filtrados.length;
+    }
+}
+
+// ── Búsqueda por N° de pedido (7 cifras, cada revendedor cuenta desde
+// #0000001; los pedidos de sus clientes tienen su propia numeración). Los
+// números se guardan en Firebase al crearse el pedido (ver
+// workerwebcliente → numeroPedidoCliente, workerpagos → numeroPedidoRevendedor)
+// y acá se buscan por el endpoint /api/buscar-numero-pedido.
+let realizadosNumEstado = { numero: null, cargando: false, error: '', data: null };
+let _realizadosNumTimer = null;
+function _numeroBuscado(q) {
+    const t = String(q || '').trim().replace(/^#/, '').trim();
+    return /^\d{1,7}$/.test(t) ? t.padStart(7, '0') : null;
+}
+
+async function buscarPorNumeroPedido(numero) {
+    const res = await fetchJson(`${WORKER_ESTADOS}/api/buscar-numero-pedido?numero=${encodeURIComponent(numero)}`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
+    if (_numeroBuscado(realizadosSearchQuery) !== numero) return; // se tipeó otra cosa mientras tanto
+    realizadosNumEstado = res && res.ok
+        ? { numero, cargando: false, error: '', data: res }
+        : { numero, cargando: false, error: (res && res.error) || 'No se pudo buscar el pedido', data: null };
+    _repintarRealizados();
+}
+
+function _fechaLarga(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d)) return '—';
+    const t = d.toLocaleString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function _entregaTexto(e) {
+    if (e && e.estado === 'entregado') return e.fechaISO ? `Entregado — ${_fechaLarga(e.fechaISO)}` : 'Entregado';
+    const etiquetas = { sin_enviar: 'Todavía no enviado al proveedor', enviado_proveedor: 'Enviado al proveedor — aún sin entregar', pendiente_despachar: 'Preparándose para despacho — aún sin entregar', en_camino: 'En camino — aún sin entregar' };
+    return etiquetas[e && e.estado] || 'Aún sin entregar';
+}
+function _filaInfo(label, valor) {
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border2)"><span style="color:var(--text2)">${label}</span><span style="text-align:right;font-weight:600">${valor}</span></div>`;
+}
+function _cintaNum(id, nombre, numero, derecha, cuerpo) {
+    return `<div class="ribbon" id="${id}" style="margin-bottom:8px">
+        <div class="ribbon-head" onclick="toggleRibbonEl('${id}')">
+            <div class="ribbon-main"><div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(nombre)}</div><span class="r-name">${esc(nombre)}</span><span class="r-code">#${esc(numero)}</span></div>
+            ${derecha ? `<span class="r-code">${derecha}</span>` : ''}
+            <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="ribbon-body"><div class="ribbon-inner">${cuerpo}</div></div>
+    </div>`;
+}
+
+function _renderResultadosNumeroPedido() {
+    const st = realizadosNumEstado;
+    if (st.cargando) return `<div class="empty" style="padding:20px 8px"><p>Buscando #${esc(st.numero || '')}…</p></div>`;
+    if (st.error) return `<div class="empty" style="padding:20px 8px"><div class="empty-icon">⚠️</div><p>${esc(st.error)}</p></div>`;
+    const d = st.data;
+    if (!d || (!d.revendedores.length && !d.clientes.length)) {
+        return `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🔍</div><p>No se encontró ningún pedido con el N° #${esc(st.numero || '')}.</p></div>`;
+    }
+    const lotes = d.revendedores.map((l, i) => {
+        const nombre = vendorLabel(l.codigoVendedor);
+        const clientes = (l.clientes || []).map((c, j) => {
+            const cuerpo = _filaInfo('Pedido hecho', esc(`${c.fecha || '—'} ${c.hora || ''}`.trim()))
+                + _filaInfo('Total', money(c.total))
+                + _filaInfo('Entrega', esc(_entregaTexto(c.entrega)));
+            return _cintaNum(`rn-l${i}-c${j}`, `${c.nombre || ''} ${c.apellido || ''}`.trim() || 'Cliente', c.numero, money(c.total), cuerpo);
+        }).join('') || '<div style="font-size:12px;color:var(--text2);padding:6px 0">Este pedido no tiene pedidos de clientes asociados.</div>';
+        const cuerpo = _filaInfo('Pedido realizado', esc(_fechaLarga(l.fechaISO)))
+            + _filaInfo('Total', money(l.total))
+            + _filaInfo('Pedidos de clientes', (l.clientes || []).length)
+            + `<div style="margin-top:8px">${clientes}</div>`;
+        return _cintaNum(`rn-l${i}`, nombre, l.numero, `Pedido del revendedor · ${money(l.total)}`, cuerpo);
+    }).join('');
+    const clientes = d.clientes.map((c, i) => {
+        const enLote = c.pedidoRevendedorNumero
+            ? `#${esc(c.pedidoRevendedorNumero)} — ${esc(vendorLabel(c.codigoVendedor))}`
+            : 'Todavía no incluido en un pedido del revendedor';
+        const cuerpo = _filaInfo('Pedido del revendedor', enLote)
+            + _filaInfo('Pedido hecho', esc(`${c.fecha || '—'} ${c.hora || ''}`.trim()))
+            + _filaInfo('Total', money(c.total))
+            + _filaInfo('Entrega', esc(_entregaTexto(c.entrega)));
+        return _cintaNum(`rn-c${i}`, `${c.nombre || ''} ${c.apellido || ''}`.trim() || 'Cliente', c.numero, `Pedido de cliente · ${money(c.total)}`, cuerpo);
+    }).join('');
+    return lotes + clientes;
 }
 
 let WHATSAPP_PROVEEDORES = {};
@@ -3810,7 +3925,7 @@ async function _enviarPedidoAWorkerProveedores({ pedidoId, pedidoIds, codigo, ca
                 // viene puesto), alcanza con ese mismo valor.
                 pedidoIds: (Array.isArray(pedidoIds) && pedidoIds.length ? pedidoIds : (pedidoId ? [pedidoId] : [])).map(String),
                 codigoVendedor: codigo,
-                nombreRevendedor: nombre,
+                nombreRevendedor: nombreParaProveedor(codigo),
                 categoria: categoria || listaCategorias[0],
                 categorias: listaCategorias,
                 proveedorNombre: prov ? prov.nombre : null,
