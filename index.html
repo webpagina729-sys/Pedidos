@@ -4979,6 +4979,17 @@ function enviarPedidosEnCaminoDelProveedor(proveedorKey) {
     });
     if (!seAbrioAlguno) toast('Ninguno de estos revendedores tiene WhatsApp registrado', 'err');
 
+    // Marca en el backend que el seguimiento ya fue enviado: recién entonces
+    // el revendedor ve el aviso "Pedido En camino" en index (1).html.
+    const _idsSeg = pedidos.map(p => String(p.id || '')).filter(Boolean);
+    if (_idsSeg.length) {
+        fetch(`${WORKER_PROVEEDORES}/api/pedido-proveedor/seguimiento-enviado`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ ids: _idsSeg })
+        }).catch(() => {});
+    }
+
     document.getElementById('envios-confirmar-modal').classList.add('show');
 }
 
