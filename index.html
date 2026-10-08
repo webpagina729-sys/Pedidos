@@ -455,6 +455,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .modal-cancel, .modal-confirm-btn { flex:1; padding:11px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:var(--font); border:none; }
 .modal-cancel { background: var(--bg2); color:var(--text2); border:1px solid var(--border2); }
 .modal-confirm-btn { background: var(--red); color:#fff; }
+#cargarProductosModal .modal-confirm-btn, #cargarProductosModal .btn-head, #cargarProductosModal .btn-act { background:#38bdf8; color:#fff; border:none; }
+#cargarProductosModal .modal-confirm-btn:hover, #cargarProductosModal .btn-head:hover, #cargarProductosModal .btn-act:hover { background:#0ea5e9; color:#fff; }
+#cargarProductosModal .modal-cancel, #cargarProductosModal .cp-cerrar { background:#fff; color:#000; border:1px solid #d4d4d8; }
+#cargarProductosModal .cp-cerrar { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); margin-left:auto; flex-shrink:0; }
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border:1px solid var(--border2); color: var(--text); padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight:600; box-shadow: var(--shadow-lg); z-index: 999; opacity:0; pointer-events:none; transition: all .25s; }
 .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
@@ -1027,7 +1031,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
      mas-categorias.html / lenceria.html / suplementos.html. -->
 <div class="modal-overlay" id="cargarProductosModal">
     <div class="modal-box" style="max-width:440px;text-align:left;max-height:90vh;overflow-y:auto">
-        <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Cargar productos · <span id="cargarProductosCat"></span></span></h3>
+        <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Cargar productos · <span id="cargarProductosCat"></span></span><button type="button" class="cp-cerrar" onclick="cerrarCargarProductos()">Cerrar</button></h3>
         <div id="cargarProductosRepoBox"></div>
         <div id="cargarProductosForm" style="display:none">
             <select id="cargarProductosSub" class="rvndr-search" style="display:none"></select>
@@ -6138,7 +6142,10 @@ function agregarFilaProducto() {
         </div>
         <input class="rvndr-search cp-nombre" style="margin-bottom:6px" placeholder="Nombre del Producto" autocomplete="off"/>
         <input class="rvndr-search cp-imagen" style="margin-bottom:6px" placeholder="Nombre de Imagen (ej: perfume1.png)" autocomplete="off"/>
-        <input class="rvndr-search cp-precio" style="margin-bottom:0" type="number" min="1" inputmode="numeric" placeholder="Precio Mayorista"/>`;
+        <input class="rvndr-search cp-precio" style="margin-bottom:6px" type="number" min="1" inputmode="numeric" placeholder="Precio Mayorista"/>
+        <input class="rvndr-search cp-caracteristicas" style="margin-bottom:6px" placeholder="Característica del producto" autocomplete="off"/>
+        <input class="rvndr-search cp-momento" style="margin-bottom:6px" placeholder="Momento ideal" autocomplete="off"/>
+        <input class="rvndr-search cp-variantes" style="margin-bottom:0" placeholder="Variantes: talles, colores… (separadas por coma)" autocomplete="off"/>`;
     lista.appendChild(fila);
     fila.querySelector('.cp-nombre').focus();
 }
@@ -6152,11 +6159,21 @@ async function confirmarCargarProductos() {
     const sub = document.getElementById('cargarProductosSub').value;
     const clave = _claveCatalogoCentral(sub);
     if (!CATALOGOS_CENTRALES[clave]) { toast('Primero cargá el catálogo inicial', 'err'); return; }
-    const productos = Array.from(document.querySelectorAll('#cargarProductosLista .cp-fila')).map(f => ({
-        nombre: f.querySelector('.cp-nombre').value.trim(),
-        imagen: f.querySelector('.cp-imagen').value.trim(),
-        precio: Number(f.querySelector('.cp-precio').value)
-    }));
+    const productos = Array.from(document.querySelectorAll('#cargarProductosLista .cp-fila')).map(f => {
+        const p = {
+            nombre: f.querySelector('.cp-nombre').value.trim(),
+            imagen: f.querySelector('.cp-imagen').value.trim(),
+            precio: Number(f.querySelector('.cp-precio').value)
+        };
+        // Característica y Momento ideal: si quedan vacíos no se agregan al producto.
+        const car = f.querySelector('.cp-caracteristicas').value.trim();
+        const mom = f.querySelector('.cp-momento').value.trim();
+        if (car) p.caracteristicas = car;
+        if (mom) p.momento = mom;
+        const vars = f.querySelector('.cp-variantes').value.split(',').map(t => t.trim()).filter(Boolean);
+        if (vars.length) p.variantes = vars;
+        return p;
+    });
     if (productos.some(x => !x.nombre || !x.imagen || !(x.precio > 0))) { toast('Completá nombre, imagen y precio de todos los productos', 'err'); return; }
     const btn = document.getElementById('cargarProductosConfirmar');
     btn.disabled = true;
