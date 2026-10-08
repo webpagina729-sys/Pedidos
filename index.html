@@ -224,6 +224,9 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .race-val { font-size:12px; font-weight:800; color:var(--blue); flex-shrink:0; }
 .race-track { height:3px; background: var(--bg3); border-radius:3px; overflow:visible; }
 .race-fill { height:100%; width:0%; border-radius:6px; background: linear-gradient(90deg, var(--blue-dim), var(--blue)); transition: width 1.1s cubic-bezier(.22,.9,.3,1); }
+.cat-legend { display:grid; grid-template-rows:repeat(3, auto); grid-auto-flow:column; grid-template-columns:repeat(3, minmax(0, max-content)); justify-content:center; gap:7px 26px; padding:10px 6px 4px; }
+.cat-legend-item { display:flex; align-items:center; gap:7px; font-size:11px; color:#9aa0b4; white-space:nowrap; line-height:1.2; }
+.cat-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 .race-row:first-child .race-fill { box-shadow: 0 0 6px 1px var(--blue), 0 0 14px 2px rgba(0,102,255,.55); }
 .race-fill.c2 { background: linear-gradient(90deg, #00915a, var(--green)); }
 .race-fill.c3 { background: linear-gradient(90deg, #c77a05, var(--amber)); }
@@ -5609,19 +5612,6 @@ function renderVendorBarChart(vendors) {
 // Un color distinto por categoría (9 categorías, 9 colores neón).
 const CAT_NEON_COLORES = ['#2d6bff','#b36bff','#ff2bd6','#ff8a00','#00ff85','#00e5ff','#ff2d55','#ffe600','#b6ff00'];
 
-// Punto circular con resplandor neón para la leyenda.
-function _puntoNeon(color) {
-    const c = document.createElement('canvas');
-    c.width = 40; c.height = 40;
-    const x = c.getContext('2d');
-    x.shadowColor = color; x.shadowBlur = 10;
-    x.fillStyle = color;
-    x.beginPath(); x.arc(20, 20, 8, 0, Math.PI * 2); x.fill();
-    x.shadowBlur = 0; x.fillStyle = 'rgba(255,255,255,.55)';
-    x.beginPath(); x.arc(20, 20, 3, 0, Math.PI * 2); x.fill();
-    return c;
-}
-
 function renderCategoriaPie(vendors, products) {
     const ctx = document.getElementById('canvas-cat-pie');
     if (!ctx) return;
@@ -5635,9 +5625,16 @@ function renderCategoriaPie(vendors, products) {
             backgroundColor: CAT_NEON_COLORES, borderWidth: 0
         }]},
         options: { responsive:true, maintainAspectRatio:false,
-            plugins: { legend:{ position:'bottom', labels:{ color:'#9aa0b4', font:{size:11}, usePointStyle:true, boxWidth:14, boxHeight:14, padding:12,
-                generateLabels: chart => Chart.overrides.doughnut.plugins.legend.labels.generateLabels(chart).map(it => ({ ...it, pointStyle: _puntoNeon(it.fillStyle) })) } } } }
+            plugins: { legend:{ display:false } } }
     });
+    // Leyenda propia: punto sutil + nombre, en 3 columnas de 3 (ordenadas de arriba hacia abajo).
+    const wrap = ctx.closest('.chart-wrap');
+    if (wrap) {
+        let leg = wrap.parentNode.querySelector('.cat-legend');
+        if (!leg) { leg = document.createElement('div'); leg.className = 'cat-legend'; wrap.parentNode.appendChild(leg); }
+        const nombres = ['Calzados Importados','Perfumería','Belleza y Cuidado Personal','Bazar','Juguetería','Librería','Conjuntos/Lencería','Salud/Suplementos','Multishop'];
+        leg.innerHTML = nombres.map((n, i) => `<div class="cat-legend-item"><span class="cat-dot" style="background:${CAT_NEON_COLORES[i]};box-shadow:0 0 5px ${CAT_NEON_COLORES[i]}99"></span><span>${n}</span></div>`).join('');
+    }
 }
 
 // 🔧 NUEVO: Top 10 revendedores en un solo gráfico, cada uno con su
