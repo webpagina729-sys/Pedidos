@@ -1851,7 +1851,8 @@ async function _refrescarStockYProveedores() {
     } catch (_) {
     } finally { _stockLivianoEnCurso = false; }
 }
-setInterval(() => { _refrescarStockYProveedores(); }, 60000);
+// Cada 5 minutos, y solo con la pestaña visible (para no gastar requests en segundo plano). El botón "Actualizar" recarga todo a mano.
+setInterval(() => { if (!document.hidden) _refrescarStockYProveedores(); }, 300000);
 
 async function loadData() {
     const pedidosWrap = document.getElementById('pedidos-estado-wrap');
