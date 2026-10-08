@@ -457,6 +457,17 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .modal-confirm-btn { background: var(--red); color:#fff; }
 #cargarProductosModal .modal-confirm-btn, #cargarProductosModal .btn-head, #cargarProductosModal .btn-act { background:#38bdf8; color:#fff; border:none; }
 #cargarProductosModal .modal-confirm-btn:hover, #cargarProductosModal .btn-head:hover, #cargarProductosModal .btn-act:hover { background:#0ea5e9; color:#fff; }
+#cargarProductosModal .cp-acciones { gap:8px; margin-top:16px; flex-wrap:wrap; align-items:center; }
+#cargarProductosModal .cp-acciones .btn-head, #cargarProductosModal .cp-acciones .modal-cancel, #cargarProductosModal .cp-acciones .modal-confirm-btn { flex:1 1 auto; width:auto; padding:8px 12px; font-size:12px; border-radius:8px; justify-content:center; }
+#cargarProductosModal .cp-var { margin-top:8px; padding-top:8px; border-top:1px dashed var(--border2); }
+#cargarProductosModal .cp-var .btn-head, #cargarProductosModal .cp-linea .btn-act { padding:6px 10px; font-size:11.5px; border-radius:7px; width:auto; }
+#cargarProductosModal .cp-linea { margin:8px 0 0; padding:9px; background:var(--surface); border:1px solid var(--border2); border-radius:9px; }
+#cargarProductosModal .cp-linea-head, #cargarProductosModal .cp-add { display:flex; gap:6px; align-items:center; }
+#cargarProductosModal .cp-linea-head .rvndr-search, #cargarProductosModal .cp-add .rvndr-search { margin-bottom:0 !important; flex:1; min-width:0; }
+#cargarProductosModal .cp-chips { display:flex; flex-wrap:wrap; gap:5px; margin:7px 0; }
+#cargarProductosModal .cp-chip { display:inline-flex; align-items:center; gap:5px; padding:3px 4px 3px 9px; font-size:11.5px; border-radius:14px; background:#e0f2fe; color:#0369a1; }
+#cargarProductosModal .cp-chip button { border:none; background:transparent; color:#0369a1; cursor:pointer; font-size:13px; line-height:1; padding:0 4px; }
+#cargarProductosModal .cp-nueva { margin-top:8px; }
 #cargarProductosModal .modal-cancel, #cargarProductosModal .cp-cerrar { background:#fff; color:#000; border:1px solid #d4d4d8; }
 #cargarProductosModal .cp-cerrar { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); margin-left:auto; flex-shrink:0; }
 
@@ -1036,8 +1047,8 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div id="cargarProductosForm" style="display:none">
             <select id="cargarProductosSub" class="rvndr-search" style="display:none"></select>
             <div id="cargarProductosLista"></div>
-            <button class="btn-head" style="width:100%;justify-content:center;gap:6px;margin-top:4px" onclick="agregarFilaProducto()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Agregar otro producto</button>
-            <div class="modal-actions">
+            <div class="modal-actions cp-acciones">
+                <button type="button" class="btn-head" onclick="agregarFilaProducto()">+ Agregar otro producto</button>
                 <button class="modal-cancel" onclick="cerrarCargarProductos()">Cancelar</button>
                 <button class="modal-confirm-btn" id="cargarProductosConfirmar" onclick="confirmarCargarProductos()">Confirmar</button>
             </div>
@@ -6146,9 +6157,64 @@ function agregarFilaProducto() {
         <input class="rvndr-search cp-precio" style="margin-bottom:6px" type="number" min="1" inputmode="numeric" placeholder="Precio Mayorista"/>
         <input class="rvndr-search cp-caracteristicas" style="margin-bottom:6px" placeholder="Característica del producto" autocomplete="off"/>
         <input class="rvndr-search cp-momento" style="margin-bottom:6px" placeholder="Momento ideal" autocomplete="off"/>
-        <input class="rvndr-search cp-variantes" style="margin-bottom:0" placeholder="Variantes: talles, colores… (separadas por coma)" autocomplete="off"/>`;
+        <div class="cp-var">
+            <button type="button" class="btn-head cp-var-toggle" onclick="cpAgregarLinea(this)">+ Agregar variantes</button>
+            <div class="cp-lineas"></div>
+            <button type="button" class="btn-head cp-nueva" style="display:none" onclick="cpAgregarLinea(this)">+ Nueva Línea</button>
+        </div>`;
     lista.appendChild(fila);
     fila.querySelector('.cp-nombre').focus();
+}
+
+function cpAgregarLinea(btn) {
+    const fila = btn.closest('.cp-fila');
+    const l = document.createElement('div');
+    l.className = 'cp-linea';
+    l._opts = [];
+    l.innerHTML = `<div class="cp-linea-head">
+            <input class="rvndr-search cp-linea-nombre" placeholder="Nombre de la variante (ej: Talle, Color)" autocomplete="off"/>
+            <button type="button" class="btn-act" title="Quitar línea" onclick="cpQuitarLinea(this)">✕</button>
+        </div>
+        <div class="cp-chips"></div>
+        <div class="cp-add">
+            <input class="rvndr-search cp-opc" placeholder="Opción (ej: 38, Rojo)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();cpAgregarOpcion(this);}"/>
+            <button type="button" class="btn-act" onclick="cpAgregarOpcion(this)">Agregar</button>
+        </div>`;
+    fila.querySelector('.cp-lineas').appendChild(l);
+    fila.querySelector('.cp-var-toggle').style.display = 'none';
+    fila.querySelector('.cp-nueva').style.display = '';
+    l.querySelector('.cp-linea-nombre').focus();
+}
+
+function cpQuitarLinea(btn) {
+    const fila = btn.closest('.cp-fila');
+    btn.closest('.cp-linea').remove();
+    if (!fila.querySelector('.cp-linea')) {
+        fila.querySelector('.cp-var-toggle').style.display = '';
+        fila.querySelector('.cp-nueva').style.display = 'none';
+    }
+}
+
+function cpAgregarOpcion(el) {
+    const l = el.closest('.cp-linea');
+    const inp = l.querySelector('.cp-opc');
+    const v = inp.value.trim().slice(0, 40);
+    if (!v) return;
+    if (!l._opts.includes(v) && l._opts.length < 30) l._opts.push(v);
+    inp.value = '';
+    cpRenderOpciones(l);
+    inp.focus();
+}
+
+function cpQuitarOpcion(btn, i) {
+    const l = btn.closest('.cp-linea');
+    l._opts.splice(i, 1);
+    cpRenderOpciones(l);
+}
+
+function cpRenderOpciones(l) {
+    l.querySelector('.cp-chips').innerHTML = l._opts.map((o, i) =>
+        `<span class="cp-chip">${esc(o)}<button type="button" title="Quitar" onclick="cpQuitarOpcion(this, ${i})">×</button></span>`).join('');
 }
 
 function quitarFilaProducto(btn) {
@@ -6171,10 +6237,22 @@ async function confirmarCargarProductos() {
         const mom = f.querySelector('.cp-momento').value.trim();
         if (car) p.caracteristicas = car;
         if (mom) p.momento = mom;
-        const vars = f.querySelector('.cp-variantes').value.split(',').map(t => t.trim()).filter(Boolean);
-        if (vars.length) p.variantes = vars;
+        // Variantes: cada línea tiene un nombre (Talle, Color…) y sus opciones; las líneas sin opciones no se agregan.
+        const lineas = [];
+        f.querySelectorAll('.cp-linea').forEach(l => {
+            l._sinNombre = false;
+            const pend = l.querySelector('.cp-opc');
+            if (pend && pend.value.trim()) cpAgregarOpcion(pend);
+            const opciones = l._opts || [];
+            const nombreL = l.querySelector('.cp-linea-nombre').value.trim();
+            if (!opciones.length) return;
+            if (!nombreL) { l._sinNombre = true; return; }
+            lineas.push({ nombre: nombreL, opciones: opciones.slice() });
+        });
+        if (lineas.length) p.lineasVariantes = lineas;
         return p;
     });
+    if (Array.from(document.querySelectorAll('#cargarProductosLista .cp-linea')).some(l => l._sinNombre)) { toast('Poné un nombre a cada línea de variantes (ej: Talle, Color)', 'err'); return; }
     if (productos.some(x => !x.nombre || !x.imagen || !(x.precio > 0))) { toast('Completá nombre, imagen y precio de todos los productos', 'err'); return; }
     const btn = document.getElementById('cargarProductosConfirmar');
     btn.disabled = true;
