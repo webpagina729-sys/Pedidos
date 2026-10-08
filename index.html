@@ -6226,6 +6226,7 @@ function agregarFilaProducto() {
         <input class="rvndr-search cp-nombre" style="margin-bottom:6px" placeholder="Nombre del Producto" autocomplete="off"/>
         <input class="rvndr-search cp-imagen" style="margin-bottom:6px" placeholder="Nombre de Imagen (ej: perfume1.png)" autocomplete="off"/>
         <input class="rvndr-search cp-precio" style="margin-bottom:6px" type="text" inputmode="decimal" autocomplete="off" placeholder="Precio Mayorista"/>
+        <input class="rvndr-search cp-resto" style="margin-bottom:6px" type="text" inputmode="decimal" autocomplete="off" placeholder="Restoprecio (tu costo)"/>
         <input class="rvndr-search cp-caracteristicas" style="margin-bottom:6px" placeholder="Característica del producto" autocomplete="off"/>
         <input class="rvndr-search cp-momento" style="margin-bottom:6px" placeholder="Momento ideal" autocomplete="off"/>
         <div class="cp-var">
@@ -6316,6 +6317,8 @@ async function confirmarCargarProductos() {
             imagen: f.querySelector('.cp-imagen').value.trim(),
             precio: _parsePrecioAR(f.querySelector('.cp-precio').value)
         };
+        const _resto = _parsePrecioAR(f.querySelector('.cp-resto').value);
+        if (_resto > 0) p._resto = _resto; // solo viaja al Worker restoprecios, no al catálogo
         // Característica y Momento ideal: si quedan vacíos no se agregan al producto.
         const car = f.querySelector('.cp-caracteristicas').value.trim();
         const mom = f.querySelector('.cp-momento').value.trim();
@@ -6343,14 +6346,31 @@ async function confirmarCargarProductos() {
     const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/agregar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ categoria: clave, canon: stockCatActual, productos })
+        body: JSON.stringify({ categoria: clave, canon: stockCatActual, productos: productos.map(({ _resto, ...resto }) => resto) })
     });
     btn.disabled = false;
     if (res && res.ok) {
         _sumarProductosLocales(clave, res.agregados);
         cerrarCargarProductos();
         renderStockLista();
-        toast(res.agregados.length + (res.agregados.length === 1 ? ' producto agregado' : ' productos agregados'), true);
+        // Restoprecio: el costo de cada producto nuevo se guarda también en el Worker restoprecios.
+        const _CAT_RESTO = { calzados: 'CALZADOS', perfumes: 'PERFUMERIA', belleza_perfume: 'PERFUMERIA', belleza_maquillaje: 'MAQUILLAJE', bazar_bazar: 'BAZAR', bazar_melamina: 'VAJILLA_MELAMINA', jugueteria_juguetes: 'JUGUETERIA', jugueteria_peluches: 'PELUCHES', libreria: 'LIBRERIA', lenceria: 'LENCERIA', suplementos: 'SUPLEMENTOS', electronicos: 'ELECTRONICOS' };
+        const _paraResto = res.agregados.map((a, i) => ({ categoria: _CAT_RESTO[sub] || _CAT_RESTO[clave] || String(clave).toUpperCase(), nombre: a.nombre, precio_mayorista: productos[i] && productos[i]._resto }))
+            .filter(x => x.precio_mayorista > 0);
+        let _restoOk = true;
+        if (_paraResto.length) {
+            const r2 = await fetchJson(RESTOPRECIOS_WORKER + 'api/restoprecio/agregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({ productos: _paraResto })
+            });
+            _restoOk = !!(r2 && r2.ok);
+            if (_restoOk) {
+                _paraResto.forEach(x => { CATALOGO_PRECIOS_WORKER[String(x.nombre).trim().toUpperCase()] = Math.round(x.precio_mayorista); });
+                try { localStorage.removeItem('_catalogoPreciosWorkerCache'); } catch (_) {}
+            }
+        }
+        toast(res.agregados.length + (res.agregados.length === 1 ? ' producto agregado' : ' productos agregados') + (_restoOk ? '' : ' — pero no se pudo guardar el restoprecio'), _restoOk);
     } else {
         toast('No se pudieron agregar los productos' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
     }
@@ -6389,6 +6409,17 @@ async function eliminarProductoDefinitivo(subcat, productId) {
             CATALOGO_PRODUCTOS_GLOBAL[sc] = CATALOGO_PRODUCTOS_GLOBAL[sc].filter(p => p.id !== productId);
         });
         renderStockLista();
+        // También se quita del Worker restoprecios (por nombre).
+        fetchJson(RESTOPRECIOS_WORKER + 'api/restoprecio/eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ nombre: producto.nombre })
+        }).then(r => {
+            if (r && r.ok) {
+                delete CATALOGO_PRECIOS_WORKER[String(producto.nombre).trim().toUpperCase()];
+                try { localStorage.removeItem('_catalogoPreciosWorkerCache'); } catch (_) {}
+            }
+        }).catch(() => {});
         toast('Producto eliminado definitivamente', true);
     } else {
         toast('No se pudo eliminar' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
