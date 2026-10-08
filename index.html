@@ -2632,6 +2632,7 @@ function _generarFacturaProveedorPDFStock(pedidoId) {
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
     doc.text('$'+Math.round(g.totalMayorista||0).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
 
+    _fechaPedidoFacturaPie(doc, W, H, y, [g.fecha]);
     _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
     return doc;
 }
@@ -2701,6 +2702,7 @@ function _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado) {
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
     doc.text('$'+Math.round(totalFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
 
+    _fechaPedidoFacturaPie(doc, W, H, y, gs.map(x => x.fecha));
     _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
     return doc;
 }
@@ -3112,6 +3114,19 @@ function panelGestionContenido(g) {
 // "Aprobados" lleva marca roja "PENDIENTE DE PAGO"; en "Confirmados"
 // (ya pagado a precio mayorista) lleva marca verde "PAGADO".
 // ═══════════════════════════════════════════════════════════
+// 🔧 Fecha y hora del pedido, en chiquito debajo del total de la factura.
+function _fechaPedidoFacturaPie(doc, W, H, y, fechas) {
+    const f = (fechas || []).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+    if (!f.length) return;
+    const txt = (f[0] === f[f.length - 1])
+        ? 'Pedido realizado: ' + ba(f[0]) + ' hs'
+        : 'Pedidos realizados: desde ' + ba(f[0]) + ' hasta ' + ba(f[f.length - 1]) + ' hs';
+    let ty = y + 22;
+    if (ty > H - 10) { doc.addPage(); ty = 20; }
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,126,140);
+    doc.text(txt, W-14, ty, { align:'right' });
+}
+
 function _agregarMarcaAguaFactura(doc, W, H, texto, color) {
     doc.saveGraphicsState?.();
     doc.setTextColor(...color);
@@ -3191,6 +3206,7 @@ function _generarFacturaProveedorPDF(pedidoId) {
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
     doc.text('$'+Math.round(totalMayoristaFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
 
+    _fechaPedidoFacturaPie(doc, W, H, y, [g.fecha]);
     _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
     return doc;
 }
@@ -3274,6 +3290,7 @@ function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
     doc.text('$'+Math.round(totalMayoristaFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
 
+    _fechaPedidoFacturaPie(doc, W, H, y, gs.map(x => x.fecha));
     _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
     return doc;
 }
