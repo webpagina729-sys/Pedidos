@@ -709,6 +709,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 13h1"/><path d="M14 13h1"/><path d="M9 21v-4h6v4"/></svg>
                 Proveedores registrados
             </button>
+            <button class="menu-btn" data-view="afiliados" onclick="switchView('afiliados')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Afiliados
+            </button>
         </div>
 
         <!-- VIEW: PEDIDOS NUEVOS -->
@@ -761,6 +765,12 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div class="view" id="view-proveedores-reg">
             <div class="section-sub">Proveedores que completaron el registro oficial desde su panel (proveedores.html)</div>
             <div id="proveedores-reg-wrap"><div class="loader"><div class="spin"></div><p>Cargando proveedores...</p></div></div>
+        </div>
+
+        <!-- VIEW: AFILIADOS (programa de afiliados — Worker afiliados.tuweb.workers.dev) -->
+        <div class="view" id="view-afiliados">
+            <div class="section-sub">Revendedores del programa de afiliados. Tocá un revendedor para ver los pedidos pagados de sus afiliados y confirmar su 5%.</div>
+            <div id="afiliados-wrap"><div class="loader"><div class="spin"></div><p>Cargando afiliados...</p></div></div>
         </div>
 
     </div>
@@ -7071,5 +7081,344 @@ function closeGuide() { document.getElementById('guide-modal').classList.remove(
 
 window.addEventListener('load', init);
 </script>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PROGRAMA DE AFILIADOS — módulo agregado (no modifica la lógica existente)
+     Usa el Worker nuevo https://afiliados.tuweb.workers.dev con la misma
+     clave de panel que el resto de los Workers (X-Panel-Admin-Key).
+       • Sección "Afiliados": afiliadores, pedidos de sus afiliados, confirmar.
+       • Estadísticas: "Ranking de Afiliados".
+       • Info Rvndr: afiliados / activos / inactivos / última venta.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script id="afiliados-modulo">
+(function () {
+    'use strict';
+    var W = 'https://afiliados.tuweb.workers.dev';
+    var css = document.createElement('style');
+    css.textContent =
+        '.af-rib{background:var(--surface2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;overflow:hidden}' +
+        '.af-rib>button.af-h{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;background:none;border:0;color:var(--text);text-align:left;cursor:pointer;font-family:inherit}' +
+        '.af-rib .af-l{flex:1;min-width:0}.af-rib .af-n{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+        '.af-rib .af-s{font-size:11px;color:var(--text2);margin-top:1px}.af-rib .af-v{font-weight:800;font-size:13px;white-space:nowrap}' +
+        '.af-rib .af-c{transition:transform .2s;color:var(--text3);flex-shrink:0}.af-rib.open>button.af-h .af-c{transform:rotate(180deg)}' +
+        '.af-rib>.af-b{display:none;padding:4px 12px 12px;border-top:1px solid var(--border)}.af-rib.open>.af-b{display:block}' +
+        '.af-rib .af-rib{background:var(--surface);margin:8px 0 0}' +
+        '.af-ln{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:12px;border-bottom:1px dashed var(--border)}.af-ln:last-child{border-bottom:0}.af-ln b{font-weight:700;text-align:right}' +
+        '.af-grp{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);margin:14px 0 2px}' +
+        '.af-btn{display:block;width:100%;margin-top:9px;background:var(--green);color:#06210f;border:0;border-radius:9px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit}' +
+        '.af-btn:disabled{background:var(--surface);color:var(--text3);border:1px solid var(--border2);cursor:not-allowed}' +
+        '.af-pill{font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap}' +
+        '.af-pill.g{background:var(--green-pale);color:var(--green)}.af-pill.a{background:var(--amber-pale);color:var(--amber)}.af-pill.r{background:rgba(244,63,94,.12);color:#f43f5e}' +
+        '.af-empty{padding:26px 10px;text-align:center;color:var(--text2);font-size:12.5px}';
+    document.head.appendChild(css);
+
+    var CHEV = '<svg class="af-c" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>';
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'); }
+    function fdh(ms) { if (!ms) return '—'; var d = new Date(ms); return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); }
+    function fd(ms) { return ms ? new Date(ms).toLocaleDateString('es-AR') : '—'; }
+    function ln(a, b) { return '<div class="af-ln"><span>' + a + '</span><b>' + b + '</b></div>'; }
+    function rib(titulo, sub, valor, cuerpo, onOpen, id) {
+        return '<div class="af-rib"' + (id ? ' id="' + id + '"' : '') + '><button class="af-h" onclick="AF.tog(this' + (onOpen ? ',' + onOpen : '') + ')">' +
+            '<span class="af-l"><div class="af-n">' + titulo + '</div>' + (sub ? '<div class="af-s">' + sub + '</div>' : '') + '</span>' +
+            (valor != null ? '<span class="af-v">' + valor + '</span>' : '') + CHEV + '</button><div class="af-b">' + (cuerpo || '') + '</div></div>';
+    }
+    async function api(path, opts) {
+        opts = opts || {};
+        var r = await fetch(W + path, {
+            method: opts.method || 'GET',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: opts.body ? JSON.stringify(opts.body) : undefined
+        });
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok && !d.error) d.error = 'Error ' + r.status;
+        return d;
+    }
+    var AF = window.AF = {};
+    var detalleCache = {};
+
+    // Abre/cierra una cinta (todas nacen cerradas).
+    AF.tog = function (btn, fnName) {
+        var r = btn.parentNode, abrir = !r.classList.contains('open');
+        r.classList.toggle('open', abrir);
+        if (abrir && fnName && AF[fnName] && !r.getAttribute('data-cargada')) { r.setAttribute('data-cargada', '1'); AF[fnName](r); }
+    };
+
+    // ───────── Sección "Afiliados" ─────────
+    var _lista = null, _liq = null;
+    var VIA = { stock: 'Pagó Stock con su saldo', transferencia: 'Transferencia', credito: 'Crédito en Stock' };
+    // Estadísticas del programa de afiliados (aparte de las de los revendedores).
+    function bloqueLiquidaciones(q) {
+        if (!q || !q.ok) return '<div class="af-empty">No se pudieron cargar las estadísticas de liquidaciones.</div>';
+        var h = '<div class="af-grp">Estadísticas de Afiliados</div>' +
+            rib('Liquidaciones', q.cantidadLiquidaciones + ' liquidacion' + (q.cantidadLiquidaciones !== 1 ? 'es' : ''), money(q.totalLiquidado),
+                ln('Total liquidado', money(q.totalLiquidado)) + ln('Pagado con saldo en Stock', money(q.liquidadoStock)) + ln('Cobrado (transferencia / crédito)', money(q.liquidadoCobros)) +
+                ln('Afiliadores liquidados', q.afiliadosLiquidados) +
+                (q.liquidaciones.length ? q.liquidaciones.slice(0, 50).map(function (l) {
+                    return rib(esc(l.nombre || l.codigo), esc(l.codigo) + ' · ' + fdh(l.fecha), money(l.monto), ln('Vía', VIA[l.via] || l.via) + (l.pedidoId ? ln('Pedido de Stock', esc(l.pedidoId)) : ''));
+                }).join('') : '<div class="af-empty">Todavía no hay liquidaciones.</div>')) +
+            rib('Total pendiente', 'Por confirmar + Total a Liquidar sin usar', money(q.totalPendiente),
+                ln('Por confirmar (pagado por el afiliado)', money(q.porConfirmar)) + ln('Total a Liquidar (confirmado, sin usar)', money(q.totalALiquidar)) +
+                ln('En proceso (pedidos aún sin pagar)', money(q.enProceso))) +
+            rib('Retención 1% de la plataforma', 'Sobre comisiones confirmadas', money(q.retencionTotal),
+                ln('Aportes 5% cedidos por los afiliados', money(q.aportesCedidos)) + ln('1% que queda en la plataforma', money(q.retencionTotal)));
+        return h;
+    }
+    async function renderAfiliados() {
+        var wrap = document.getElementById('afiliados-wrap'); if (!wrap) return;
+        wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando afiliados...</p></div>';
+        var d = await api('/api/admin/afiliadores').catch(function () { return { error: 'Sin conexión con el Worker de afiliados' }; });
+        var rt = await api('/api/admin/retiros').catch(function () { return {}; });
+        var lq = await api('/api/admin/resumen-liquidaciones').catch(function () { return {}; });
+        if (lq && lq.ok) _liq = lq;
+        if (!d.ok) { wrap.innerHTML = '<div class="af-empty">' + esc(d.error || 'No se pudo cargar') + '</div>'; return; }
+        _lista = d.afiliadores; detalleCache = {};
+        var totalLiq = d.afiliadores.reduce(function (s, a) { return s + a.totalALiquidar; }, 0);
+        var html = '<div style="margin-bottom:12px">' +
+            ln('Revendedores en el programa', d.afiliadores.length) + ln('Total a Liquidar (confirmado)', money(totalLiq)) + '</div>';
+        html += bloqueLiquidaciones(lq);
+        var retiros = (rt && rt.retiros) || [];
+        var pend = retiros.filter(function (r) { return r.estado === 'solicitado'; });
+        html += rib('Pedidos de cobro', pend.length + ' pendiente' + (pend.length !== 1 ? 's' : '') + ' de pago', retiros.length,
+            retiros.length ? retiros.map(function (r) {
+                return rib(esc(r.nombre || r.afiliadorCodigo), esc(r.afiliadorCodigo) + ' · ' + fdh(r.fecha), money(r.monto),
+                    ln('Método', r.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + (r.alias ? ln('Alias / CBU', esc(r.alias)) : '') +
+                    ln('Estado', r.estado === 'pagado' ? 'Pagado' : r.estado === 'acreditado' ? 'Acreditado' : 'Solicitado') +
+                    (r.estado === 'solicitado' ? '<button class="af-btn" onclick="AF.pagarRetiro(\'' + esc(r.id) + '\',this)">Marcar como pagado</button>' : ''));
+            }).join('') : '<div class="af-empty">Todavía no hay pedidos de cobro.</div>');
+        html += '<div class="af-grp">Revendedores afiliadores</div>';
+        html += d.afiliadores.length ? d.afiliadores.map(function (a) {
+            return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), esc(a.codigo) + ' · ' + a.totalAfiliados + ' afiliado' + (a.totalAfiliados !== 1 ? 's' : ''),
+                money(a.totalALiquidar), '<div class="af-empty">Cargando...</div>', "'abrirAfiliador'", 'afl-' + esc(a.codigo));
+        }).join('') : '<div class="af-empty">Todavía no hay revendedores registrados en el programa.</div>';
+        wrap.innerHTML = html;
+    }
+    AF.pagarRetiro = async function (id, btn) {
+        btn.disabled = true;
+        var d = await api('/api/admin/marcar-retiro-pagado', { method: 'POST', body: { retiroId: id } });
+        if (d.ok) { toast('Pago marcado', true); renderAfiliados(); } else { btn.disabled = false; toast(d.error || 'No se pudo marcar', 'err'); }
+    };
+    function codigoDeRib(r) { return r.id.replace(/^afl-/, ''); }
+    AF.abrirAfiliador = async function (r) {
+        var body = r.querySelector(':scope > .af-b'), codigo = codigoDeRib(r);
+        var d = await api('/api/admin/afiliador?codigo=' + encodeURIComponent(codigo));
+        if (!d.ok) { body.innerHTML = '<div class="af-empty">' + esc(d.error || 'No se pudo cargar') + '</div>'; r.removeAttribute('data-cargada'); return; }
+        detalleCache[codigo] = d;
+        var ventas = [];
+        d.referidos.forEach(function (ref) { ref.ventas.forEach(function (v) { if (v.etapa === 'confirmado' || v.etapa === 'liquidar' || v.etapa === 'pagada') ventas.push({ v: v, ref: ref }); }); });
+        var grupos = [
+            ['Disponibles para confirmar', function (x) { return x.v.etapa === 'confirmado' && x.v.disponible; }],
+            ['En espera (10 días desde el pago)', function (x) { return x.v.etapa === 'confirmado' && !x.v.disponible; }],
+            ['Total a Liquidar', function (x) { return x.v.etapa === 'liquidar'; }],
+            ['Ya pagados', function (x) { return x.v.etapa === 'pagada'; }]
+        ];
+        var ya = (_lista || []).filter(function (x) { return x.codigo === codigo; })[0] || {};
+        var html = ln('Total liquidado', money(ya.totalLiquidado)) + ln('Total pendiente', money(ya.totalPendiente)) +
+            ln('Afiliados vigentes / libres', d.referidos.filter(function (x) { return x.vinculo === 'vigente'; }).length + ' / ' + d.referidos.filter(function (x) { return x.vinculo === 'libre'; }).length) +
+            ln('Total a Liquidar', '<span style="color:var(--green)">' + money(d.etapas.liquidar.monto) + '</span>');
+        if (!ventas.length) html += '<div class="af-empty">Sus afiliados todavía no tienen pedidos pagados.</div>';
+        grupos.forEach(function (g) {
+            var items = ventas.filter(g[1]); if (!items.length) return;
+            var tot = items.reduce(function (s, x) { return s + x.v.comision; }, 0);
+            html += '<div class="af-grp">' + g[0] + ' · ' + money(tot) + '</div>';
+            html += items.map(function (x) {
+                var v = x.v, ref = x.ref;
+                var est = v.etapa === 'liquidar' ? '<span class="af-pill g">Confirmado</span>' : v.etapa === 'pagada' ? '<span class="af-pill g">Pagado</span>' : v.disponible ? '<span class="af-pill a">Disponible</span>' : '<span class="af-pill r">En espera</span>';
+                var btn = v.etapa === 'confirmado'
+                    ? '<button class="af-btn" ' + (v.disponible ? '' : 'disabled') + ' onclick="AF.confirmar(\'' + esc(v.id) + '\',\'' + esc(codigo) + '\',this)">' + (v.disponible ? 'Confirmar' : 'Disponible el ' + fd(v.disponibleDesde)) + '</button>' : '';
+                return rib('Pedido ' + esc(v.numeroPedido ? '#' + v.numeroPedido : String(v.pedidoId || '').slice(-6)) + ' · ' + esc(ref.nombre), esc(ref.codigo) + ' · ' + est, money(v.comision),
+                    ln('Afiliado', esc(ref.nombre) + ' (' + esc(ref.codigo) + ')') + ln('Ganancia del afiliado', money(v.ganancia)) + ln('Su 5% (cedido por el afiliado)', money(v.comision)) + ln('Retención plataforma 1%', money(v.retencion != null ? v.retencion : Math.round((Number(v.comision) || 0) * 0.01))) + ln('Neto para el afiliador', money(v.neta != null ? v.neta : (Number(v.comision) || 0) - Math.round((Number(v.comision) || 0) * 0.01))) +
+                    ln('Total vendido', money(v.totalVenta)) + ln('Pagado el', fdh(v.fechaPago)) + btn);
+            }).join('');
+        });
+        html += ln('Total de comisiones pagadas por sus afiliados', money(d.etapas.confirmado.monto + d.etapas.liquidar.monto + d.etapas.pagada.monto));
+        body.innerHTML = html;
+    };
+    AF.confirmar = async function (id, codigo, btn) {
+        btn.disabled = true; btn.textContent = 'Confirmando...';
+        var d = await api('/api/admin/confirmar-venta', { method: 'POST', body: { ventaId: id } });
+        if (!d.ok) { btn.disabled = false; btn.textContent = 'Confirmar'; toast(d.error || 'No se pudo confirmar', 'err'); return; }
+        toast('Pasó a Total a Liquidar', true);
+        var r = document.getElementById('afl-' + codigo);
+        if (r) { r.removeAttribute('data-cargada'); r.setAttribute('data-cargada', '1'); await AF.abrirAfiliador(r); }
+        // actualizar el total que se ve en la cinta
+        var dd = await api('/api/admin/afiliadores'); if (dd.ok) { var a = dd.afiliadores.filter(function (x) { return x.codigo === codigo; })[0]; var v = r && r.querySelector('.af-v'); if (a && v) v.textContent = money(a.totalALiquidar); }
+    };
+
+    // ───────── Ranking de Afiliados (Estadísticas) ─────────
+    var _rank = null, _rankAt = 0;
+    function pintarRanking() {
+        var box = document.getElementById('af-ranking-list'); if (!box || !_rank) return;
+        var lista = _rank.filter(function (a) { return a.totalAfiliados > 0; });
+        box.innerHTML = lista.length ? lista.map(function (a, i) {
+            return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), 'Total de afiliados: ' + a.totalAfiliados + ' · Total: ' + money(a.totalALiquidar),
+                '#' + (i + 1), '<div class="af-empty">Cargando...</div>', "'abrirRanking'", 'afr-' + esc(a.codigo));
+        }).join('') : '<div class="af-empty">Todavía no hay revendedores con afiliados.</div>';
+    }
+    AF.abrirRanking = async function (r) {
+        var body = r.querySelector(':scope > .af-b'), codigo = r.id.replace(/^afr-/, '');
+        var d = await api('/api/admin/afiliador?codigo=' + encodeURIComponent(codigo));
+        if (!d.ok) { body.innerHTML = '<div class="af-empty">' + esc(d.error || 'No se pudo cargar') + '</div>'; r.removeAttribute('data-cargada'); return; }
+        body.innerHTML = d.referidos.length ? d.referidos.map(function (x) {
+            var pill = x.vinculo === 'libre' ? '<span class="af-pill r">Libre</span>' : '<span class="af-pill g">Vigente</span>';
+            return rib(esc(x.nombre), esc(x.codigo) + ' · ' + pill, money(x.comisionTotal),
+                ln('Pedidos generados', x.pedidos) + ln('Productos vendidos', x.unidades) + ln('Total vendido', money(x.totalVendido)) +
+                ln('Ganancia del afiliado', money(x.gananciaReferido)) + ln('Total % ($) generado para el revendedor', money(x.comisionTotal)));
+        }).join('') : '<div class="af-empty">Sin afiliados.</div>';
+    };
+    async function cargarRanking() {
+        if (_rank && Date.now() - _rankAt < 60000) { pintarRanking(); return; }
+        var d = await api('/api/admin/afiliadores').catch(function () { return {}; });
+        if (d && d.ok) { _rank = d.afiliadores; _rankAt = Date.now(); pintarRanking(); }
+        else { var b = document.getElementById('af-ranking-list'); if (b) b.innerHTML = '<div class="af-empty">No se pudo cargar el ranking.</div>'; }
+    }
+    var _rsv = (typeof renderStatsView === 'function') ? renderStatsView : null;
+    if (_rsv) {
+        renderStatsView = function () {
+            var r = _rsv.apply(this, arguments);
+            try { _baseGan = _misGananciasHtmlCache; } catch (_) {}
+            try {
+                var el = document.getElementById('stats-content');
+                if (el && !document.getElementById('af-ranking-box')) {
+                    var box = document.createElement('div'); box.id = 'af-ranking-box'; box.style.marginTop = '22px';
+                    box.innerHTML = '<h2 class="section-title">Ranking de Afiliados</h2><div id="af-ranking-list"><div class="loader"><div class="spin"></div></div></div>';
+                    el.appendChild(box);
+                    cargarRanking();
+                }
+            } catch (e) { console.warn('afiliados: ranking', e); }
+            return r;
+        };
+    }
+
+    // ───────── Info Rvndr: afiliados / activos / inactivos / última venta ─────────
+    var _res = null, _resAt = 0;
+    async function cargarResumen() {
+        if (_res && Date.now() - _resAt < 60000) return _res;
+        var d = await api('/api/admin/resumen-revendedores').catch(function () { return {}; });
+        if (d && d.ok) { _res = d.revendedores || {}; _resAt = Date.now(); }
+        return _res;
+    }
+    function ultimaVentaLocal(codigo) {
+        var m = 0; try { panelGestion.forEach(function (g) { if (g.codigoVendedor === codigo && g.fecha > m) m = g.fecha; }); } catch (_) {}
+        return m;
+    }
+    function datosPrograma(codigo) {
+        var s = (_res && _res[codigo]) || {};
+        return { afiliados: s.afiliados || 0, activos: s.activos || 0, inactivos: s.inactivos || 0, ultima: Math.max(Number(s.ultimaVenta) || 0, ultimaVentaLocal(codigo)), enPrograma: !!s.enPrograma, afiliadoDe: s.afiliadoDe || '',
+            aporteCedido: s.aporteCedido || 0, comisionRecibida: s.comisionRecibida || 0, retencion: s.retencion || 0, neta: s.neta || 0 };
+    }
+    var PILL = ' <span class="af-pill g" data-af-pill="1">Afiliado</span>';
+    // Números reales de un revendedor del programa, teniendo en cuenta el 5% y el 1%.
+    // Lo que ya existía en Info Rvndr no se modifica: esto se muestra aparte.
+    function bloqueReales(codigo) {
+        var p = datosPrograma(codigo);
+        if (!p.enPrograma && !p.afiliadoDe) return '';
+        var v = null; try { v = vendorAggregates().find(function (x) { return x.codigo === codigo; }); } catch (_) {}
+        v = v || { facturacion: 0, ganancia: 0 };
+        var h = ln('Mi ganancia por sus productos (sin cambios)', money(v.ganancia));
+        if (p.afiliadoDe) h += ln('5% de su ganancia cedido a ' + esc(p.afiliadoDe), money(p.aporteCedido)) + ln('Facturación real (sin ese 5%)', money(Math.max(0, v.facturacion - p.aporteCedido)));
+        if (p.enPrograma && (p.afiliados > 0 || p.comisionRecibida > 0)) h += ln('5% recibido de sus afiliados', money(p.comisionRecibida)) + ln('Retención 1% (queda en la plataforma)', money(p.retencion)) + ln('Neto de afiliados para el revendedor', money(p.neta)) + ln('Mi ganancia por el 1% de este revendedor', money(p.retencion));
+        return h;
+    }
+    function filasPrograma(codigo) {
+        var p = datosPrograma(codigo);
+        return '<div class="ship-row">Afiliados: <strong>' + p.afiliados + '</strong> · Activos: <strong>' + p.activos + '</strong> · Inactivos: <strong>' + p.inactivos + '</strong></div>' +
+            '<div class="ship-row">Última venta: <strong>' + fdh(p.ultima) + '</strong></div>';
+    }
+    var _rl = (typeof renderRvndrLista === 'function') ? renderRvndrLista : null;
+    if (_rl) {
+        renderRvndrLista = function () {
+            var r = _rl.apply(this, arguments);
+            try {
+                document.querySelectorAll('#rvndr-lista-wrap .ribbon').forEach(function (rb) {
+                    var c = rb.querySelector('.r-code'), sb = rb.querySelector('.ship-block');
+                    var cod0 = c ? (c.textContent || '').trim() : '';
+                    var nm = rb.querySelector('.r-name');
+                    if (nm && cod0 && datosPrograma(cod0).enPrograma && !nm.querySelector('[data-af-pill]')) nm.insertAdjacentHTML('beforeend', PILL);
+                    if (c && sb && !sb.getAttribute('data-af')) { sb.setAttribute('data-af', '1'); sb.insertAdjacentHTML('beforeend', filasPrograma((c.textContent || '').trim())); }
+                });
+            } catch (e) { console.warn('afiliados: info rvndr', e); }
+            return r;
+        };
+    }
+    var _or = (typeof openRvndr === 'function') ? openRvndr : null;
+    if (_or) {
+        openRvndr = function () {
+            var r = _or.apply(this, arguments);
+            cargarResumen().then(function () { try { var i = document.getElementById('rvndr-search-input'); renderRvndrLista(i ? i.value : ''); } catch (_) {} });
+            return r;
+        };
+    }
+    var _am = (typeof abrirRvndrMasInfo === 'function') ? abrirRvndrMasInfo : null;
+    if (_am) {
+        abrirRvndrMasInfo = function (codigo) {
+            var r = _am.apply(this, arguments);
+            try {
+                var body = document.getElementById('rvdet-body');
+                var p = datosPrograma(codigo);
+                var h = '<h2 class="section-title" style="font-size:13px">Programa de afiliados</h2><div class="ship-block" style="margin-bottom:18px">' +
+                    '<div class="ship-row">Registrado en el programa: <strong>' + (p.enPrograma ? 'Sí' : 'No') + '</strong></div>' +
+                    (p.afiliadoDe ? '<div class="ship-row">Afiliado por: <strong>' + esc(p.afiliadoDe) + '</strong></div>' : '') +
+                    filasPrograma(codigo) + '<div class="ship-row" style="font-size:10.5px;opacity:.7">Activo = vendió al menos un producto en los últimos 5 días.</div></div>';
+                var botones = body.lastElementChild; // contenedor de los botones finales
+                h = h.replace('</div></div>', '</div><div id="af-reales">' + (bloqueReales(codigo) ? '<div class="af-grp" style="margin-top:6px">Números reales (con el 5% y el 1%)</div>' + bloqueReales(codigo) : '') + '</div></div>');
+                var tmp = document.createElement('div'); tmp.id = 'af-info-prog'; tmp.innerHTML = h;
+                body.insertBefore(tmp, botones);
+                cargarResumen().then(function () {
+                    var x = document.getElementById('af-info-prog'); if (!x) return;
+                    var p2 = datosPrograma(codigo);
+                    var rz = x.querySelector('#af-reales'), br = bloqueReales(codigo);
+                    if (rz) rz.innerHTML = br ? '<div class="af-grp" style="margin-top:6px">Números reales (con el 5% y el 1%)</div>' + br : '';
+                    var tt = document.getElementById('rvdet-titulo');
+                    if (tt && p2.enPrograma && !tt.querySelector('[data-af-pill]')) tt.insertAdjacentHTML('beforeend', PILL);
+                    x.querySelectorAll('.ship-row').forEach(function (row) {
+                        if (/^Afiliados:/.test(row.textContent)) row.innerHTML = 'Afiliados: <strong>' + p2.afiliados + '</strong> · Activos: <strong>' + p2.activos + '</strong> · Inactivos: <strong>' + p2.inactivos + '</strong>';
+                        if (/^Última venta:/.test(row.textContent)) row.innerHTML = 'Última venta: <strong>' + fdh(p2.ultima) + '</strong>';
+                        if (/^Registrado en el programa:/.test(row.textContent)) row.innerHTML = 'Registrado en el programa: <strong>' + (p2.enPrograma ? 'Sí' : 'No') + '</strong>';
+                    });
+                });
+            } catch (e) { console.warn('afiliados: más info', e); }
+            return r;
+        };
+    }
+
+    // ───────── Mis Ganancias: ganancia por el 1% de afiliados (aparte de la de productos) ─────────
+    var _baseGan = null;
+    function bloqueGanancia1() {
+        var q = _liq;
+        var gProd = 0; try { gProd = vendorAggregates().reduce(function (t, v) { return t + v.ganancia; }, 0); } catch (_) {}
+        var uno = q && q.ok ? q.retencionTotal : 0;
+        return '<div style="margin-top:18px;padding-top:14px;border-top:2px solid var(--border)">' +
+            '<div class="section-sub" style="font-weight:700;color:var(--text2);margin:0 0 8px">Programa de Afiliados (aparte de los productos)</div>' +
+            (q && q.ok
+                ? ln('Ganancia por el 1% de afiliados', '<span style="color:var(--green)">' + money(uno) + '</span>') +
+                  ln('Aportes 5% cedidos (pasan a los afiliadores, no son ganancia)', money(q.aportesCedidos)) +
+                  ln('Ganancia total (productos + 1% de afiliados)', '<span style="color:var(--green)">' + money(gProd + uno) + '</span>')
+                : '<div class="af-empty">No se pudo cargar la ganancia de afiliados.</div>') + '</div>';
+    }
+    var _agm = (typeof abrirMisGanancias === 'function') ? abrirMisGanancias : null;
+    if (_agm) {
+        abrirMisGanancias = async function () {
+            var rib0 = document.getElementById('mis-ganancias-ribbon');
+            if (rib0 && !rib0.classList.contains('expanded') && _baseGan != null) {
+                try { var q = await api('/api/admin/resumen-liquidaciones'); if (q && q.ok) _liq = q; } catch (_) {}
+                _misGananciasHtmlCache = _baseGan + bloqueGanancia1();
+            }
+            return _agm.apply(this, arguments);
+        };
+    }
+
+    // ───────── Navegación: vista "Afiliados" ─────────
+    var _sv = (typeof switchView === 'function') ? switchView : null;
+    if (_sv) {
+        switchView = function (v) {
+            var r = _sv.apply(this, arguments);
+            if (v === 'afiliados') renderAfiliados();
+            return r;
+        };
+    }
+    setTimeout(cargarResumen, 6000);
+})();
+</script>
+
 </body>
 </html>
