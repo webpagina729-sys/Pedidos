@@ -7158,6 +7158,7 @@ window.addEventListener('load', init);
                 }).join('') : '<div class="af-empty">Todavía no hay liquidaciones.</div>')) +
             rib('Total pendiente', 'Por confirmar + Total a Liquidar sin usar', money(q.totalPendiente),
                 ln('Por confirmar (pagado por el afiliado)', money(q.porConfirmar)) + ln('Total a Liquidar (confirmado, sin usar)', money(q.totalALiquidar)) +
+                ln('En cobro (transferencias por pagar)', money(q.enCobro || 0)) +
                 ln('En proceso (pedidos aún sin pagar)', money(q.enProceso))) +
             rib('Retención 1% de la plataforma', 'Sobre comisiones confirmadas', money(q.retencionTotal),
                 ln('Aportes 5% cedidos por los afiliados', money(q.aportesCedidos)) + ln('1% que queda en la plataforma', money(q.retencionTotal)));
@@ -7177,14 +7178,20 @@ window.addEventListener('load', init);
             ln('Revendedores en el programa', d.afiliadores.length) + ln('Total a Liquidar (confirmado)', money(totalLiq)) + '</div>';
         html += bloqueLiquidaciones(lq);
         var retiros = (rt && rt.retiros) || [];
+        _retiros = retiros;
         var pend = retiros.filter(function (r) { return r.estado === 'solicitado'; });
-        html += rib('Pedidos de cobro', pend.length + ' pendiente' + (pend.length !== 1 ? 's' : '') + ' de pago', retiros.length,
-            retiros.length ? retiros.map(function (r) {
-                return rib(esc(r.nombre || r.afiliadorCodigo), esc(r.afiliadorCodigo) + ' · ' + fdh(r.fecha), money(r.monto),
-                    ln('Método', r.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + (r.alias ? ln('Alias / CBU', esc(r.alias)) : '') +
-                    ln('Estado', r.estado === 'pagado' ? 'Pagado' : r.estado === 'acreditado' ? 'Acreditado' : 'Solicitado') +
-                    (r.estado === 'solicitado' ? '<button class="af-btn" onclick="AF.pagarRetiro(\'' + esc(r.id) + '\',this)">Marcar como pagado</button>' : ''));
-            }).join('') : '<div class="af-empty">Todavía no hay pedidos de cobro.</div>');
+        var hechos = retiros.filter(function (r) { return r.estado === 'pagado' || r.estado === 'acreditado'; });
+        html += rib('Pedidos de cobro', pend.length + ' pendiente' + (pend.length !== 1 ? 's' : '') + ' de pago', pend.length,
+            pend.length ? pend.map(function (r) {
+                return rib(esc(r.nombre || r.afiliadorCodigo), esc(r.numeroSolicitud || '') + ' · ' + esc(r.afiliadorCodigo) + ' · ' + fdh(r.fecha), money(r.monto), cuerpoRetiro(r) +
+                    '<button class="af-btn" onclick="AF.pagarRetiro(\'' + esc(r.id) + '\',this)">Marcar como pagado y enviar boleta</button>');
+            }).join('') : '<div class="af-empty">No hay pedidos de cobro pendientes.</div>');
+        // Pagos realizados: transferencias confirmadas y créditos acreditados (guardados en Firestore).
+        html += rib('Pagos realizados', hechos.length + ' pago' + (hechos.length !== 1 ? 's' : '') + ' · ' + money(hechos.reduce(function (t, r) { return t + (Number(r.monto) || 0); }, 0)), hechos.length,
+            hechos.length ? hechos.map(function (r) {
+                return rib(esc(r.nombre || r.afiliadorCodigo), esc(r.numeroSolicitud || '') + ' · ' + (r.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + fdh(r.fechaPago || r.fecha), money(r.monto), cuerpoRetiro(r) +
+                    '<button class="af-btn" onclick="AF.boleta(\'' + esc(r.id) + '\')">Descargar boleta</button>');
+            }).join('') : '<div class="af-empty">Todavía no hay pagos realizados.</div>');
         html += '<div class="af-grp">Revendedores afiliadores</div>';
         html += d.afiliadores.length ? d.afiliadores.map(function (a) {
             return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), esc(a.codigo) + ' · ' + a.totalAfiliados + ' afiliado' + (a.totalAfiliados !== 1 ? 's' : ''),
@@ -7192,10 +7199,82 @@ window.addEventListener('load', init);
         }).join('') : '<div class="af-empty">Todavía no hay revendedores registrados en el programa.</div>';
         wrap.innerHTML = html;
     }
+    var _retiros = [];
+    // Detalle de una solicitud de cobro (número, alias/CBU, afiliados que aportaron).
+    function cuerpoRetiro(r) {
+        return ln('Solicitud de cobro', '<b>' + esc(r.numeroSolicitud || '—') + '</b>') +
+            (r.codigoAfiliado ? ln('Código de afiliado', esc(r.codigoAfiliado)) : '') +
+            ln('Método', r.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') +
+            (r.alias ? ln('Alias / CBU a transferir', '<b>' + esc(r.alias) + '</b>') : '') +
+            ln('Estado', r.estado === 'pagado' ? 'Pagado' : r.estado === 'acreditado' ? 'Acreditado' : 'Solicitado') +
+            (r.detalle && r.detalle.length ? r.detalle.map(function (d) { return ln(esc(d.nombre), money(d.neta)); }).join('') : '') +
+            (r.descuentoStock ? ln('Ya pagado en Stock con su Total a Liquidar', '−' + money(r.descuentoStock)) : '') +
+            ln('Total a cobrar', '<b>' + money(r.monto) + '</b>');
+    }
+    // Boleta no fiscal de la solicitud de cobro (misma estética que las facturas de pago).
+    function boletaCobroPDF(r) {
+        if (!window.jspdf) return null;
+        var doc = new window.jspdf.jsPDF(), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+        var BLUE = [0, 102, 255], DARK = [15, 17, 23], GRAY = [120, 126, 140];
+        var credito = r.metodo === 'credito';
+        doc.setFillColor(BLUE[0], BLUE[1], BLUE[2]); doc.rect(0, 0, W, 34, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text('Revende Ways', 14, 15);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.text('Boleta no fiscal', 14, 19);
+        doc.setFontSize(9.5); doc.text('Solicitud de cobro ' + (r.numeroSolicitud || '') + (credito ? ' — CRÉDITO EN STOCK ACREDITADO' : ' — PAGADA'), 14, 23);
+        doc.setFontSize(8); doc.text('Programa de Afiliados · comisiones por afiliado', 14, 29);
+        doc.setTextColor(DARK[0], DARK[1], DARK[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Pagado a:', 14, 46);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text(String(r.nombre || r.afiliadorCodigo || ''), 14, 53);
+        if (r.whatsapp) doc.text('Tel: ' + r.whatsapp, 14, 59);
+        doc.text('Código de afiliado: ' + (r.codigoAfiliado || '—'), 14, r.whatsapp ? 65 : 59);
+        doc.text(credito ? 'Forma de pago: Crédito en Stock' : 'Forma de pago: Transferencia' + (r.alias ? ' · ' + r.alias : ''), 14, r.whatsapp ? 71 : 65);
+        var y = 86;
+        doc.setFillColor(240, 242, 247); doc.rect(14, y - 6, W - 28, 8, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(GRAY[0], GRAY[1], GRAY[2]);
+        doc.text('AFILIADO', 17, y); doc.text('MONTO RECIBIDO', W - 17, y, { align: 'right' });
+        y += 10; doc.setFont('helvetica', 'normal'); doc.setTextColor(DARK[0], DARK[1], DARK[2]); doc.setFontSize(9.5);
+        (r.detalle || []).forEach(function (d) {
+            if (y > H - 50) { doc.addPage(); y = 20; }
+            doc.text(String(d.nombre || '—').slice(0, 52), 20, y);
+            doc.text(money(d.neta), W - 17, y, { align: 'right' });
+            y += 7;
+        });
+        if (r.descuentoStock) {
+            doc.setTextColor(GRAY[0], GRAY[1], GRAY[2]);
+            doc.text('Ya pagado en Stock con tu Total a Liquidar', 20, y); doc.text('-' + money(r.descuentoStock), W - 17, y, { align: 'right' }); y += 7;
+            doc.setTextColor(DARK[0], DARK[1], DARK[2]);
+        }
+        y += 6;
+        if (y > H - 40) { doc.addPage(); y = 20; }
+        doc.setDrawColor(BLUE[0], BLUE[1], BLUE[2]); doc.setLineWidth(0.5); doc.roundedRect(W - 90, y, 76, 16, 2, 2, 'S');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(GRAY[0], GRAY[1], GRAY[2]); doc.text('TOTAL COBRADO', W - 86, y + 7);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(DARK[0], DARK[1], DARK[2]); doc.text(money(r.monto), W - 17, y + 12, { align: 'right' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(GRAY[0], GRAY[1], GRAY[2]);
+        var f = r.fechaPago || r.fecha;
+        if (f) doc.text((credito ? 'Acreditado: ' : 'Pagado: ') + (typeof ba === 'function' ? ba(f) : new Date(f).toLocaleString('es-AR')) + ' hs', W - 14, y + 26, { align: 'right' });
+        try { _agregarMarcaAguaFactura(doc, W, H, credito ? 'ACREDITADO' : 'PAGADO', [10, 138, 82]); } catch (_) {}
+        return doc;
+    }
+    function nombreBoleta(r) { return 'Boleta_Cobro_' + String(r.numeroSolicitud || r.id).replace('#', '') + '.pdf'; }
+    AF.boleta = function (id) {
+        var r = _retiros.filter(function (x) { return x.id === id; })[0];
+        var doc = r && boletaCobroPDF(r);
+        if (!doc) { toast('No se pudo generar la boleta', 'err'); return; }
+        doc.save(nombreBoleta(r)); toast('Boleta descargada', true);
+    };
+    // Marca el pago: las comisiones pasan a "pagada", se genera la boleta y se abre el WhatsApp del afiliador.
     AF.pagarRetiro = async function (id, btn) {
+        if (!confirm('¿Confirmás que ya transferiste este cobro? Las comisiones pasan a pagadas y se genera la boleta para enviar al afiliador.')) return;
         btn.disabled = true;
         var d = await api('/api/admin/marcar-retiro-pagado', { method: 'POST', body: { retiroId: id } });
-        if (d.ok) { toast('Pago marcado', true); renderAfiliados(); } else { btn.disabled = false; toast(d.error || 'No se pudo marcar', 'err'); }
+        if (!d.ok) { btn.disabled = false; toast(d.error || 'No se pudo marcar', 'err'); return; }
+        var r = d.retiro || {};
+        var doc = boletaCobroPDF(r);
+        var wa = ''; try { wa = _normalizarWhatsappArgentino(r.whatsapp); } catch (_) { wa = r.whatsapp || ''; }
+        var mensaje = 'Hola! Soy Servi, Tu cobro ha sido exitoso! Felicidades! Revisa tu billetera';
+        if (doc) doc.save(nombreBoleta(r));
+        if (wa) { try { await navigator.clipboard.writeText(mensaje); } catch (_) {} window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(mensaje), '_blank'); }
+        toast(wa ? 'Pago marcado: boleta descargada y chat del afiliador abierto con el mensaje' : 'Pago marcado: boleta descargada (el afiliador no tiene WhatsApp registrado)', true);
+        renderAfiliados();
     };
     function codigoDeRib(r) { return r.id.replace(/^afl-/, ''); }
     AF.abrirAfiliador = async function (r) {
@@ -7208,7 +7287,8 @@ window.addEventListener('load', init);
         var grupos = [
             ['Disponibles para confirmar', function (x) { return x.v.etapa === 'confirmado' && x.v.disponible; }],
             ['En espera (10 días desde el pago)', function (x) { return x.v.etapa === 'confirmado' && !x.v.disponible; }],
-            ['Total a Liquidar', function (x) { return x.v.etapa === 'liquidar'; }],
+            ['Total a Liquidar', function (x) { return x.v.etapa === 'liquidar' && !x.v.enCobro; }],
+            ['En proceso de cobro (transferencia por pagar)', function (x) { return x.v.etapa === 'liquidar' && x.v.enCobro; }],
             ['Ya pagados', function (x) { return x.v.etapa === 'pagada'; }]
         ];
         var ya = (_lista || []).filter(function (x) { return x.codigo === codigo; })[0] || {};
@@ -7222,7 +7302,7 @@ window.addEventListener('load', init);
             html += '<div class="af-grp">' + g[0] + ' · ' + money(tot) + '</div>';
             html += items.map(function (x) {
                 var v = x.v, ref = x.ref;
-                var est = v.etapa === 'liquidar' ? '<span class="af-pill g">Confirmado</span>' : v.etapa === 'pagada' ? '<span class="af-pill g">Pagado</span>' : v.disponible ? '<span class="af-pill a">Disponible</span>' : '<span class="af-pill r">En espera</span>';
+                var est = v.enCobro ? '<span class="af-pill a">En cobro</span>' : v.etapa === 'liquidar' ? '<span class="af-pill g">Confirmado</span>' : v.etapa === 'pagada' ? '<span class="af-pill g">Pagado</span>' : v.disponible ? '<span class="af-pill a">Disponible</span>' : '<span class="af-pill r">En espera</span>';
                 var btn = v.etapa === 'confirmado'
                     ? '<button class="af-btn" ' + (v.disponible ? '' : 'disabled') + ' onclick="AF.confirmar(\'' + esc(v.id) + '\',\'' + esc(codigo) + '\',this)">' + (v.disponible ? 'Confirmar' : 'Disponible el ' + fd(v.disponibleDesde)) + '</button>' : '';
                 return rib('Pedido ' + esc(v.numeroPedido ? '#' + v.numeroPedido : String(v.pedidoId || '').slice(-6)) + ' · ' + esc(ref.nombre), esc(ref.codigo) + ' · ' + est, money(v.comision),
@@ -7419,6 +7499,68 @@ window.addEventListener('load', init);
     setTimeout(cargarResumen, 6000);
 })();
 </script>
+
+
+<script id="pdf-enlace">
+/* Boletas/facturas por enlace: al abrir el chat de WhatsApp (wa.me) tras generar un PDF, se sube ese mismo PDF
+   y se agrega su link al final del mensaje. Si algo falla, se abre el chat igual que antes. */
+(function () {
+    'use strict';
+    var WK = 'https://afiliados.tuweb.workers.dev';
+    var cap = null, btnT = 0, origOpen = window.open.bind(window);
+    function auth() {
+        return { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY };
+    }
+    var J = window.jspdf && window.jspdf.jsPDF;
+    function envolver(Orig) {
+        function W() {
+            var d = new (Function.prototype.bind.apply(Orig, [null].concat([].slice.call(arguments))))();
+            var os = d.save, oo = d.output;
+            d.save = function (fn) { cap = { doc: d, out: oo, name: (fn && String(fn)) || 'documento.pdf', t: Date.now() }; return os.apply(this, arguments); };
+            d.output = function (tipo) { if (tipo === 'blob' || tipo === 'bloburl' || tipo === 'bloburi') { cap = { doc: d, out: oo, name: (cap && cap.doc === d ? cap.name : 'Factura.pdf'), t: Date.now() }; } return oo.apply(this, arguments); };
+            return d;
+        }
+        W.prototype = Orig.prototype;
+        Object.keys(Orig).forEach(function (k) { try { W[k] = Orig[k]; } catch (_) {} });
+        return W;
+    }
+    if (J && !J.__pe) { var W = envolver(J); W.__pe = true; window.jspdf.jsPDF = W; }
+    function b64(c) {
+        var u = new Uint8Array(c.out.call(c.doc, 'arraybuffer')), s = '', i;
+        for (i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+        return btoa(s);
+    }
+    // botón WhatsApp de factura en index: ir por el chat (wa.me) en vez de la hoja de compartir
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.closest && e.target.closest('#factura-whatsapp-btn')) btnT = Date.now();
+    }, true);
+    if (navigator.canShare) {
+        var cs = navigator.canShare.bind(navigator);
+        navigator.canShare = function (d) { return (d && d.files && Date.now() - btnT < 3000) ? false : cs(d); };
+    }
+    window.open = function (u) {
+        var args = arguments;
+        var m = typeof u === 'string' && u.match(/^(https:\/\/wa\.me\/\d{10,15}\?text=)([\s\S]*)$/);
+        var edad = cap ? Date.now() - cap.t : Infinity;
+        if (!m || !cap || !(edad < 20000 || (Date.now() - btnT < 3000 && edad < 1800000))) return origOpen.apply(window, args);
+        var c = cap, body; cap = null;
+        try { body = JSON.stringify({ filename: c.name, pdfBase64: b64(c) }); } catch (_) { return origOpen.apply(window, args); }
+        var w = origOpen('', '_blank');           // se abre ya (dentro del toque) y se completa al terminar la subida
+        var ir = function (url) { if (w) { try { w.location.href = url; return; } catch (_) {} } origOpen(url, '_blank'); };
+        Promise.resolve().then(auth).then(function (h) {
+            if (!h) throw new Error('sin auth');
+            h['Content-Type'] = 'application/json';
+            return fetch(WK + '/api/pdf-subir', { method: 'POST', headers: h, body: body });
+        }).then(function (r) { return r.json(); }).then(function (j) {
+            if (!j || !j.ok || !j.url) throw new Error('fallo');
+            var sep = m[2] ? encodeURIComponent('\n') : '';
+            ir(m[1] + m[2] + sep + encodeURIComponent(j.url));
+        }).catch(function () { ir(u); });
+        return w;
+    };
+})();
+</script>
+
 
 </body>
 </html>
