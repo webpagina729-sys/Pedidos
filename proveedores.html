@@ -497,9 +497,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             </div>
             <label class="modal-check">
                 <input type="checkbox" id="of-terminos">
-                Acepto los Términos y Condiciones para Proveedores Oficiales de la plataforma.
+                Acepto los Términos y Condiciones y la Política de Privacidad para Proveedores Oficiales de la plataforma.
             </label>
-            <div class="modal-check-link"><a href="https://terminosycondicionesconproveedores.revendeways.shop/" target="_blank" rel="noopener noreferrer">Leer Términos y Condiciones</a></div>
+            <div class="modal-check-link"><a href="https://terminosycondicionesconproveedores.revendeways.shop/" target="_blank" rel="noopener noreferrer">Leer Términos y Política de Privacidad</a></div>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-primary" id="of-btn-enviar" disabled onclick="enviarRegistroOficial()">Registrarme como Proveedor Oficial</button>
                 <button type="button" class="modal-btn modal-btn-cancel" onclick="cerrarModalOficializar()">Cancelar</button>
@@ -548,12 +548,6 @@ const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
 // registrodeproveedores_worker.js, ya construido por un compañero) —
 // contrato exacto de body en enviarRegistroOficial() más abajo.
 const REGISTRO_PROVEEDORES_WORKER = 'https://registrodeproveedores.tuweb.workers.dev/';
-// 🔧 Misma clave de administrador que usa pedidos.html para hablar con
-// este mismo Worker. Sin este Worker soportando un secret propio por
-// proveedor, es la única forma hoy de que este panel pueda leer/escribir
-// datos (tanto por query ?adminKey= para GET como por header
-// X-Panel-Admin-Key para POST, igual que pedidos.html).
-const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
 
 // ── Estados del flujo de despacho (pedidosProveedores.estado en Firestore) ──
 // 'enviado_proveedor' (o sin estado, pedidos viejos) → pestaña "Pedidos".
@@ -715,14 +709,9 @@ async function cargarDatos() {
     const paramVerificacion = window._sessionToken
         ? `sessionToken=${encodeURIComponent(window._sessionToken)}`
         : `turnstileToken=${encodeURIComponent(window._turnstileGateToken || '')}`;
-    const [pedidosRes, preciosRes, previewRes] = await Promise.all([
+    const [pedidosRes, preciosRes] = await Promise.all([
         fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?${filtro}&${paramVerificacion}`),
         fetchJson(RESTOPRECIOS_WORKER),
-        // 🔧 NUEVO: adelanto de pedidos "aprobado"/"confirmado" en
-        // pedidos.html — de solo lectura, ver PEDIDOS_PROVEEDOR_PREVIEW.
-        // Si falla, no es crítico (el panel sigue funcionando con lo
-        // demás) — solo faltarán las secciones "Pendientes"/"Aprobados".
-        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview?${filtro}&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
     ]);
 
     if (!pedidosRes || !pedidosRes.ok) {
@@ -767,6 +756,12 @@ async function cargarDatos() {
     // la PRÓXIMA llamada a cargarDatos() lo reenvíe a él en vez de volver
     // a mandar el turnstileToken ya gastado (ver paramVerificacion arriba).
     if (pedidosRes.sessionToken) window._sessionToken = pedidosRes.sessionToken;
+    // 🔧 Adelanto de pedidos "aprobado"/"confirmado" de pedidos.html (solo
+    // lectura). Si falla no es crítico. Se pide acá, con el sessionToken
+    // recién emitido, porque este panel ya no lleva la clave de administrador.
+    const previewRes = window._sessionToken
+        ? await fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview?${filtro}&sessionToken=${encodeURIComponent(window._sessionToken)}`)
+        : null;
     PEDIDOS_PROVEEDOR = Array.isArray(pedidosRes.pedidos) ? pedidosRes.pedidos : [];
     PEDIDOS_PROVEEDOR_PREVIEW = (previewRes && Array.isArray(previewRes.previews)) ? previewRes.previews : [];
 
@@ -1140,8 +1135,8 @@ function renderCinta(c, cintaId, enPreparacion, numColorClass) {
 async function _cambiarEstadoDocs(pedidoIds, estado) {
     const resultados = await Promise.all(pedidoIds.map(id => fetchJson(`${WORKER_PROVEEDORES}/api/pedido-proveedor-estado`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ id, estado }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, estado, proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken }),
     })));
     return resultados.every(r => r && r.ok);
 }
@@ -1709,6 +1704,7 @@ async function enviarRegistroOficial() {
         provincia: document.getElementById('of-provincia').value.trim(),
         tipoProveedor: document.getElementById('of-tipo').value,
         aceptaTerminos: document.getElementById('of-terminos').checked === true,
+        versionDocumento: '1.1',
     };
     btn.disabled = true;
     btn.textContent = 'Enviando...';
