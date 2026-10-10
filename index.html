@@ -1364,6 +1364,7 @@ function superaMinimoYVencido48hs(g) {
 async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje) {
     const wa = vendorWa(codigo);
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    await _nfAsegurar(_gsGrupo(codigo, categoria, estado));
     const doc = _generarFacturaProveedorPDFGrupo(codigo, categoria, estado);
     // 🔧 FIX: antes, cuando el navegador soportaba Web Share con archivos
     // (navigator.canShare), se usaba navigator.share({files, text}) — pero
@@ -1378,10 +1379,10 @@ async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje)
     // debajo del archivo — factura arriba, texto abajo, tal como se pide.
     if (doc) {
         const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
-        doc.save(filename);
+        _pdfParaEnvio(doc, filename, estado);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
         window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-        toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
+        toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
         return;
     }
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -2094,6 +2095,7 @@ async function loadData() {
             };
         })
         .filter(Boolean);
+    _nfPrefetch(); // 🆕 números de pedido (cliente y revendedor) para las facturas, sin bloquear la carga
 
     ranking = (Array.isArray(rankRes?.ranking) ? rankRes.ranking : []).map(r => ({
         codigoVendedor: (r.codigoVendedor || '').toUpperCase(),
@@ -2562,10 +2564,10 @@ async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, men
     const doc = _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado);
     if (doc) {
         const filename = `Factura_Stock_${codigo}_${categoria}.pdf`;
-        doc.save(filename);
+        _pdfParaEnvio(doc, filename, estado);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
         window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-        toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
+        toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
         return;
     }
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -2650,136 +2652,13 @@ Equipo Revende Ways🦒`;
 function _generarFacturaProveedorPDFStock(pedidoId) {
     const g = pedidosStockGrupos.find(x => x.pedidoId === pedidoId);
     if (!g || !window.jspdf) return null;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
-    const pagado = g.estadoReal === 'confirmado';
-    const nombre = vendorLabel(g.codigoVendedor);
-    const info = vendorCache[g.codigoVendedor] || {};
-
-    doc.setFillColor(...BLUE);
-    doc.rect(0, 0, W, 34, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFont('helvetica','bold'); doc.setFontSize(18);
-    doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.text('Factura no fiscal', 14, 19);
-    doc.setFontSize(9.5);
-    doc.text(pagado ? 'Factura de stock / reinversión — PAGADA' : 'Factura de stock / reinversión — PENDIENTE DE PAGO', 14, 23);
-    doc.setFontSize(8);
-    doc.text(`Pedido de Stock #${String(g.pedidoId).slice(-8).toUpperCase()} · ${ba(g.fecha)}`, 14, 29);
-    if (g.numeroPedido) {
-        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
-        doc.text(`Pedido Nº #${g.numeroPedido}`, W - 14, 15, { align: 'right' });
-        doc.setFont('helvetica','normal');
-    }
-
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Facturado a:', 14, 46);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10);
-    doc.text(nombre, 14, 53);
-    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
-    doc.text('Código: ' + g.codigoVendedor, 14, 65);
-
-    let y = 78;
-    doc.setFillColor(240,242,247);
-    doc.rect(14, y-6, W-28, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
-    y += 10;
-    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-    (g.items||[]).forEach(it => {
-        if (y > H - 40) { doc.addPage(); y = 20; }
-        doc.setFontSize(9.5);
-        doc.text(String(it.nombre||'—').slice(0,50), 17, y);
-        doc.text(String(it.cantidad||1), W-70, y);
-        doc.text('$'+Math.round(it.costoUnitario||0).toLocaleString('es-AR'), W-17, y, { align:'right' });
-        y += 7;
-    });
-
-    y += 6;
-    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
-    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('TOTAL A PAGAR', W-86, y+7);
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
-    doc.text('$'+Math.round(g.totalMayorista||0).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
-
-    _fechaPedidoFacturaPie(doc, W, H, y, [g.fecha]);
-    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
-    return doc;
+    return _facturaRevendedorStock([g], g.estadoReal);
 }
 
 function _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado) {
     const gs = pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
     if (!gs.length || !window.jspdf) return null;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
-    const pagado = estado === 'confirmado';
-    const nombre = vendorLabel(codigo);
-    const info = vendorCache[codigo] || {};
-
-    doc.setFillColor(...BLUE);
-    doc.rect(0, 0, W, 34, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFont('helvetica','bold'); doc.setFontSize(18);
-    doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.text('Factura no fiscal', 14, 19);
-    doc.setFontSize(9.5);
-    doc.text(pagado ? 'Factura de stock / reinversión — PAGADA' : 'Factura de stock / reinversión — PENDIENTE DE PAGO', 14, 23);
-    doc.setFontSize(8);
-    doc.text(`${gs.length} pedido(s) de stock · ${CAT_LABELS[categoria] || categoria}`, 14, 29);
-
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Facturado a:', 14, 46);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10);
-    doc.text(nombre, 14, 53);
-    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
-    doc.text('Código: ' + codigo, 14, 65);
-
-    let y = 78;
-    doc.setFillColor(240,242,247);
-    doc.rect(14, y-6, W-28, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
-    y += 10;
-    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-    let totalFactura = 0;
-    gs.forEach(g => {
-        if (y > H - 40) { doc.addPage(); y = 20; }
-        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...BLUE);
-        doc.text(`Pedido de Stock #${String(g.pedidoId||'—').slice(-8).toUpperCase()}${g.numeroPedido ? ' · Pedido Nº #' + g.numeroPedido : ''}`, 17, y);
-        y += 6;
-        doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-        (g.items||[]).forEach(it => {
-            if (y > H - 40) { doc.addPage(); y = 20; }
-            doc.setFontSize(9.5);
-            doc.text(String(it.nombre||'—').slice(0,50), 20, y);
-            doc.text(String(it.cantidad||1), W-70, y);
-            doc.text('$'+Math.round(it.costoUnitario||0).toLocaleString('es-AR'), W-17, y, { align:'right' });
-            y += 7;
-        });
-        totalFactura += Number(g.totalMayorista) || 0;
-        y += 2;
-    });
-
-    y += 6;
-    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
-    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('TOTAL A PAGAR', W-86, y+7);
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
-    doc.text('$'+Math.round(totalFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
-
-    _fechaPedidoFacturaPie(doc, W, H, y, gs.map(x => x.fecha));
-    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
-    return doc;
+    return _facturaRevendedorStock(gs, estado);
 }
 
 function descargarFacturaProveedorGrupoStock(codigo, categoria, estado) {
@@ -2796,10 +2675,10 @@ async function compartirFacturaWhatsAppGrupoStock(codigo, categoria, estado) {
     const wa = vendorWa(codigo);
     const mensaje = estado === 'confirmado' ? 'Te comparto la factura de tu reposición de stock ya pagada.' : 'Te comparto la factura de tu reposición de stock pendiente de pago.';
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
-    doc.save(filename);
+    _pdfParaEnvio(doc, filename, estado);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-    toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
+    toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
 }
 
 // "Pago Verificado" (stock) — mismo mecanismo que pagoYaVerificado/
@@ -3213,77 +3092,231 @@ function _agregarMarcaAguaFactura(doc, W, H, texto, color) {
     doc.restoreGraphicsState?.();
 }
 
+// ═══════════════════════════════════════════════════════════
+// 🆕 DISEÑO DE FACTURAS/BOLETAS AL REVENDEDOR
+// Banner verde con borde azul grueso, N° de factura, N° del pedido del
+// revendedor (7 cifras, propio de cada revendedor: #0000001, #0000002…) y
+// N° de cada pedido de cliente (también por revendedor, numeración distinta).
+// Los números se leen de la base (índices que guardan workerpagos y
+// workerwebcliente) con /api/numeros-pedidos-factura y se guardan en _NF.
+// ═══════════════════════════════════════════════════════════
+const _NF = { map: {} };
+function _nfDigitos(id) {
+    const d = String(id || '').replace(/\D/g, '');
+    if (d) return d.slice(-10).padStart(10, '0');
+    let h = 0; const s = String(id || '');
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return String(Math.abs(h)).padStart(10, '0');
+}
+async function _nfCargar(ids) {
+    // Se vuelve a pedir lo que todavía no tenía pedido de revendedor (puede haberse enviado a pago después).
+    const lista = Array.from(new Set((ids || []).filter(id => id && (!_NF.map[id] || !_NF.map[id].pedidoRevendedorNumero))));
+    for (let i = 0; i < lista.length; i += 250) {
+        const lote = lista.slice(i, i + 250);
+        const r = await fetchJson(`${WORKER_ESTADOS}/api/numeros-pedidos-factura`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ pedidoIds: lote }),
+        });
+        if (r && r.ok && r.numeros) lote.forEach(id => { if (r.numeros[id]) _NF.map[id] = r.numeros[id]; });
+    }
+}
+// Facturas pendientes/aprobadas: se adjuntan a WhatsApp SIN descargarse. Solo las ya pagadas (confirmadas) se descargan al enviar.
+function _pdfParaEnvio(doc, filename, estado) {
+    if (estado !== 'confirmado' && typeof doc.preparar === 'function') doc.preparar(filename);
+    else doc.save(filename);
+}
+function _nfPrefetch() { try { return _nfCargar(panelGestion.map(g => g.pedidoId)).catch(() => {}); } catch (_) {} }
+async function _nfAsegurar(gs) { try { await _nfCargar((gs || []).map(g => g.pedidoId)); } catch (_) {} }
+
+function _dibujarFacturaRevendedorPDF(cfg) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    const GREEN = [27,127,61], GREEN_L = [232,246,238], BLUE = [10,71,222], BLUE_L = [226,234,252];
+    const DARK = [25,30,50], GRAY = [110,120,135], ZEBRA = [245,248,253];
+    const _m = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+
+    // ── Banner verde + borde azul grueso ──
+    doc.setFillColor(...GREEN); doc.rect(0, 0, W, 36, 'F');
+    doc.setFillColor(...BLUE);  doc.rect(0, 36, W, 5, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(26); doc.text('RW · Revende Ways', 14, 17);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text('Factura no fiscal', 14, 22);
+    doc.setFontSize(10.5); doc.text(cfg.titulo || '', 14, 28.5);
+    doc.setFontSize(8); doc.text(cfg.subtitulo || '', 14, 33.5);
+    doc.setFillColor(255,255,255); doc.roundedRect(W - 70, 7, 56, 24, 2, 2, 'F');
+    doc.setTextColor(...GREEN); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.text('FACTURA Nº', W - 66, 13);
+    doc.setFontSize(13); doc.text('#' + cfg.facturaNro, W - 66, 20.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...GRAY); doc.text(String(cfg.fechaTxt || ''), W - 66, 27);
+
+    // ── Datos del revendedor / del pedido ──
+    let y = 50;
+    const caja = (x, w, titulo, lineas, color) => {
+        doc.setFillColor(...ZEBRA); doc.roundedRect(x, y, w, 40, 2, 2, 'F');
+        doc.setFillColor(...color); doc.rect(x, y, w, 6, 'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text(titulo, x + 3, y + 4.2);
+        let ly = y + 12;
+        lineas.filter(Boolean).slice(0, 6).forEach((l, i) => {
+            doc.setTextColor(...DARK);
+            doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 10 : 8.8);
+            doc.text(String(l).slice(0, 58), x + 3, ly); ly += i === 0 ? 5.6 : 4.8;
+        });
+    };
+    caja(14, 88, 'REVENDEDOR', cfg.revendedor || [], GREEN);
+    caja(W - 14 - 88, 88, 'DATOS DEL PEDIDO', cfg.datos || [], BLUE);
+    y += 50;
+
+    // ── Productos ──
+    const colCant = W - 82, colUnit = W - 50, colSub = W - 16;
+    let enBloque = false;
+    const cabeceraCols = () => {
+        doc.setFillColor(...GREEN); doc.rect(14, y - 5, W - 28, 7.5, 'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+        doc.text('PRODUCTO', 17, y); doc.text('CANT.', colCant, y, { align: 'center' });
+        doc.text('P. MAYORISTA', colUnit, y, { align: 'right' }); doc.text('SUBTOTAL', colSub, y, { align: 'right' });
+        y += 7;
+    };
+    const asegurar = h => { if (y + h > H - 22) { doc.addPage(); y = 18; if (enBloque) cabeceraCols(); } };
+    const pintarItems = items => (items || []).forEach((it, i) => {
+        asegurar(7);
+        if (i % 2 === 0) { doc.setFillColor(...ZEBRA); doc.rect(14, y - 4.5, W - 28, 6.5, 'F'); }
+        doc.setTextColor(...DARK); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+        doc.text(String(it.nombre || '—').slice(0, 52), 17, y);
+        doc.text(String(it.cant || 1), colCant, y, { align: 'center' });
+        doc.text(_m(it.unit), colUnit, y, { align: 'right' });
+        doc.setFont('helvetica','bold'); doc.text(_m(it.sub), colSub, y, { align: 'right' });
+        y += 6.5;
+    });
+    (cfg.bloques || []).forEach(b => {
+        enBloque = false; asegurar(34);
+        doc.setFillColor(...GREEN_L); doc.setDrawColor(...GREEN); doc.setLineWidth(0.3);
+        doc.roundedRect(14, y - 5, W - 28, 9, 1.5, 1.5, 'FD');
+        doc.setTextColor(...GREEN); doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.text(String(b.titulo || ''), 17, y + 0.9);
+        if (b.derecha) { doc.setTextColor(...DARK); doc.text(String(b.derecha), W - 17, y + 0.9, { align: 'right' }); }
+        y += 10; cabeceraCols(); enBloque = true;
+        (b.subs || []).forEach(sb => {
+            asegurar(16);
+            doc.setFillColor(...BLUE_L); doc.rect(14, y - 4.5, W - 28, 7, 'F');
+            doc.setTextColor(...BLUE); doc.setFont('helvetica','bold'); doc.setFontSize(8.8); doc.text(String(sb.titulo || '').slice(0, 70), 17, y);
+            if (sb.derecha) { doc.setTextColor(...GREEN); doc.text(String(sb.derecha), W - 17, y, { align: 'right' }); }
+            y += 6.5; pintarItems(sb.items); y += 2;
+        });
+        pintarItems(b.items);
+        enBloque = false; y += 5;
+    });
+
+    // ── Totales ──
+    const filas = cfg.totales || [];
+    asegurar(46); y += 2;
+    const bw = 96, bx = W - 14 - bw, rh = 8;
+    doc.setDrawColor(...BLUE); doc.setLineWidth(0.6); doc.roundedRect(bx, y, bw, rh * filas.length + 4, 2, 2, 'S');
+    filas.forEach((f, i) => {
+        const ry = y + 2 + i * rh + 5.5;
+        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY); doc.text(f.label, bx + 3, ry);
+        doc.setFont('helvetica', f.tipo === 'normal' ? 'normal' : 'bold'); doc.setFontSize(f.tipo === 'normal' ? 10 : 12);
+        doc.setTextColor(...(f.tipo === 'ganancia' ? GREEN : DARK)); doc.text(_m(f.valor), bx + bw - 3, ry, { align: 'right' });
+    });
+    y += rh * filas.length + 4;
+    _fechaPedidoFacturaPie(doc, W, H, y - 16, cfg.fechas);
+
+    // ── Pie en todas las hojas + marca de agua ──
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(220,224,232); doc.setLineWidth(0.3); doc.line(14, H - 16, W - 14, H - 16);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+        doc.text('RW · Revende Ways — Documento interno · No constituye factura fiscal (AFIP)', 14, H - 11);
+        doc.text('Página ' + i + ' de ' + n, W - 14, H - 11, { align: 'right' });
+    }
+    doc.setPage(n);
+    _agregarMarcaAguaFactura(doc, W, H, cfg.marca, cfg.marcaColor);
+    return doc;
+}
+
+function _facturaRevendedorNormal(gs, estado) {
+    const g0 = gs[0], codigo = g0.codigoVendedor, categoria = g0.categoria || 'multishop';
+    const pagado = estado === 'confirmado';
+    const info = vendorCache[codigo] || {};
+    const _m = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+    const nf = id => _NF.map[id] || {};
+    const porLote = new Map();
+    gs.forEach(g => { const k = nf(g.pedidoId).pedidoRevendedorNumero || ''; if (!porLote.has(k)) porLote.set(k, []); porLote.get(k).push(g); });
+    const claves = Array.from(porLote.keys()).sort((a, b) => ((a === '') - (b === '')) || a.localeCompare(b));
+    let totMay = 0, totVenta = 0, totGan = 0;
+    const bloques = claves.map(k => {
+        let subTotal = 0;
+        const subs = porLote.get(k).slice().sort((a, b) => (a.fecha || 0) - (b.fecha || 0)).map(g => {
+            let subMay = 0;
+            const items = (g.items || []).map(it => {
+                const qty = Number(it.cantidad || 1) || 1;
+                const eco = itemEconomiaReal(it, g.categoria);
+                subMay += eco.precioCliente;
+                return { nombre: it.nombre || '—', cant: qty, unit: eco.precioCliente / qty, sub: eco.precioCliente };
+            });
+            const gan = Number(g.gananciaTotal) || 0;
+            subTotal += subMay; totMay += subMay; totVenta += Number(g.total) || 0; totGan += gan;
+            const cli = `${(g.cliente && g.cliente.nombre) || ''} ${(g.cliente && g.cliente.apellido) || ''}`.trim();
+            const num = nf(g.pedidoId).numero;
+            return { titulo: `Pedido de cliente ${num ? '#' + num : '(sin número)'}${cli ? ' · ' + cli : ''}`, derecha: 'Ganancia ' + _m(gan), items };
+        });
+        return { titulo: k ? `PEDIDO DEL REVENDEDOR  #${k}` : 'PEDIDO DEL REVENDEDOR · todavía sin enviar a pago', derecha: 'Total mayorista ' + _m(subTotal), subs };
+    });
+    const lotes = claves.filter(Boolean);
+    const loteId = gs.map(g => nf(g.pedidoId).pedidoRevendedorId).find(Boolean);
+    const fechas = gs.map(g => g.fecha).filter(Boolean);
+    const nombre = vendorLabel(codigo);
+    const ubic = [info.ciudad, info.provincia].filter(Boolean).join(', ');
+    const totales = [];
+    if (totVenta > 0) totales.push({ label: 'Total venta a clientes', valor: totVenta, tipo: 'normal' });
+    totales.push({ label: 'Total a pagar (mayorista)', valor: totMay, tipo: 'total' });
+    totales.push({ label: 'Tu ganancia en este pedido', valor: totGan, tipo: 'ganancia' });
+    return _dibujarFacturaRevendedorPDF({
+        titulo: pagado ? 'Comprobante de compra mayorista — PAGADA' : 'Comprobante de compra mayorista — PENDIENTE DE PAGO',
+        subtitulo: `${gs.length} pedido${gs.length !== 1 ? 's' : ''} de clientes · ${CAT_LABELS[categoria] || categoria}`,
+        facturaNro: _nfDigitos(loteId || g0.pedidoId),
+        fechaTxt: fechas.length ? 'Fecha: ' + ba(Math.max(...fechas)) : '',
+        revendedor: [nombre, 'Código: ' + codigo, (info.whatsappRevendedor || info.telefono) ? 'Tel: ' + (info.whatsappRevendedor || info.telefono) : '', info.email ? 'Email: ' + info.email : '', ubic,
+            lotes.length === 1 ? 'Pedido del revendedor: #' + lotes[0] : lotes.length > 1 ? 'Pedidos del revendedor: ' + lotes.map(x => '#' + x).join(', ') : 'Pedido del revendedor: sin enviar a pago'],
+        datos: ['Resumen del pedido', 'Estado: ' + (pagado ? 'PAGADA' : 'PENDIENTE DE PAGO'), 'Categoría: ' + (CAT_LABELS[categoria] || categoria),
+            'Pedidos de clientes: ' + gs.length, 'Pedido del revendedor: ' + (lotes.length ? lotes.map(x => '#' + x).join(', ') : '—')],
+        bloques, totales, fechas,
+        marca: pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', marcaColor: pagado ? [10,138,82] : [230,60,60],
+    });
+}
+
+function _facturaRevendedorStock(gs, estado) {
+    const g0 = gs[0], codigo = g0.codigoVendedor, categoria = g0.categoria || 'multishop';
+    const pagado = estado === 'confirmado';
+    const info = vendorCache[codigo] || {};
+    let total = 0;
+    const bloques = gs.map(g => {
+        const items = (g.items || []).map(it => {
+            const qty = Number(it.cantidad || 1) || 1, unit = Number(it.costoUnitario || 0);
+            return { nombre: it.nombre || '—', cant: qty, unit, sub: unit * qty };
+        });
+        total += Number(g.totalMayorista) || 0;
+        return { titulo: `PEDIDO DE STOCK #${String(g.pedidoId || '—').slice(-8).toUpperCase()}${g.numeroPedido ? ' · Pedido Nº #' + g.numeroPedido : ''}`,
+                 derecha: 'Total ' + '$' + Math.round(Number(g.totalMayorista) || 0).toLocaleString('es-AR'), items };
+    });
+    const fechas = gs.map(g => g.fecha).filter(Boolean);
+    const ubic = [info.ciudad, info.provincia].filter(Boolean).join(', ');
+    return _dibujarFacturaRevendedorPDF({
+        titulo: pagado ? 'Comprobante de stock / reinversión — PAGADA' : 'Comprobante de stock / reinversión — PENDIENTE DE PAGO',
+        subtitulo: `${gs.length} pedido${gs.length !== 1 ? 's' : ''} de stock · ${CAT_LABELS[categoria] || categoria}`,
+        facturaNro: _nfDigitos(g0.pedidoId),
+        fechaTxt: fechas.length ? 'Fecha: ' + ba(Math.max(...fechas)) : '',
+        revendedor: [vendorLabel(codigo), 'Código: ' + codigo, (info.whatsappRevendedor || info.telefono) ? 'Tel: ' + (info.whatsappRevendedor || info.telefono) : '', info.email ? 'Email: ' + info.email : '', ubic],
+        datos: ['Resumen del pedido', 'Estado: ' + (pagado ? 'PAGADA' : 'PENDIENTE DE PAGO'), 'Categoría: ' + (CAT_LABELS[categoria] || categoria), 'Pedidos de stock: ' + gs.length],
+        bloques, totales: [{ label: 'Total a pagar (mayorista)', valor: total, tipo: 'total' }], fechas,
+        marca: pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', marcaColor: pagado ? [10,138,82] : [230,60,60],
+    });
+}
+
 function _generarFacturaProveedorPDF(pedidoId) {
     const g = panelGestion.find(x => x.pedidoId === pedidoId);
     if (!g || !window.jspdf) return null;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
-    const pagado = g.estadoReal === 'confirmado';
-    const nombre = vendorLabel(g.codigoVendedor);
-    const info = vendorCache[g.codigoVendedor] || {};
-
-    doc.setFillColor(...BLUE);
-    doc.rect(0, 0, W, 34, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFont('helvetica','bold'); doc.setFontSize(18);
-    doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.text('Factura no fiscal', 14, 19);
-    doc.setFontSize(9.5);
-    doc.text(pagado ? 'Factura de compra a proveedor — PAGADA' : 'Factura de compra a proveedor — PENDIENTE DE PAGO', 14, 23);
-    doc.setFontSize(8);
-    doc.text(`Pedido #${String(g.pedidoId).slice(-8).toUpperCase()} · ${ba(g.fecha)}`, 14, 29);
-    if (g.numeroPedido) {
-        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
-        doc.text(`Pedido Nº #${g.numeroPedido}`, W - 14, 15, { align: 'right' });
-        doc.setFont('helvetica','normal');
-    }
-
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Facturado a:', 14, 46);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10);
-    doc.text(nombre, 14, 53);
-    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
-    doc.text('Código: ' + g.codigoVendedor, 14, 65);
-
-    let y = 78;
-    doc.setFillColor(240,242,247);
-    doc.rect(14, y-6, W-28, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
-    y += 10;
-    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-    // 🔧 FIX: el total daba $0 porque usaba g.costoTotal, un campo que
-    // nunca se calculaba ni se guardaba en ningún lado — el mismo bug que
-    // ya se había arreglado en el panel (panelGestionContenido) usando
-    // itemEconomiaReal(), pero acá en la factura PDF nunca se aplicó el
-    // mismo arreglo. Ahora se calcula igual, sumando cada producto real.
-    let totalMayoristaFactura = 0;
-    (g.items||[]).forEach(it => {
-        if (y > H - 40) { doc.addPage(); y = 20; }
-        const eco = itemEconomiaReal(it, g.categoria);
-        totalMayoristaFactura += eco.precioCliente;
-        doc.setFontSize(9.5);
-        doc.text(String(it.nombre||'—').slice(0,50), 17, y);
-        doc.text(String(it.cantidad||1), W-70, y);
-        doc.text('$'+Math.round(eco.precioCliente / Number(it.cantidad||1)).toLocaleString('es-AR'), W-17, y, { align:'right' });
-        y += 7;
-    });
-
-    y += 6;
-    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
-    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('TOTAL A PAGAR', W-86, y+7);
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
-    doc.text('$'+Math.round(totalMayoristaFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
-
-    _fechaPedidoFacturaPie(doc, W, H, y, [g.fecha]);
-    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
-    return doc;
+    return _facturaRevendedorNormal([g], g.estadoReal);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3296,78 +3329,7 @@ function _generarFacturaProveedorPDF(pedidoId) {
 function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
     const gs = panelGestion.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
     if (!gs.length || !window.jspdf) return null;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const BLUE = [0,102,255], DARK = [15,17,23], GRAY = [120,126,140];
-    const pagado = estado === 'confirmado';
-    const nombre = vendorLabel(codigo);
-    const info = vendorCache[codigo] || {};
-
-    doc.setFillColor(...BLUE);
-    doc.rect(0, 0, W, 34, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFont('helvetica','bold'); doc.setFontSize(18);
-    doc.text('Revende Ways', 14, 15);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.text('Factura no fiscal', 14, 19);
-    doc.setFontSize(9.5);
-    doc.text(pagado ? 'Factura de compra a proveedor — PAGADA' : 'Factura de compra a proveedor — PENDIENTE DE PAGO', 14, 23);
-    doc.setFontSize(8);
-    doc.text(`${gs.length} pedido(s) · ${CAT_LABELS[categoria] || categoria}`, 14, 29);
-
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Facturado a:', 14, 46);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10);
-    doc.text(nombre, 14, 53);
-    if (info.whatsappRevendedor || info.telefono) doc.text('Tel: ' + (info.whatsappRevendedor || info.telefono), 14, 59);
-    doc.text('Código: ' + codigo, 14, 65);
-
-    let y = 78;
-    doc.setFillColor(240,242,247);
-    doc.rect(14, y-6, W-28, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('PRODUCTO', 17, y); doc.text('CANT.', W-70, y); doc.text('P. MAYORISTA', W-17, y, { align:'right' });
-    y += 10;
-    doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-    let totalMayoristaFactura = 0;
-    // 🔧 NUEVO: la factura consolidada mostraba solo la CANTIDAD de
-    // pedidos ("3 pedido(s)") pero no CUÁL era cada uno — se pide que
-    // cada pedido muestre su número real de Firestore (g.pedidoId), tanto
-    // acá (factura pendiente/pagada) como en la boleta de envío de
-    // proveedores.html. Se imprime una línea de encabezado por pedido,
-    // con sus productos debajo.
-    gs.forEach(g => {
-        if (y > H - 40) { doc.addPage(); y = 20; }
-        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...BLUE);
-        doc.text(`Pedido #${String(g.pedidoId||'—').slice(-8).toUpperCase()}${g.numeroPedido ? ' · Pedido Nº #' + g.numeroPedido : ''}`, 17, y);
-        y += 6;
-        doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-        (g.items||[]).forEach(it => {
-            if (y > H - 40) { doc.addPage(); y = 20; }
-            const eco = itemEconomiaReal(it, g.categoria);
-            totalMayoristaFactura += eco.precioCliente;
-            doc.setFontSize(9.5);
-            doc.text(String(it.nombre||'—').slice(0,50), 20, y);
-            doc.text(String(it.cantidad||1), W-70, y);
-            doc.text('$'+Math.round(eco.precioCliente / Number(it.cantidad||1)).toLocaleString('es-AR'), W-17, y, { align:'right' });
-            y += 7;
-        });
-        y += 2;
-    });
-
-    y += 6;
-    doc.setDrawColor(...BLUE); doc.setLineWidth(0.5);
-    doc.roundedRect(W-90, y, 76, 16, 2, 2, 'S');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text('TOTAL A PAGAR', W-86, y+7);
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
-    doc.text('$'+Math.round(totalMayoristaFactura).toLocaleString('es-AR'), W-17, y+12, { align:'right' });
-
-    _fechaPedidoFacturaPie(doc, W, H, y, gs.map(x => x.fecha));
-    _agregarMarcaAguaFactura(doc, W, H, pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', pagado ? [10,138,82] : [230,60,60]);
-    return doc;
+    return _facturaRevendedorNormal(gs, estado);
 }
 
 function descargarFacturaProveedorGrupo(codigo, categoria, estado) {
@@ -3378,6 +3340,7 @@ function descargarFacturaProveedorGrupo(codigo, categoria, estado) {
 }
 
 async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
+    await _nfAsegurar(_gsGrupo(codigo, categoria, estado));
     const doc = _generarFacturaProveedorPDFGrupo(codigo, categoria, estado);
     if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
     const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
@@ -3389,10 +3352,10 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     // al chat de WhatsApp del revendedor. Se reemplaza por el mismo criterio
     // que _enviarMensajeConFacturaGrupo: se descarga la factura y se abre
     // el chat puntual (wa.me/<numero>) con el mensaje ya escrito.
-    doc.save(filename);
+    _pdfParaEnvio(doc, filename, estado);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
-    toast('Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada', true);
+    toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
 }
 
 // "Pago Verificado" — confirma manualmente que el dinero llegó. No
@@ -3435,6 +3398,7 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
     const nombre = vendorLabel(g.codigoVendedor);
 
     // 2) Compartir la factura pagada por WhatsApp con un agradecimiento.
+    await _nfAsegurar(panelGestion.filter(x => x.pedidoId === pedidoId));
     const doc = _generarFacturaProveedorPDF(pedidoId);
     const wa = vendorWa(g.codigoVendedor);
     const mensaje = `¡Gracias por tu compra, ${nombre}! 🙌 Tu pago ya fue verificado — te comparto tu factura pagada. Ya estamos preparando tu pedido para enviarlo. ¡Cualquier consulta, estamos para ayudarte!`;
@@ -5300,9 +5264,9 @@ function renderStatsView() {
 
     let html = '';
 
-    const primero = esPrimeroDeMesBA();
+    const primero = estadisticasMesDisponible();
     html += `<div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-        <button class="btn-head" ${primero ? '' : 'disabled style="opacity:.45;cursor:not-allowed"'} onclick="${primero ? 'descargarEstadisticasPDF()' : ''}" title="${primero ? 'Descargar el resumen del mes en PDF' : 'Disponible solo el día 1 de cada mes (hora Buenos Aires)'}">
+        <button class="btn-head" ${primero ? '' : 'disabled style="opacity:.45;cursor:not-allowed"'} onclick="${primero ? 'descargarEstadisticasPDF()' : ''}" title="${primero ? 'Descargar el resumen del mes en PDF' : 'Ya descargaste el resumen del mes anterior. Se activa de nuevo al comenzar el próximo mes'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
             Descargar estadísticas del mes (PDF)
         </button>
@@ -5804,42 +5768,77 @@ function esPrimeroDeMesBA() {
     const dia = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit' }).format(new Date());
     return dia === '01';
 }
+// Mes anterior (hora Buenos Aires, UTC-3): clave 'YYYY-MM' y rango [desde, hasta) en ms.
+function _mesAnteriorBA() {
+    const ahora = new Date(Date.now() - 3 * 3600 * 1000); // "reloj" de Buenos Aires en UTC
+    let y = ahora.getUTCFullYear(), m = ahora.getUTCMonth() - 1; // mes anterior (0-11)
+    if (m < 0) { m = 11; y--; }
+    const desde = Date.UTC(y, m, 1) + 3 * 3600 * 1000;
+    const hasta = Date.UTC(y, m + 1, 1) + 3 * 3600 * 1000;
+    const clave = y + '-' + String(m + 1).padStart(2, '0');
+    const nombre = new Date(Date.UTC(y, m, 15)).toLocaleString('es-AR', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+    return { clave, desde, hasta, nombre };
+}
+const _ESTAD_LS = 'rw_estadisticas_mes_descargado';
+function _estadMesDescargado() { try { return localStorage.getItem(_ESTAD_LS) || ''; } catch (e) { return ''; } }
+// Activo desde que empieza un mes nuevo y hasta que se descarga el resumen del mes anterior.
+function estadisticasMesDisponible() { return _estadMesDescargado() !== _mesAnteriorBA().clave; }
 function descargarEstadisticasPDF() {
-    if (!esPrimeroDeMesBA()) { toast('La descarga solo está disponible el día 1 de cada mes', 'err'); return; }
+    const mes = _mesAnteriorBA();
+    if (!estadisticasMesDisponible()) { toast('Ya descargaste el resumen de ' + mes.nombre + '. Se activa al comenzar el próximo mes', 'err'); return; }
     if (!window.jspdf) { toast('No se pudo cargar el generador de PDF', 'err'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const vendors = vendorAggregates().filter(v => v.codigo && v.codigo !== '—').sort((a,b)=>b.ganancia-a.ganancia);
-    const products = productAggregates();
-    const totalUnid = vendors.reduce((s,v)=>s+v.unidades,0);
-    const totalFact = vendors.reduce((s,v)=>s+v.facturacion,0);
-    const totalGan  = vendors.reduce((s,v)=>s+v.ganancia,0);
+    const enMes = g => { const f = g.fechaPago || g.fecha; return f >= mes.desde && f < mes.hasta; };
+    const delMes = panelGestion.filter(enMes);
+    const conf = delMes.filter(g => g.estadoReal === 'confirmado');
+    let unidades = 0, inversion = 0, ganancia = 0, facturacion = 0;
+    const porV = {}, prods = {};
+    conf.forEach(g => {
+        let gp = 0, cp = 0, un = 0;
+        (g.items || []).forEach(it => {
+            const q = Number(it.cantidad || 1); un += q;
+            const eco = itemEconomiaReal(it, g.categoria);
+            gp += eco.ganancia; cp += eco.costoOriginal;
+            const k = (it.nombre || '—').trim(); prods[k] = (prods[k] || 0) + q;
+        });
+        if (!(g.items && g.items.length)) { gp = g.gananciaTotal || 0; cp = g.costoTotal || 0; }
+        unidades += un; ganancia += gp; inversion += cp; facturacion += (g.total || 0);
+        const c = g.codigoVendedor || '—';
+        if (!porV[c]) porV[c] = { codigo: c, pedidos: 0, unidades: 0, ganancia: 0 };
+        porV[c].pedidos++; porV[c].unidades += un; porV[c].ganancia += gp;
+    });
+    const vendors = Object.values(porV).sort((a, b) => b.ganancia - a.ganancia);
+    const products = Object.keys(prods).map(n => ({ nombre: n, cantidad: prods[n] })).sort((a, b) => b.cantidad - a.cantidad);
     const fechaBA = new Date().toLocaleString('es-AR', { timeZone:'America/Argentina/Buenos_Aires', day:'2-digit', month:'long', year:'numeric' });
+    const titMes = mes.nombre.charAt(0).toUpperCase() + mes.nombre.slice(1);
 
     let y = 18;
     doc.setFontSize(16); doc.setFont(undefined,'bold');
-    doc.text('Revende Ways — Estadísticas del mes', 14, y); y += 8;
+    doc.text('Revende Ways — Estadísticas de ' + titMes, 14, y); y += 8;
     doc.setFontSize(10); doc.setFont(undefined,'normal'); doc.setTextColor(90);
     doc.text('Generado el ' + fechaBA + ' (hora Buenos Aires)', 14, y); y += 10;
     doc.setTextColor(0);
 
-    doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text('Resumen general', 14, y); y += 7;
+    doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text('Resumen del mes', 14, y); y += 7;
     doc.setFontSize(10); doc.setFont(undefined,'normal');
     [
-        ['Pedidos confirmados', String(panelGestion.filter(g => g.estadoReal === 'confirmado').length)],
-        ['Unidades vendidas', String(totalUnid)],
-        ['Facturación total', money(totalFact)],
-        ['Ganancia total (regla de costo real)', money(totalGan)],
-        ['Revendedores activos', String(vendors.filter(v=>v.pedidos>0).length)],
+        ['Pedidos totales del mes', String(delMes.length)],
+        ['Pedidos confirmados (pagados)', String(conf.length)],
+        ['Unidades vendidas', String(unidades)],
+        ['Facturación total', money(facturacion)],
+        ['Inversión total', money(inversion)],
+        ['Ganancia total', money(ganancia)],
+        ['Revendedores activos', String(vendors.length)],
     ].forEach(([k,v]) => { doc.text(k+':', 14, y); doc.text(v, 100, y); y += 6; });
 
     y += 4;
     doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text('Ranking de revendedores', 14, y); y += 7;
     doc.setFontSize(9); doc.setFont(undefined,'normal');
+    if (!vendors.length) { doc.text('Sin ventas confirmadas en el mes.', 14, y); y += 6; }
     vendors.slice(0, 25).forEach((v,i) => {
         if (y > 275) { doc.addPage(); y = 18; }
-        const nombre = vendorLabel(v.codigo);
-        doc.text(`${i+1}. ${nombre} (${v.codigo})`, 14, y);
+        doc.text(`${i+1}. ${vendorLabel(v.codigo)} (${v.codigo})`, 14, y);
         doc.text(`${v.pedidos} ped. · ${v.unidades} u. · ${money(v.ganancia)}`, 120, y);
         y += 6;
     });
@@ -5855,9 +5854,10 @@ function descargarEstadisticasPDF() {
         y += 6;
     });
 
-    const nombreArchivo = 'estadisticas-revende-ways-' + new Date().toISOString().slice(0,7) + '.pdf';
-    doc.save(nombreArchivo);
+    doc.save('estadisticas-revende-ways-' + mes.clave + '.pdf');
+    try { localStorage.setItem(_ESTAD_LS, mes.clave); } catch (e) {}
     toast('PDF descargado', true);
+    try { if (typeof renderStatsView === 'function') renderStatsView(); } catch (e) {}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -7306,9 +7306,55 @@ window.addEventListener('load', init);
         if (!doc) { toast('No se pudo generar la boleta', 'err'); return; }
         doc.save(nombreBoleta(r)); toast('Boleta descargada', true);
     };
+    // Ventana de confirmación compacta (reemplaza al cuadro nativo del navegador). Devuelve true/false.
+    AF.confirmarPago = function (id) {
+        return new Promise(function (resolve) {
+            var r = _retiros.filter(function (x) { return x.id === id; })[0] || {};
+            if (!document.getElementById('af-cp-style')) {
+                var st = document.createElement('style'); st.id = 'af-cp-style';
+                st.textContent =
+                    '.af-cp-ov{position:fixed;inset:0;z-index:99999;background:rgba(5,7,12,.62);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;animation:afcpf .15s ease}' +
+                    '@keyframes afcpf{from{opacity:0}to{opacity:1}}' +
+                    '.af-cp{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:20px 18px 16px;box-shadow:0 18px 50px rgba(0,0,0,.45);color:var(--text);text-align:center;font-family:inherit}' +
+                    '.af-cp-ic{width:42px;height:42px;border-radius:50%;background:var(--green-pale);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 10px}' +
+                    '.af-cp-t{font-size:15px;font-weight:800;margin:0 0 5px}' +
+                    '.af-cp-d{font-size:12px;line-height:1.45;color:var(--text2);margin:0 0 12px}' +
+                    '.af-cp-box{background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:4px 12px;margin:0 0 14px;text-align:left}' +
+                    '.af-cp-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:12px;border-bottom:1px solid var(--border)}' +
+                    '.af-cp-row:last-child{border-bottom:0}.af-cp-row span{color:var(--text2)}.af-cp-row b{color:var(--text);text-align:right;word-break:break-all}' +
+                    '.af-cp-row.m b{color:var(--green);font-size:14px}' +
+                    '.af-cp-bt{display:flex;gap:8px}' +
+                    '.af-cp-bt button{flex:1;border-radius:10px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit}' +
+                    '.af-cp-no{background:transparent;color:var(--text2);border:1px solid var(--border2)}' +
+                    '.af-cp-ok{background:var(--green);color:#06210f;border:0}';
+                document.head.appendChild(st);
+            }
+            var ov = document.createElement('div'); ov.className = 'af-cp-ov';
+            ov.innerHTML =
+                '<div class="af-cp" role="dialog" aria-modal="true">' +
+                '<div class="af-cp-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+                '<h3 class="af-cp-t">Confirmar pago</h3>' +
+                '<p class="af-cp-d">Confirmá que ya transferiste este cobro. Las comisiones pasan a pagadas y se genera la boleta para el afiliador.</p>' +
+                '<div class="af-cp-box">' +
+                '<div class="af-cp-row"><span>Afiliador</span><b>' + esc(r.nombre || r.afiliadorCodigo || '—') + '</b></div>' +
+                (r.alias ? '<div class="af-cp-row"><span>Alias / CBU</span><b>' + esc(r.alias) + '</b></div>' : '') +
+                '<div class="af-cp-row m"><span>Monto</span><b>' + money(r.monto) + '</b></div>' +
+                '</div>' +
+                '<div class="af-cp-bt"><button type="button" class="af-cp-no">Cancelar</button><button type="button" class="af-cp-ok">Confirmar pago</button></div>' +
+                '</div>';
+            function cerrar(v) { document.removeEventListener('keydown', tecla); if (ov.parentNode) ov.parentNode.removeChild(ov); resolve(v); }
+            function tecla(e) { if (e.key === 'Escape') cerrar(false); }
+            ov.addEventListener('click', function (e) { if (e.target === ov) cerrar(false); });
+            ov.querySelector('.af-cp-no').addEventListener('click', function () { cerrar(false); });
+            ov.querySelector('.af-cp-ok').addEventListener('click', function () { cerrar(true); });
+            document.addEventListener('keydown', tecla);
+            document.body.appendChild(ov);
+            try { ov.querySelector('.af-cp-ok').focus(); } catch (_) {}
+        });
+    };
     // Marca el pago: las comisiones pasan a "pagada", se genera la boleta y se abre el WhatsApp del afiliador.
     AF.pagarRetiro = async function (id, btn) {
-        if (!confirm('¿Confirmás que ya transferiste este cobro? Las comisiones pasan a pagadas y se genera la boleta para enviar al afiliador.')) return;
+        if (!(await AF.confirmarPago(id))) return;
         btn.disabled = true;
         var d = await api('/api/admin/marcar-retiro-pagado', { method: 'POST', body: { retiroId: id } });
         if (!d.ok) { btn.disabled = false; toast(d.error || 'No se pudo marcar', 'err'); return; }
@@ -7563,6 +7609,7 @@ window.addEventListener('load', init);
             var d = new (Function.prototype.bind.apply(Orig, [null].concat([].slice.call(arguments))))();
             var os = d.save, oo = d.output;
             d.save = function (fn) { cap = { doc: d, out: oo, name: (fn && String(fn)) || 'documento.pdf', t: Date.now() }; return os.apply(this, arguments); };
+            d.preparar = function (fn) { cap = { doc: d, out: oo, name: (fn && String(fn)) || 'documento.pdf', t: Date.now() }; };
             d.output = function (tipo) { if (tipo === 'blob' || tipo === 'bloburl' || tipo === 'bloburi') { cap = { doc: d, out: oo, name: (cap && cap.doc === d ? cap.name : 'Factura.pdf'), t: Date.now() }; } return oo.apply(this, arguments); };
             return d;
         }
@@ -7580,16 +7627,24 @@ window.addEventListener('load', init);
     document.addEventListener('click', function (e) {
         if (e.target && e.target.closest && e.target.closest('#factura-whatsapp-btn')) btnT = Date.now();
     }, true);
-    if (navigator.canShare) {
-        var cs = navigator.canShare.bind(navigator);
-        navigator.canShare = function (d) { return (d && d.files && Date.now() - btnT < 3000) ? false : cs(d); };
-    }
     window.open = function (u) {
         var args = arguments;
         var m = typeof u === 'string' && u.match(/^(https:\/\/wa\.me\/\d{10,15}\?text=)([\s\S]*)$/);
         var edad = cap ? Date.now() - cap.t : Infinity;
         if (!m || !cap || !(edad < 20000 || (Date.now() - btnT < 3000 && edad < 1800000))) return origOpen.apply(window, args);
         var c = cap, body; cap = null;
+        // Adjunta el PDF con su mensaje (hoja de compartir del dispositivo), igual que el botón "Compartir".
+        // Si el dispositivo no puede compartir archivos, sigue por enlace como antes.
+        try {
+            var fnm = /\.pdf$/i.test(c.name) ? c.name : c.name + '.pdf';
+            var fl = new File([c.out.call(c.doc, 'arraybuffer')], fnm, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [fl] })) {
+                var tx = ''; try { tx = decodeURIComponent(m[2]); } catch (_) {}
+                try { navigator.clipboard.writeText(tx).catch(function () {}); } catch (_) {}
+                navigator.share({ files: [fl], title: fnm, text: tx }).catch(function (e) { if (!e || e.name !== 'AbortError') origOpen(u, '_blank'); });
+                return null;
+            }
+        } catch (_) {}
         try { body = JSON.stringify({ filename: c.name, pdfBase64: b64(c) }); } catch (_) { return origOpen.apply(window, args); }
         var w = origOpen('', '_blank');           // se abre ya (dentro del toque) y se completa al terminar la subida
         var ir = function (url) { if (w) { try { w.location.href = url; return; } catch (_) {} } origOpen(url, '_blank'); };
