@@ -533,6 +533,28 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     .cnt, .cnt2 { font-size: 10px !important; padding: 1px 6px !important; }
 }
 </style>
+<script id="admin-key-header">
+/* Envía la clave de administración (la que entrega el servidor al ingresar)
+   a los workers de datos y de pagos. No cambia ninguna función del panel. */
+(function () {
+  var HOSTS = { 'datosderevendedor.tuweb.workers.dev': 1, 'workerpagos.tuweb.workers.dev': 1 };
+  var orig = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    try {
+      if (typeof input === 'string') {
+        var u = new URL(input, location.href);
+        var k = sessionStorage.getItem('rw_admin_key_v1');
+        if (HOSTS[u.hostname] && k) {
+          var h = new Headers((init && init.headers) || undefined);
+          if (!h.has('X-Panel-Admin-Key')) h.set('X-Panel-Admin-Key', k);
+          var n = {}; for (var x in (init || {})) n[x] = init[x]; n.headers = h; init = n;
+        }
+      }
+    } catch (e) {}
+    return orig(input, init);
+  };
+})();
+</script>
 </head>
 <body>
 
@@ -1170,7 +1192,9 @@ const WORKER_RECLAMOS = 'https://datosderevendedor.tuweb.workers.dev';
 // rotas (401 No autorizado) desde ese momento, aunque antes funcionaban
 // bien. pedidos.html es el único cliente autorizado a escribir ahí, así
 // que corresponde que la envíe en cada petición de escritura.
-const PANEL_ADMIN_KEY = 'rMYQvYbL8rm6ODE3jN6uzpn4dlRmCyBIvmItv8excjY';
+// 🔒 La clave de administración ya NO está escrita en esta página: la entrega
+// el servidor solo si la contraseña de ingreso es correcta (ver doLogin()).
+let PANEL_ADMIN_KEY = sessionStorage.getItem('rw_admin_key_v1') || '';
 const WORKER_CLIENTE = 'https://workerwebcliente.tuweb.workers.dev';
 // 🔧 NUEVO: guarda en Firestore TODO lo que se le manda al proveedor real
 // (producto + cantidad + datos del revendedor) — antes ese envío solo
@@ -1725,7 +1749,7 @@ function init() {
     if (savedTheme === 'light') document.body.classList.add('light-theme');
 
     const stored = sessionStorage.getItem(S_KEY);
-    if (stored) { showMain(); loadData(); }
+    if (stored && PANEL_ADMIN_KEY) { showMain(); loadData(); }
     else showLogin();
 
     document.getElementById('del-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDelModal(); });
@@ -1747,15 +1771,30 @@ function selectTheme(theme) {
     document.getElementById('theme-wrap').style.display = 'none';
     showMain(); loadData();
 }
-function doLogin() {
+async function doLogin() {
     const pin = (document.getElementById('inp-pin').value || '').trim();
-    if (pin !== '1234678') { loginErr('Contraseña incorrecta.'); return; }
+    if (!pin) { loginErr('Ingresá la contraseña.'); return; }
+    // 🔒 La contraseña se verifica en el servidor (no está escrita en esta página).
+    try {
+        const res = await fetch('https://datosderevendedor.tuweb.workers.dev/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pin })
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || !d.ok || !d.key) {
+            loginErr(res.status === 429 ? 'Demasiados intentos. Esperá unos minutos.' : (d.error || 'Contraseña incorrecta.'));
+            return;
+        }
+        PANEL_ADMIN_KEY = d.key;
+        sessionStorage.setItem('rw_admin_key_v1', d.key);
+    } catch (_e) { loginErr('No se pudo verificar la contraseña. Probá de nuevo.'); return; }
     sessionStorage.setItem(S_KEY, '1');
     loginErr('');
     showThemeSelector();
 }
 function loginErr(m) { const e = document.getElementById('login-err'); e.textContent = m; e.classList.toggle('show', !!m); }
-function logout() { sessionStorage.removeItem(S_KEY); location.reload(); }
+function logout() { sessionStorage.removeItem(S_KEY); sessionStorage.removeItem('rw_admin_key_v1'); location.reload(); }
 function showLogin() {
     document.getElementById('login-wrap').style.display = 'flex';
     document.getElementById('main').classList.remove('show');
