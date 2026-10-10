@@ -6846,7 +6846,8 @@ function renderRvndrLista(filter) {
                     <div class="podium-avatar" style="margin:0;width:32px;height:32px;font-size:12px">${initials(nombre)}</div>
                     <div style="min-width:0">
                         <div class="r-name">${esc(nombre)}</div>
-                        <div class="r-code" style="margin-top:2px;display:inline-block">${esc(v.codigo)}</div>
+                        <div class="r-code" style="display:none">${esc(v.codigo)}</div>
+                        <div class="r-afil-slot" style="margin-top:3px;line-height:1"></div>
                     </div>
                 </div>
                 <div class="ribbon-meta">
@@ -6857,6 +6858,7 @@ function renderRvndrLista(filter) {
             <div class="ribbon-body" style="${expandido?'max-height:600px':''}">
                 <div class="ribbon-inner">
                     <div class="ship-block" style="margin-top:0">
+                        <div class="ship-row">Código de revendedor: <strong>${esc(v.codigo)}</strong></div>
                         <div class="ship-row">${ICO_PAQUETE}${v.pedidos} pedido${v.pedidos!==1?'s':''} · ${v.unidades} unidades</div>
                         <div class="ship-row">${ICO_MONEDA}Facturación: <strong>${money(v.facturacion)}</strong></div>
                         ${info.email ? `<div class="ship-row">${ICO_MAIL}${esc(info.email)}</div>` : ''}
@@ -7456,7 +7458,8 @@ window.addEventListener('load', init);
                     var c = rb.querySelector('.r-code'), sb = rb.querySelector('.ship-block');
                     var cod0 = c ? (c.textContent || '').trim() : '';
                     var nm = rb.querySelector('.r-name');
-                    if (nm && cod0 && datosPrograma(cod0).enPrograma && !nm.querySelector('[data-af-pill]')) nm.insertAdjacentHTML('beforeend', PILL);
+                    var slot = rb.querySelector('.r-afil-slot') || nm;
+                    if (nm && cod0 && datosPrograma(cod0).enPrograma && !rb.querySelector('.ribbon-head [data-af-pill]')) slot.insertAdjacentHTML('beforeend', PILL.replace(/^ /, ''));
                     if (c && sb && !sb.getAttribute('data-af')) { sb.setAttribute('data-af', '1'); sb.insertAdjacentHTML('beforeend', filasPrograma((c.textContent || '').trim())); }
                 });
             } catch (e) { console.warn('afiliados: info rvndr', e); }
