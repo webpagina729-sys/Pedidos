@@ -5328,6 +5328,7 @@ function renderStatsView() {
     html += statRow(ICO_FACTURACION, 'Facturación total', money(totalFact));
     html += statRow(ICO_INVERSION, 'Inversión total', money(totalInv));
     html += statRow(ICO_REVENDEDORES, 'Revendedores activos', revendedoresActivos, detalleRevendedoresActivos);
+    html += (typeof renderFechasPagoStats === 'function') ? renderFechasPagoStats() : '';
 
     if (estrella) {
         html += `<div class="estrella-card">
@@ -7600,6 +7601,66 @@ window.addEventListener('load', init);
 })();
 </script>
 
+
+<script id="fechas-pago-stats">
+/* Estadísticas → "Fechas de pago esperadas": lee la colección nueva
+   fechasPagoRevendedores (vía el worker) y las ordena de la más cercana a la
+   más lejana. Solo agrega esta sección; no modifica nada existente. */
+var _fpFechas = null, _fpCargando = false;
+function _fpTxt(f) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''); return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (f || ''); }
+function _fpDias(f) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''); if (!m) return 0;
+    var h = new Date(); h = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+    return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - h) / 86400000);
+}
+function _fpPedidosEsperados(codigo) {
+    var cod = String(codigo || '').toUpperCase(), porCat = {}, total = 0;
+    try {
+        (panelGestion || []).forEach(function (g) {
+            if (!cod || g.codigoVendedor !== cod) return;
+            if (g.estadoReal !== 'pendiente' && g.estadoReal !== 'aprobado') return;
+            var c = g.categoria || 'multishop'; porCat[c] = (porCat[c] || 0) + 1; total++;
+        });
+    } catch (_) {}
+    return { total: total, porCat: porCat };
+}
+function _fpHtmlLista() {
+    if (_fpFechas === null) return '<div class="ship-row" style="color:var(--text3)">Cargando…</div>';
+    if (_fpFechas === false) return '<div class="ship-row" style="color:var(--text3)">No se pudo cargar la lista.</div>';
+    if (!_fpFechas.length) return '<div class="ship-row" style="color:var(--text3)">Todavía ningún revendedor configuró su fecha de pago.</div>';
+    var prox = _fpFechas.filter(function (x) { return _fpDias(x.fechaLimite) >= 0; }).sort(function (a, b) { return a.fechaLimite.localeCompare(b.fechaLimite); });
+    var venc = _fpFechas.filter(function (x) { return _fpDias(x.fechaLimite) < 0; }).sort(function (a, b) { return b.fechaLimite.localeCompare(a.fechaLimite); });
+    return prox.concat(venc).map(function (x) {
+        var n = _fpDias(x.fechaLimite);
+        var nombre = [x.nombre, x.apellido].filter(Boolean).join(' ') || (typeof vendorLabel === 'function' ? vendorLabel(x.codigoVendedor) : x.codigoVendedor) || 'Revendedor';
+        var cuando = n > 1 ? ('faltan ' + n + ' días') : n === 1 ? 'falta 1 día' : n === 0 ? 'vence hoy' : ('vencida hace ' + (-n) + (n === -1 ? ' día' : ' días'));
+        var pe = _fpPedidosEsperados(x.codigoVendedor);
+        var cats = Object.keys(pe.porCat).sort(function (a, b) { return pe.porCat[b] - pe.porCat[a]; }).map(function (c) { return esc((typeof CAT_LABELS !== 'undefined' && CAT_LABELS[c]) || c) + ': <strong>' + pe.porCat[c] + '</strong>'; }).join(' · ');
+        var det = '<div style="flex-basis:100%;font-size:11px;color:var(--text3)">' + (pe.total ? ('Se esperan <strong>' + pe.total + '</strong> pedido' + (pe.total !== 1 ? 's' : '') + ' — ' + cats) : 'Sin pedidos pendientes por ahora') + '</div>';
+        var col = n < 0 ? 'var(--red)' : (n <= 2 ? 'var(--amber)' : 'var(--text3)');
+        return '<div class="ship-row" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>' + esc(nombre) + (x.codigoVendedor ? ' <span style="color:var(--text3);font-size:11px">' + esc(x.codigoVendedor) + '</span>' : '') + '</span><span><strong>' + _fpTxt(x.fechaLimite) + '</strong> <span style="color:' + col + ';font-size:11px">· ' + cuando + '</span></span>' + det + '</div>';
+    }).join('');
+}
+function _fpPintar() {
+    var l = document.getElementById('fp-stats-lista'), n = document.getElementById('fp-stats-n');
+    if (l) l.innerHTML = _fpHtmlLista();
+    if (n) n.textContent = Array.isArray(_fpFechas) ? _fpFechas.length : '…';
+}
+async function _fpCargar() {
+    if (_fpCargando) return; _fpCargando = true;
+    try {
+        var r = await fetch('https://datosderevendedor.tuweb.workers.dev/api/admin/fechas-pago');
+        var j = await r.json();
+        _fpFechas = (r.ok && j && j.ok && Array.isArray(j.fechas)) ? j.fechas : false;
+    } catch (_) { _fpFechas = false; }
+    _fpCargando = false; _fpPintar();
+}
+function renderFechasPagoStats() {
+    var ico = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    setTimeout(_fpCargar, 0);
+    return statRow(ico, 'Fechas de pago esperadas', '<span id="fp-stats-n">' + (Array.isArray(_fpFechas) ? _fpFechas.length : '…') + '</span>', '<div id="fp-stats-lista">' + _fpHtmlLista() + '</div>');
+}
+</script>
 
 </body>
 </html>
