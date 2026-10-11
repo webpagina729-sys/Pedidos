@@ -3251,18 +3251,28 @@ function _facturaRevendedorNormal(gs, estado) {
     const bloques = claves.map(k => {
         let subTotal = 0;
         const subs = porLote.get(k).slice().sort((a, b) => (a.fecha || 0) - (b.fecha || 0)).map(g => {
-            let subMay = 0;
+            let subMay = 0, subGanVivo = 0;
             const items = (g.items || []).map(it => {
                 const qty = Number(it.cantidad || 1) || 1;
                 const eco = itemEconomiaReal(it, g.categoria);
                 subMay += eco.precioCliente;
+                subGanVivo += eco.ganancia;
                 return { nombre: it.nombre || '—', cant: qty, unit: eco.precioCliente / qty, sub: eco.precioCliente };
             });
-            const gan = Number(g.gananciaTotal) || 0;
+            // 🔧 FIX: g.gananciaTotal recién queda congelada cuando el pedido
+            // se PAGA al mayorista — mientras está pendiente/aprobado suele
+            // estar en $0, y la factura terminaba mostrando "Ganancia $0".
+            // Mientras no esté pagada se usa el mismo cálculo en vivo
+            // (itemEconomiaReal) que ya usa el resto del panel (p.ej. el pie
+            // "+$X de ganancia" de cada grupo) para mostrar la ganancia real
+            // aunque todavía no se haya confirmado el pago.
+            const gan = pagado ? (Number(g.gananciaTotal) || 0) : subGanVivo;
             subTotal += subMay; totMay += subMay; totVenta += Number(g.total) || 0; totGan += gan;
             const cli = `${(g.cliente && g.cliente.nombre) || ''} ${(g.cliente && g.cliente.apellido) || ''}`.trim();
             const num = nf(g.pedidoId).numero;
-            return { titulo: `Pedido de cliente ${num ? '#' + num : '(sin número)'}${cli ? ' · ' + cli : ''}`, derecha: 'Ganancia ' + _m(gan), items };
+            const etiquetaNum = num ? ('#' + num) : (pagado ? '(sin número)' : '(pendiente de pago)');
+            const etiquetaGan = pagado ? ('Ganancia ' + _m(gan)) : ('Ganancia Pendiente: ' + _m(gan));
+            return { titulo: `Pedido de cliente ${etiquetaNum}${cli ? ' · ' + cli : ''}`, derecha: etiquetaGan, items };
         });
         return { titulo: k ? `PEDIDO DEL REVENDEDOR  #${k}` : 'PEDIDO DEL REVENDEDOR · todavía sin enviar a pago', derecha: 'Total mayorista ' + _m(subTotal), subs };
     });
@@ -3349,7 +3359,13 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     if (!doc) { toast('No se pudo generar la factura', 'err'); return; }
     const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
     const wa = vendorWa(codigo);
-    const mensaje = estado === 'confirmado' ? 'Te comparto tu factura ya pagada.' : 'Te comparto tu factura pendiente de pago.';
+    // 🔧 FIX: este mensaje no tenía saludo ni nombre — se agrega "Hola
+    // {nombre}" como el resto de los mensajes del panel (seguimiento,
+    // reenvío de boleta pendiente, etc.), sin tocar la lógica de envío.
+    const nombreRevendedor = vendorLabel(codigo);
+    const mensaje = estado === 'confirmado'
+        ? `Hola ${nombreRevendedor} 👋\nTe comparto tu factura ya pagada.`
+        : `Hola ${nombreRevendedor} 👋\nTe comparto tu factura pendiente de pago.`;
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
     // 🔧 FIX: usaba navigator.share({files,text}), que abre el panel nativo
     // "Compartir" del sistema (a elegir contacto/app) en vez de ir directo
