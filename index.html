@@ -332,6 +332,8 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .btn-act.btn-wa-seguimiento:hover { background: #12873c; }
 .btn-act.btn-wa-reenviar { background: #059669; }
 .btn-act.btn-wa-reenviar:hover { background: #047a56; }
+/* 🆕 "Hacer seguimiento" / "Reenviar Factura" bloqueados hasta que pasen los 2 días */
+.btn-act.btn-wa-locked, .btn-act.btn-wa-locked:hover { background: var(--surface2); color: var(--text3); border: 1px solid var(--border2); cursor: not-allowed; box-shadow: none; }
 /* Botón compacto de pausar/reanudar panel de proveedor — icono solo, tono
    ámbar neutro (no es una acción "positiva" en verde ni "destructiva" en
    rojo, es un estado intermedio). */
@@ -1025,6 +1027,18 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- ══ MODAL AVISO SEGUIMIENTO/REENVÍO (consolidado, nunca uno por pedido) ══ -->
+<div class="modal-overlay" id="aviso-seguimiento-modal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--green-pale)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <h3>Nuevas acciones disponibles</h3>
+        <p id="aviso-seguimiento-texto">Ya podés hacer seguimiento o reenviar factura en algunos pedidos.</p>
+        <div class="modal-actions">
+            <button class="modal-confirm-btn" style="background:var(--green)" onclick="closeAvisoSeguimientoModal()">Entendido</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ MODAL ELIMINAR ══ -->
 <div class="modal-overlay" id="del-modal">
     <div class="modal-box">
@@ -1350,6 +1364,75 @@ function superaMinimoYVencido48hs(g) {
     return totalMayoristaPedido(g) >= minimo;
 }
 
+// 🆕 Temporizadores de "Hacer seguimiento" / "Reenviar Factura": "Hacer
+// seguimiento" recién se habilita 2 días después de tocar "Enviar
+// Factura", y "Reenviar Factura" recién se habilita 2 días después de
+// tocar "Hacer seguimiento" (mismo revendedor + categoría + estado). Son
+// temporizadores de UI guardados en localStorage — no cambian ningún otro
+// dato ni función existente.
+const RW_WA_ESPERA_MS = 2 * 24 * 60 * 60 * 1000; // 2 días
+function _waTimerKey(tipo, codigo, categoria, estado) { return `rw_wa_timer_v1_${tipo}_${codigo}_${categoria}_${estado}`; }
+function _waTimerGet(tipo, codigo, categoria, estado) {
+    try { return Number(localStorage.getItem(_waTimerKey(tipo, codigo, categoria, estado))) || 0; } catch(_) { return 0; }
+}
+function _waTimerSet(tipo, codigo, categoria, estado) {
+    try { localStorage.setItem(_waTimerKey(tipo, codigo, categoria, estado), String(Date.now())); } catch(_) {}
+}
+function _waTimerListo(tipo, codigo, categoria, estado) {
+    const t = _waTimerGet(tipo, codigo, categoria, estado);
+    return t > 0 && (Date.now() - t) >= RW_WA_ESPERA_MS;
+}
+
+// 🆕 Aviso consolidado: cuando se habilitan botones de "Hacer seguimiento"/
+// "Reenviar Factura", se avisa UNA sola vez por pedido (nunca de nuevo) y
+// SIEMPRE en un único modal con el total, nunca uno por cada pedido.
+function _waAvisoKey(tipo, codigo, categoria, estado) { return `rw_wa_aviso_v1_${tipo}_${codigo}_${categoria}_${estado}`; }
+function _waAvisoVisto(tipo, codigo, categoria, estado) {
+    try { return localStorage.getItem(_waAvisoKey(tipo, codigo, categoria, estado)) === '1'; } catch (_) { return false; }
+}
+function _waAvisoMarcar(tipo, codigo, categoria, estado) {
+    try { localStorage.setItem(_waAvisoKey(tipo, codigo, categoria, estado), '1'); } catch (_) {}
+}
+function _revisarAvisosSeguimientoGrupal() {
+    const combos = new Set();
+    panelGestion.forEach(g => {
+        if (g.estadoReal === 'aprobado' || g.estadoReal === 'confirmado') {
+            combos.add(g.codigoVendedor + '|' + (g.categoria || 'multishop') + '|' + g.estadoReal);
+        }
+    });
+    let nuevos = 0;
+    combos.forEach(key => {
+        const [codigo, categoria, estado] = key.split('|');
+        if (_waTimerListo('envio', codigo, categoria, estado) && !_waAvisoVisto('seguimiento', codigo, categoria, estado)) {
+            nuevos++;
+            _waAvisoMarcar('seguimiento', codigo, categoria, estado);
+        }
+        if (estado === 'aprobado' && _waTimerListo('seguimiento', codigo, categoria, 'aprobado') && !_waAvisoVisto('reenviar', codigo, categoria, estado)) {
+            nuevos++;
+            _waAvisoMarcar('reenviar', codigo, categoria, estado);
+        }
+    });
+    if (nuevos > 0) _mostrarAvisoSeguimientoGrupal(nuevos);
+}
+function _mostrarAvisoSeguimientoGrupal(cantidad) {
+    const p = document.getElementById('aviso-seguimiento-texto');
+    if (p) {
+        p.textContent = cantidad === 1
+            ? 'Ya podés hacer seguimiento o reenviar factura en 1 pedido.'
+            : `Ya podés hacer seguimiento o reenviar factura en ${cantidad} pedidos.`;
+    }
+    document.getElementById('aviso-seguimiento-modal')?.classList.add('show');
+}
+function closeAvisoSeguimientoModal() { document.getElementById('aviso-seguimiento-modal')?.classList.remove('show'); }
+
+// 🆕 "Hacer seguimiento" ahora manda SOLO el texto (sin adjuntar la
+// factura) — adjuntarla es tarea de "Enviar Factura" / "Reenviar Factura".
+function _enviarMensajeSeguimientoGrupo(codigo, mensaje) {
+    const wa = vendorWa(codigo);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
 // Abre WhatsApp del revendedor con el mensaje de seguimiento — cantidad
 // = precio mayorista del GRUPO completo (lo que me paga), tal cual figura
 // en su panel index(1).html.
@@ -1413,7 +1496,8 @@ Recordá que una vez cumplido el objetivo y acreditado el pago mayorista podremo
 💡 Te recomendamos aprovechar este momento para crear combos, promociones o publicaciones especiales que te ayuden a generar más ventas y alcanzar el objetivo más rápido.
 
 ¡Vamos que falta muy poco para completar tu pedido! 🚀`;
-    _enviarMensajeConFacturaGrupo(codigo, categoria, 'pendiente', msg);
+    _enviarMensajeSeguimientoGrupo(codigo, msg);
+    _waTimerSet('seguimiento', codigo, categoria, 'pendiente');
 }
 
 // Seguimiento GRUPAL para pedidos ya aprobados (esperando que el
@@ -1429,7 +1513,9 @@ Te recomendamos aprovechar este tiempo para continuar promocionando tus producto
 Apenas existan novedades sobre el envío te mantendremos informado.
 Gracias por confiar en Revende Ways 🚀
 Quedamos Atentos!`;
-    _enviarMensajeConFacturaGrupo(codigo, categoria, 'aprobado', msg);
+    _enviarMensajeSeguimientoGrupo(codigo, msg);
+    _waTimerSet('seguimiento', codigo, categoria, 'aprobado');
+    renderPedidosView();
 }
 
 // Reenvía la boleta/factura pendiente GRUPAL con su propio mensaje
@@ -1471,7 +1557,9 @@ Recordá que cada venta realizada es una oportunidad para generar nuevas recompr
 
 ¡Muchos éxitos con tus próximas ventas! 🚀
 Equipo Revende Ways🦒`;
-    _enviarMensajeConFacturaGrupo(codigo, categoria, 'confirmado', msg);
+    _enviarMensajeSeguimientoGrupo(codigo, msg);
+    _waTimerSet('seguimiento', codigo, categoria, 'confirmado');
+    renderPedidosView();
 }
 
 // 🔧 NUEVO: catálogo completo de productos (extraído de index.html y
@@ -2158,6 +2246,7 @@ async function loadData() {
     _datosCargadosUnaVez = true;
     renderEnviosView(); // 🆕 NUEVO: "Envíos"
     actualizarContadorRvndrHeader();
+    _revisarAvisosSeguimientoGrupal(); // 🆕 aviso consolidado (un solo modal, nunca uno por pedido)
 
 
     // Avisar UNA vez por sesión si hay productos que no matchean contra
@@ -2975,10 +3064,19 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     // vivían antes en CADA pedido individual del cliente — pero el
     // revendedor paga el total del grupo, no pedido por pedido, así que
     // ahora son UN solo botón acá, igual que la factura/compartir.
-    const botonesSeguimiento = estado === 'aprobado'
-        ? `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoAprobadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>
-           <button class="btn-act btn-wa btn-wa-reenviar" onclick="${stop}enviarBoletaPendienteGrupo('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
-        : `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}enviarSeguimientoConfirmadoGrupo('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
+    // 🆕 "Hacer seguimiento" recién se habilita 2 días después de tocar
+    // "Enviar Factura", y "Reenviar Factura" recién se habilita 2 días
+    // después de tocar "Hacer seguimiento" (ver _waTimerListo).
+    const seguimientoListo = _waTimerListo('envio', codigo, cat, estado);
+    const fnSeguimiento = estado === 'aprobado' ? 'enviarSeguimientoAprobadoGrupo' : 'enviarSeguimientoConfirmadoGrupo';
+    const btnSeguimiento = seguimientoListo
+        ? `<button class="btn-act btn-wa btn-wa-seguimiento" onclick="${stop}${fnSeguimiento}('${codigo}','${cat}')">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`
+        : `<button class="btn-act btn-wa btn-wa-seguimiento btn-wa-locked" disabled title="Disponible 2 días después de tocar Enviar Factura">${ICO_SEGUIMIENTO}Hacer seguimiento</button>`;
+    const reenviarListo = _waTimerListo('seguimiento', codigo, cat, 'aprobado');
+    const btnReenviar = reenviarListo
+        ? `<button class="btn-act btn-wa btn-wa-reenviar" onclick="${stop}enviarBoletaPendienteGrupo('${codigo}','${cat}')">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`
+        : `<button class="btn-act btn-wa btn-wa-reenviar btn-wa-locked" disabled title="Disponible 2 días después de tocar Hacer seguimiento">${ICO_REENVIAR_FACTURA}Reenviar Factura</button>`;
+    const botonesSeguimiento = estado === 'aprobado' ? (btnSeguimiento + btnReenviar) : btnSeguimiento;
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
             <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
@@ -3376,6 +3474,9 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
     toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
+    // 🆕 "Hacer seguimiento" recién se habilita 2 días después de este envío.
+    _waTimerSet('envio', codigo, categoria, estado);
+    renderPedidosView();
 }
 
 // "Pago Verificado" — confirma manualmente que el dinero llegó. No
@@ -7777,18 +7878,12 @@ window.addEventListener('load', init);
         var edad = cap ? Date.now() - cap.t : Infinity;
         if (!m || !cap || !(edad < 20000 || (Date.now() - btnT < 3000 && edad < 1800000))) return origOpen.apply(window, args);
         var c = cap, body; cap = null;
-        // Adjunta el PDF con su mensaje (hoja de compartir del dispositivo), igual que el botón "Compartir".
-        // Si el dispositivo no puede compartir archivos, sigue por enlace como antes.
-        try {
-            var fnm = /\.pdf$/i.test(c.name) ? c.name : c.name + '.pdf';
-            var fl = new File([c.out.call(c.doc, 'arraybuffer')], fnm, { type: 'application/pdf' });
-            if (navigator.canShare && navigator.canShare({ files: [fl] })) {
-                var tx = ''; try { tx = decodeURIComponent(m[2]); } catch (_) {}
-                try { navigator.clipboard.writeText(tx).catch(function () {}); } catch (_) {}
-                navigator.share({ files: [fl], title: fnm, text: tx }).catch(function (e) { if (!e || e.name !== 'AbortError') origOpen(u, '_blank'); });
-                return null;
-            }
-        } catch (_) {}
+        // 🔧 FIX: antes, si el dispositivo soportaba Web Share con archivos
+        // (navigator.canShare), se usaba navigator.share({files}) — pero esa
+        // API deja que el SISTEMA elija a dónde mandarlo (panel nativo con
+        // cualquier contacto/app), nunca abre el chat de WhatsApp puntual.
+        // Ahora siempre se sube la factura y se agrega su link al chat que
+        // ya se abrió directo al número del revendedor correspondiente.
         try { body = JSON.stringify({ filename: c.name, pdfBase64: b64(c) }); } catch (_) { return origOpen.apply(window, args); }
         var w = origOpen('', '_blank');           // se abre ya (dentro del toque) y se completa al terminar la subida
         var ir = function (url) { if (w) { try { w.location.href = url; return; } catch (_) {} } origOpen(url, '_blank'); };
