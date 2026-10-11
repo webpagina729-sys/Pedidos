@@ -3051,12 +3051,24 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     let totalMayoristaGrupo = 0;
     let totalGananciaGrupo = 0;
     let totalUnidGrupo = 0;
+    const pagadoFoot = estado === 'confirmado';
     gsCat.forEach(g => {
+        // 🔧 FIX: itemEconomiaReal().ganancia es MI ganancia (la de la
+        // plataforma) — este footer se muestra junto a los botones Enviar
+        // Factura/Hacer seguimiento/Reenviar Factura, que son para el
+        // REVENDEDOR, así que debe mostrar SU ganancia (misma cuenta que
+        // _facturaRevendedorNormal y que ve en index(1).html), no la mía.
+        if (pagadoFoot) totalGananciaGrupo += Number(g.gananciaTotal) || 0;
         (g.items||[]).forEach(it => {
+            const qty = Number(it.cantidad || 1) || 1;
             const eco = itemEconomiaReal(it, g.categoria);
             totalMayoristaGrupo += eco.precioCliente;
-            totalGananciaGrupo += eco.ganancia;
-            totalUnidGrupo += Number(it.cantidad) || 1;
+            totalUnidGrupo += qty;
+            if (!pagadoFoot) {
+                totalGananciaGrupo += Number(it.subtotalGanancia ?? (
+                    ((Number(it.precioClienteUnitario) || 0) - (Number(it.costoMayoristaUnitario ?? it.costoUnitario ?? it.precioMayorista ?? 0))) * qty
+                ));
+            }
         });
     });
     const etiquetaFactura = estado === 'confirmado' ? '🧾 Factura (Pagada)' : '🧾 Factura (Pendiente de pago)';
@@ -3354,16 +3366,24 @@ function _facturaRevendedorNormal(gs, estado) {
                 const qty = Number(it.cantidad || 1) || 1;
                 const eco = itemEconomiaReal(it, g.categoria);
                 subMay += eco.precioCliente;
-                subGanVivo += eco.ganancia;
+                // 🔧 FIX: itemEconomiaReal() calcula MI ganancia (la de la
+                // plataforma, precio mayorista menos mi costo de proveedor) —
+                // acá hace falta la ganancia del REVENDEDOR (lo que le cobra
+                // a SU cliente menos lo que me paga a mí), la misma cuenta
+                // que ya ve en index(1).html. Ese dato ya quedó verificado
+                // por el servidor al aprobar el pedido (handlePanelGestion:
+                // precioClienteUnitario/costoMayoristaUnitario/subtotalGanancia
+                // en cada item de panelGestion) — se usa directo de ahí.
+                const gananciaRevendedorItem = Number(it.subtotalGanancia ?? (
+                    ((Number(it.precioClienteUnitario) || 0) - (Number(it.costoMayoristaUnitario ?? it.costoUnitario ?? it.precioMayorista ?? 0))) * qty
+                ));
+                subGanVivo += gananciaRevendedorItem;
                 return { nombre: it.nombre || '—', cant: qty, unit: eco.precioCliente / qty, sub: eco.precioCliente };
             });
-            // 🔧 FIX: g.gananciaTotal recién queda congelada cuando el pedido
-            // se PAGA al mayorista — mientras está pendiente/aprobado suele
-            // estar en $0, y la factura terminaba mostrando "Ganancia $0".
-            // Mientras no esté pagada se usa el mismo cálculo en vivo
-            // (itemEconomiaReal) que ya usa el resto del panel (p.ej. el pie
-            // "+$X de ganancia" de cada grupo) para mostrar la ganancia real
-            // aunque todavía no se haya confirmado el pago.
+            // g.gananciaTotal recién queda congelada cuando el pedido se PAGA
+            // al mayorista — mientras está pendiente/aprobado suele estar en
+            // $0, así que se usa el cálculo en vivo de arriba (ya corregido
+            // para mostrar la ganancia del revendedor, no la mía).
             const gan = pagado ? (Number(g.gananciaTotal) || 0) : subGanVivo;
             subTotal += subMay; totMay += subMay; totVenta += Number(g.total) || 0; totGan += gan;
             const cli = `${(g.cliente && g.cliente.nombre) || ''} ${(g.cliente && g.cliente.apellido) || ''}`.trim();
