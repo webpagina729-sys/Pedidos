@@ -2028,6 +2028,18 @@ async function loadData() {
     if (pedidosWrap) pedidosWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     document.getElementById('stats-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div>';
     document.getElementById('revmes-content').innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando ranking...</p></div>';
+    // 🔧 FIX: "Pedidos de Stock", "Lista de pedidos" y "Envíos" sí se
+    // actualizaban (misma función loadData() que arma todo con datos
+    // frescos), pero como estos 3 wraps nunca mostraban un "Cargando..."
+    // al arrancar, el dueño no veía ningún cambio en pantalla hasta que
+    // la carga terminaba del todo — y si los datos no habían cambiado,
+    // parecía que el botón no hacía nada. Ahora avisan igual que el resto.
+    const stockpedWrap = document.getElementById('stockped-wrap');
+    if (stockpedWrap) stockpedWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando pedidos de stock...</p></div>';
+    const listaWrap = document.getElementById('lista-estado-wrap');
+    if (listaWrap) listaWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando lista de pedidos...</p></div>';
+    const enviosWrap = document.getElementById('envios-wrap');
+    if (enviosWrap) enviosWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando envíos...</p></div>';
 
     const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes, carritosStockRes] = await Promise.all([
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
@@ -2281,16 +2293,19 @@ async function loadData() {
 // "revmes", switchView() no hace nada extra, porque esas ya las cubre
 // loadData() de por sí).
 async function actualizarPanelCompleto() {
-    await loadData().catch(() => {});
-    // 🔧 FIX: con solo re-disparar la pestaña activa no alcanzaba — si el
-    // dueño estaba parado en "Pedidos nuevos" y tocaba "Actualizar",
-    // Stock/Proveedores registrados/Afiliados seguían sin refrescarse
-    // hasta abrirlas a mano. Ahora se refrescan SIEMPRE las tres, estén
-    // visibles o no en este momento (cada una ya revisa su propio wrap
-    // antes de tocar el DOM, así que no hay problema si no están a la vista).
-    try { await renderStockView(); } catch (_) {}
-    try { await cargarProveedoresRegistrados(); } catch (_) {}
-    try { if (typeof window._refrescarAfiliadosPanel === 'function') await window._refrescarAfiliadosPanel(); } catch (_) {}
+    // 🔧 FIX: antes se esperaba a que loadData() terminara del todo para
+    // recién ahí arrancar Stock/Proveedores registrados/Afiliados, uno
+    // atrás del otro — además de ser más lento, esos 3 "Cargando..." no
+    // se veían hasta varios segundos después de tocar "Actualizar". Ahora
+    // las 4 cargas arrancan juntas (en paralelo), así que los "Cargando..."
+    // de TODAS las secciones aparecen al toque, estén visibles o no en
+    // este momento (cada una revisa su propio wrap antes de tocar el DOM).
+    await Promise.all([
+        loadData().catch(() => {}),
+        (async () => { try { await renderStockView(); } catch (_) {} })(),
+        (async () => { try { await cargarProveedoresRegistrados(); } catch (_) {} })(),
+        (async () => { try { if (typeof window._refrescarAfiliadosPanel === 'function') await window._refrescarAfiliadosPanel(); } catch (_) {} })(),
+    ]);
 }
 
 function vendorLabel(codigo) {
