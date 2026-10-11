@@ -380,6 +380,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 /* ── EMPTY / LOADER ── */
 .empty { text-align: center; padding: 54px 24px; color: var(--text3); }
 .empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-icon svg { width: 40px; height: 40px; display: block; margin: 0 auto; }
 .empty h3 { font-size: 16px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
 .empty p { font-size: 12.5px; }
 .loader { text-align:center; padding:60px 24px; color:var(--text3); }
@@ -449,9 +450,16 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .guide-modal { position: fixed; inset: 0; z-index: 400; display: none; }
 .guide-modal.show { display: block; }
 .guide-box { position: fixed; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 16px 18px; max-height: 70vh; overflow-y: auto; }
-.guide-box h3 { font-size: 14px; font-weight: 800; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center; }
+.guide-box h3 { font-size: 14px; font-weight: 800; margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center; }
 .guide-box p, .guide-box li { font-size: 12px; color: var(--text2); line-height: 1.6; }
 .guide-box ul { padding-left: 18px; margin-top: 4px; }
+.guide-lead { margin-bottom: 12px; color: var(--text3) !important; font-size: 11.5px !important; }
+.guide-list .guide-rib { margin-bottom: 8px; }
+.guide-list .guide-rib .estado-head { padding: 10px 12px; }
+.guide-list .guide-rib .estado-title { font-size: 12.5px; }
+.guide-list .guide-rib .estado-inner { padding: 2px 12px 12px; }
+.guide-list .guide-rib .estado-inner p { font-size: 11.5px; margin: 0; }
+.guide-list .guide-rib:last-child { margin-bottom: 0; }
 
 /* ── generic MODAL ── */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:450; display:none; align-items:center; justify-content:center; padding:16px; }
@@ -1172,16 +1180,167 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
 <!-- ══ GUIDE MODAL ══ -->
 <div class="guide-modal" id="guide-modal">
-    <div class="guide-box" id="guide-box" style="left:20px;top:80px;width:340px">
+    <div class="guide-box" id="guide-box" style="left:20px;top:80px;width:380px">
         <h3>Guía rápida <button class="rvndr-close" onclick="closeGuide()">✕</button></h3>
-        <ul>
-            <li><strong>Pedidos nuevos:</strong> pagos confirmados esperando preparación. Elegí "Pasar a retirar" o "Recibir a domicilio" para moverlos a la lista.</li>
-            <li><strong>Lista de pedidos:</strong> separados por forma de entrega, y agrupados por categoría + revendedor. Cada pedido individual muestra solo producto, cantidad, total mayorista y ganancia; al final de cada grupo hay un único botón "🧾 Factura" (Pendiente de pago o Pagada según el estado), un único "💬 Compartir al revendedor" y un único "💬 Enviar seguimiento" (más "🧾 Reenviar boleta pendiente" cuando el grupo está aprobado), todos calculados con la suma de todos los pedidos del grupo — el revendedor paga el total junto, no pedido por pedido.</li>
-            <li><strong>Estadísticas:</strong> métricas armadas con datos de todos los revendedores, y el ranking de productos más vendidos en formato carrera. Al final está "Mis Ganancias", que pide la contraseña del panel cada vez que se abre.</li>
-            <li><strong>Revendedor del mes:</strong> top 3 revendedores con opción de enviarles un regalo por WhatsApp.</li>
-            <li><strong>Rvndr:</strong> ranking completo de revendedores; tocá un nombre para ver su detalle. El acordeón "📊 Revendedores activos por Categorías" muestra, por categoría, qué revendedores tienen pedidos pendientes ahí y cuánto les falta para llegar al mínimo de entrega.</li>
-            <li><strong>⚙️ WhatsApp de proveedores:</strong> configurar el número por categoría ahora pide la contraseña del panel para confirmar que sos vos.</li>
-        </ul>
+        <p class="guide-lead">Tocá cada función para ver cómo se usa y para qué sirve.</p>
+        <div class="guide-list">
+            <div class="estado-ribbon guide-rib" id="guide-rib-1">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-1')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        <span class="estado-title">Pedidos nuevos</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Pagos de clientes ya confirmados por el revendedor, esperando preparación. Elegí "Pasar a retirar" o "Recibir a domicilio" para moverlos a Lista de pedidos. Debajo, en la misma pestaña, están los Pedidos de Stock: compras de mercadería mayorista que cada revendedor hace para sí mismo desde su propio carrito (stock.html).</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-2">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-2')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h4"/><path d="M13 5h6a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-6"/><line x1="9" y1="7" x2="9" y2="21"/><line x1="13" y1="12" x2="13" y2="12"/></svg>
+                        <span class="estado-title">Lista de pedidos</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Pedidos ya movidos desde "Pedidos nuevos", separados por forma de entrega y agrupados por categoría y revendedor. Cada grupo tiene un único botón de Factura (pendiente o pagada), "Compartir al revendedor" y "Enviar seguimiento", calculados con la suma de todos los pedidos del grupo: el revendedor paga el total junto, no pedido por pedido.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-3">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-3')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        <span class="estado-title">Estadísticas</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Métricas armadas con los datos de todos los revendedores: facturación, ganancia y el ranking de productos más vendidos en formato carrera. Al final está "Mis Ganancias", que vuelve a pedir la contraseña del panel cada vez que se abre.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-4">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-4')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                        <span class="estado-title">Revendedor del mes</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Top 3 revendedores del mes según sus ventas confirmadas, con la opción de enviarles un regalo por WhatsApp. Debajo, el ranking completo de todos los revendedores con actividad.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-5">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-5')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                        <span class="estado-title">Stock</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Stock global de la plataforma: lo que se pausa o se quita acá desaparece del catálogo de todos los revendedores en sus tiendas. Es independiente del stock individual que cada revendedor gestiona para su propia tienda.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-6">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-6')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                        <span class="estado-title">Envíos</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Pedidos que los proveedores ya despacharon (en camino) o que el revendedor ya confirmó como recibidos, agrupados por proveedor y categoría. El número sobre el ícono muestra cuántos siguen en camino.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-7">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-7')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 13h1"/><path d="M14 13h1"/><path d="M9 21v-4h6v4"/></svg>
+                        <span class="estado-title">Proveedores registrados</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Padrón oficial de proveedores que completaron su registro desde proveedores.html: empresa, responsable, CUIT, rubro y contacto. Es de solo lectura desde acá.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-8">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-8')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span class="estado-title">Afiliados</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Programa de Afiliados: revendedores que ceden o reciben el 5% por invitar a otros. Muestra liquidaciones, pedidos de cobro pendientes, pagos realizados y el detalle de cada afiliador.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-9">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-9')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span class="estado-title">Info Rvndr</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Listado completo de revendedores registrados; tocá un nombre para ver su detalle. El acordeón "Revendedores activos por categoría" muestra, por categoría, quiénes tienen pedidos pendientes y cuánto les falta para llegar al mínimo de entrega.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-10">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-10')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span class="estado-title">Reclamos</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Cambios y devoluciones que el revendedor solicita desde devolucion.html. El número sobre el ícono indica los reclamos todavía sin resolver.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-11">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-11')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        <span class="estado-title">Actualizar</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Vuelve a traer los datos del servidor en todo el panel: pedidos, lista, estadísticas, stock, envíos, proveedores registrados y afiliados. Cada sección muestra "Cargando..." mientras se actualiza.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-12">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-12')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span class="estado-title">WhatsApp de proveedores</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Define el número de WhatsApp al que se envían los pedidos de cada categoría. Pide la contraseña del panel para confirmar el cambio.</p>
+                </div></div>
+            </div>
+            <div class="estado-ribbon guide-rib" id="guide-rib-13">
+                <div class="estado-head" onclick="toggleEstadoRibbon('guide-rib-13')">
+                    <div class="estado-head-left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a2 2 0 1 1-3.2 2.4"/></svg>
+                        <span class="estado-title">Avisos</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner">
+                    <p>Mensajes o avisos que se muestran a los revendedores dentro de su propio panel.</p>
+                </div></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -5211,7 +5370,7 @@ function renderProveedoresRegView() {
     const wrap = document.getElementById('proveedores-reg-wrap');
     if (!wrap) return;
     if (!PROVEEDORES_REGISTRADOS.length) {
-        wrap.innerHTML = `<div class="empty" style="padding:20px 8px"><div class="empty-icon">🏢</div><p>Todavía no hay proveedores registrados.</p></div>`;
+        wrap.innerHTML = `<div class="empty" style="padding:20px 8px"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 13h1"/><path d="M14 13h1"/><path d="M9 21v-4h6v4"/></svg></div><p>Todavía no hay proveedores registrados.</p></div>`;
         return;
     }
     wrap.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
@@ -5714,7 +5873,7 @@ function renderGananciaPorPeriodo(pagados) {
 
 function renderRaceChart(products) {
     const wrap = document.getElementById('race-wrap');
-    if (!products.length) { wrap.innerHTML = `<div class="empty"><div class="empty-icon">🏁</div><h3>Sin ventas registradas</h3></div>`; return; }
+    if (!products.length) { wrap.innerHTML = `<div class="empty"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div><h3>Sin ventas registradas</h3></div>`; return; }
     const max = products[0].cantidad || 1;
     const classes = ['','c2','c3','c4','c5'];
     wrap.innerHTML = products.map((p,i) => `
@@ -6061,9 +6220,9 @@ function renderRevmesView() {
     const medals = ['🥇','🥈','🥉'];
     const posClass = ['p1','p2','p3'];
 
-    let html = `<h2 class="section-title">🎁 Regalo para Revendedor <span style="font-size:11px;font-weight:600;color:var(--text3)">top 3 del mes</span></h2>`;
+    let html = `<h2 class="section-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>Regalo para Revendedor <span style="font-size:11px;font-weight:600;color:var(--text3)">top 3 del mes</span></h2>`;
     if (!top3.length) {
-        html += `<div class="empty" style="padding:24px 10px"><div class="empty-icon">🏆</div><p>Todavía no hay ventas confirmadas de revendedores para armar el podio.</p></div>`;
+        html += `<div class="empty" style="padding:24px 10px"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 21l8 0"/><path d="M12 17l0 4"/><path d="M7 4l10 0"/><path d="M17 4v8a5 5 0 0 1 -10 0v-8"/><path d="M5 9a2 2 0 0 1 -2 -2v-1a1 1 0 0 1 1 -1h3"/><path d="M19 9a2 2 0 0 0 2 -2v-1a1 1 0 0 0 -1 -1h-3"/></svg></div><p>Todavía no hay ventas confirmadas de revendedores para armar el podio.</p></div>`;
     } else {
         html += `<div class="podium-wrap">`;
         top3.forEach((v,i) => {
@@ -6084,7 +6243,7 @@ function renderRevmesView() {
 
     html += `<h2 class="section-title">Ranking completo de revendedores</h2>`;
     if (!vendors.length) {
-        html += `<div class="empty" style="padding:20px 10px"><div class="empty-icon">📋</div><p>Sin revendedores con actividad todavía.</p></div>`;
+        html += `<div class="empty" style="padding:20px 10px"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div><p>Sin revendedores con actividad todavía.</p></div>`;
     } else {
         vendors.forEach((v,i) => {
             const nombre = vendorLabel(v.codigo);
@@ -6178,7 +6337,7 @@ async function renderStockView() {
     VARIANTES_GLOBAL_DATA = (resVar && resVar.ok && resVar.variantes) || {};
     CATEGORIAS_FRENADAS_DATA = (resFrenadas && resFrenadas.ok && resFrenadas.frenadas) || {};
 
-    let html = `<h2 class="section-title">📦 Stock global de la plataforma</h2>
+    let html = `<h2 class="section-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Stock global de la plataforma</h2>
         <p class="section-sub">Lo que se quita acá desaparece del catálogo de TODOS los revendedores, en index.html y mas-categorias.html. Es independiente del stock individual que cada revendedor gestiona para su propia tienda.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
             <select id="stock-cat-select" class="rvndr-search" style="max-width:260px;margin-bottom:0" onchange="stockCatActual=this.value;stockShown=20;renderStockPausaBar();renderStockLista()">
