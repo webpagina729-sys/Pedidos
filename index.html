@@ -7536,17 +7536,20 @@ window.addEventListener('load', init);
         if (!q || !q.ok) return '<div class="af-empty">No se pudieron cargar las estadísticas de liquidaciones.</div>';
         var h = '<div class="af-grp">Estadísticas de Afiliados</div>' +
             rib('Liquidaciones', q.cantidadLiquidaciones + ' liquidacion' + (q.cantidadLiquidaciones !== 1 ? 'es' : ''), money(q.totalLiquidado),
-                ln('Total liquidado', money(q.totalLiquidado)) + ln('Pagado con saldo en Stock', money(q.liquidadoStock)) + ln('Cobrado (transferencia / crédito)', money(q.liquidadoCobros)) +
+                ln('Total liquidado', '<span style="color:var(--green)">' + money(q.totalLiquidado) + '</span>') + ln('Pagado con saldo en Stock', money(q.liquidadoStock)) + ln('Cobrado (transferencia / crédito)', money(q.liquidadoCobros)) +
                 ln('Afiliadores liquidados', q.afiliadosLiquidados) +
                 (q.liquidaciones.length ? q.liquidaciones.slice(0, 50).map(function (l) {
-                    return rib(esc(l.nombre || l.codigo), esc(l.codigo) + ' · ' + fdh(l.fecha), money(l.monto), ln('Vía', VIA[l.via] || l.via) + (l.pedidoId ? ln('Pedido de Stock', esc(l.pedidoId)) : ''));
+                    // 🔧 FIX: acá se exponía el código de revendedor (l.codigo,
+                    // p.ej. "RW-..."); el pedido explícito fue mostrar el
+                    // código AFI del programa de afiliados, no el de revendedor.
+                    return rib(esc(l.nombre || l.codigoAfiliado || l.codigo), esc(l.codigoAfiliado || l.codigo) + ' · ' + fdh(l.fecha), money(l.monto), ln('Vía', VIA[l.via] || l.via) + (l.pedidoId ? ln('Pedido de Stock', esc(l.pedidoId)) : ''));
                 }).join('') : '<div class="af-empty">Todavía no hay liquidaciones.</div>')) +
             rib('Total pendiente', 'Por confirmar + Total a Liquidar sin usar', money(q.totalPendiente),
                 ln('Por confirmar (pagado por el afiliado)', money(q.porConfirmar)) + ln('Total a Liquidar (confirmado, sin usar)', money(q.totalALiquidar)) +
                 ln('En cobro (transferencias por pagar)', money(q.enCobro || 0)) +
                 ln('En proceso (pedidos aún sin pagar)', money(q.enProceso))) +
             rib('Retención 1% de la plataforma', 'Sobre comisiones confirmadas', money(q.retencionTotal),
-                ln('Aportes 5% cedidos por los afiliados', money(q.aportesCedidos)) + ln('1% que queda en la plataforma', money(q.retencionTotal)));
+                ln('Aportes 5% cedidos por los afiliados', money(q.aportesCedidos)) + ln('1% que queda en la plataforma', '<span style="color:var(--green)">' + money(q.retencionTotal) + '</span>'));
         return h;
     }
     async function renderAfiliados() {
@@ -7574,15 +7577,37 @@ window.addEventListener('load', init);
         // Pagos realizados: transferencias confirmadas y créditos acreditados (guardados en Firestore).
         html += rib('Pagos realizados', hechos.length + ' pago' + (hechos.length !== 1 ? 's' : '') + ' · ' + money(hechos.reduce(function (t, r) { return t + (Number(r.monto) || 0); }, 0)), hechos.length,
             hechos.length ? hechos.map(function (r) {
-                return rib(esc(r.nombre || r.afiliadorCodigo), esc(r.numeroSolicitud || '') + ' · ' + (r.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + fdh(r.fechaPago || r.fecha), money(r.monto), cuerpoRetiro(r) +
+                return rib(esc(r.nombre || r.afiliadorCodigo), esc(r.numeroSolicitud || '') + ' · <span style="color:var(--green)">' + (r.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + '</span> · ' + fdh(r.fechaPago || r.fecha), '<span style="color:var(--green)">' + money(r.monto) + '</span>', cuerpoRetiro(r) +
                     '<button class="af-btn" onclick="AF.boleta(\'' + esc(r.id) + '\')">Descargar boleta</button>');
             }).join('') : '<div class="af-empty">Todavía no hay pagos realizados.</div>');
-        html += '<div class="af-grp">Revendedores afiliadores</div>';
-        html += d.afiliadores.length ? d.afiliadores.map(function (a) {
-            return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), esc(a.codigo) + ' · ' + a.totalAfiliados + ' afiliado' + (a.totalAfiliados !== 1 ? 's' : ''),
-                money(a.totalALiquidar), '<div class="af-empty">Cargando...</div>', "'abrirAfiliador'", 'afl-' + esc(a.codigo));
-        }).join('') : '<div class="af-empty">Todavía no hay revendedores registrados en el programa.</div>';
+        html += '<div class="af-grp">Revendedores afiliadores</div>' +
+            '<input class="rvndr-search" id="af-search-input" placeholder="Buscar afiliado por código AFI, código de revendedor o nombre..." autocomplete="off" style="margin-bottom:10px"/>' +
+            '<div id="af-lista-wrap"></div>';
         wrap.innerHTML = html;
+        var afInput = document.getElementById('af-search-input');
+        if (afInput) afInput.addEventListener('input', function () { _afRenderLista(afInput.value); });
+        _afRenderLista('');
+    }
+    // 🆕 Buscador inteligente de "Revendedores afiliadores" (igual en
+    // espíritu al buscador de revendedores de "Info Rvndr", pero acotado
+    // SOLO a los afiliados): filtra por código AFI, código de revendedor,
+    // nombre o apellido, cualquiera que coincida.
+    function _afRenderLista(filter) {
+        var listWrap = document.getElementById('af-lista-wrap');
+        if (!listWrap) return;
+        var q = (filter || '').toLowerCase().trim();
+        var items = (_lista || []).filter(function (a) {
+            if (!q) return true;
+            var campos = [a.codigoAfiliado, a.codigo, a.nombre, a.apellido, (a.nombre + ' ' + a.apellido)];
+            return campos.some(function (campo) { return campo && String(campo).toLowerCase().indexOf(q) !== -1; });
+        });
+        if (!items.length) { listWrap.innerHTML = '<div class="af-empty">Sin afiliados que coincidan con la búsqueda.</div>'; return; }
+        listWrap.innerHTML = items.map(function (a) {
+            // 🔧 FIX: acá se exponía el código de revendedor (a.codigo); el
+            // pedido explícito fue mostrar el código AFI, no el de revendedor.
+            return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), esc(a.codigoAfiliado || a.codigo) + ' · ' + a.totalAfiliados + ' afiliado' + (a.totalAfiliados !== 1 ? 's' : ''),
+                money(a.totalALiquidar), '<div class="af-empty">Cargando...</div>', "'abrirAfiliador'", 'afl-' + esc(a.codigo));
+        }).join('');
     }
     // 🔧 FIX: renderAfiliados queda dentro de este closure y no es visible
     // para actualizarPanelCompleto() (botón "Actualizar"), que vive fuera.
@@ -7741,12 +7766,14 @@ window.addEventListener('load', init);
                 var est = v.enCobro ? '<span class="af-pill a">En cobro</span>' : v.etapa === 'liquidar' ? '<span class="af-pill g">Confirmado</span>' : v.etapa === 'pagada' ? '<span class="af-pill g">Pagado</span>' : v.disponible ? '<span class="af-pill a">Disponible</span>' : '<span class="af-pill r">En espera</span>';
                 var btn = v.etapa === 'confirmado'
                     ? '<button class="af-btn" ' + (v.disponible ? '' : 'disabled') + ' onclick="AF.confirmar(\'' + esc(v.id) + '\',\'' + esc(codigo) + '\',this)">' + (v.disponible ? 'Confirmar' : 'Disponible el ' + fd(v.disponibleDesde)) + '</button>' : '';
-                return rib('Pedido ' + esc(v.numeroPedido ? '#' + v.numeroPedido : String(v.pedidoId || '').slice(-6)) + ' · ' + esc(ref.nombre), esc(ref.codigo) + ' · ' + est, money(v.comision),
-                    ln('Afiliado', esc(ref.nombre) + ' (' + esc(ref.codigo) + ')') + ln('Ganancia del afiliado', money(v.ganancia)) + ln('Su 5% (cedido por el afiliado)', money(v.comision)) + ln('Retención plataforma 1%', money(v.retencion != null ? v.retencion : Math.round((Number(v.comision) || 0) * 0.01))) + ln('Neto para el afiliador', money(v.neta != null ? v.neta : (Number(v.comision) || 0) - Math.round((Number(v.comision) || 0) * 0.01))) +
+                // 🔧 FIX: acá se exponía el código de revendedor (ref.codigo);
+                // el pedido explícito fue mostrar el código AFI, no el de revendedor.
+                return rib('Pedido ' + esc(v.numeroPedido ? '#' + v.numeroPedido : String(v.pedidoId || '').slice(-6)) + ' · ' + esc(ref.nombre), esc(ref.codigoAfiliado || ref.codigo) + ' · ' + est, money(v.comision),
+                    ln('Afiliado', esc(ref.nombre) + ' (' + esc(ref.codigoAfiliado || ref.codigo) + ')') + ln('Ganancia del afiliado', money(v.ganancia)) + ln('Su 5% (cedido por el afiliado)', money(v.comision)) + ln('Retención plataforma 1%', money(v.retencion != null ? v.retencion : Math.round((Number(v.comision) || 0) * 0.01))) + ln('Neto para el afiliador', money(v.neta != null ? v.neta : (Number(v.comision) || 0) - Math.round((Number(v.comision) || 0) * 0.01))) +
                     ln('Total vendido', money(v.totalVenta)) + ln('Pagado el', fdh(v.fechaPago)) + btn);
             }).join('');
         });
-        html += ln('Total de comisiones pagadas por sus afiliados', money(d.etapas.confirmado.monto + d.etapas.liquidar.monto + d.etapas.pagada.monto));
+        html += '<div class="af-ln" style="color:var(--blue)"><span>Total de comisiones pagadas por sus afiliados</span><b style="color:var(--blue)">' + money(d.etapas.confirmado.monto + d.etapas.liquidar.monto + d.etapas.pagada.monto) + '</b></div>';
         body.innerHTML = html;
     };
     AF.confirmar = async function (id, codigo, btn) {
