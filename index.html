@@ -2282,10 +2282,15 @@ async function loadData() {
 // loadData() de por sí).
 async function actualizarPanelCompleto() {
     await loadData().catch(() => {});
-    try {
-        const activo = document.querySelector('.menu-btn.active')?.dataset.view;
-        if (activo) switchView(activo);
-    } catch (_) {}
+    // 🔧 FIX: con solo re-disparar la pestaña activa no alcanzaba — si el
+    // dueño estaba parado en "Pedidos nuevos" y tocaba "Actualizar",
+    // Stock/Proveedores registrados/Afiliados seguían sin refrescarse
+    // hasta abrirlas a mano. Ahora se refrescan SIEMPRE las tres, estén
+    // visibles o no en este momento (cada una ya revisa su propio wrap
+    // antes de tocar el DOM, así que no hay problema si no están a la vista).
+    try { await renderStockView(); } catch (_) {}
+    try { await cargarProveedoresRegistrados(); } catch (_) {}
+    try { if (typeof window._refrescarAfiliadosPanel === 'function') await window._refrescarAfiliadosPanel(); } catch (_) {}
 }
 
 function vendorLabel(codigo) {
@@ -7405,6 +7410,11 @@ window.addEventListener('load', init);
         }).join('') : '<div class="af-empty">Todavía no hay revendedores registrados en el programa.</div>';
         wrap.innerHTML = html;
     }
+    // 🔧 FIX: renderAfiliados queda dentro de este closure y no es visible
+    // para actualizarPanelCompleto() (botón "Actualizar"), que vive fuera.
+    // Se expone acá para poder refrescar "Afiliados" sin importar qué
+    // pestaña esté abierta en ese momento.
+    window._refrescarAfiliadosPanel = renderAfiliados;
     var _retiros = [];
     // Detalle de una solicitud de cobro (número, alias/CBU, afiliados que aportaron).
     function cuerpoRetiro(r) {
