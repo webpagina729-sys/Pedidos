@@ -2264,7 +2264,7 @@ async function loadData() {
     // pestaña, acá quedaba desactualizado hasta tocar "Actualizar" a
     // mano. Con este auto-refresh cada 20min, se recalcula solo.
     if (!_autoRefreshPedidosTimer) {
-        _autoRefreshPedidosTimer = setInterval(() => { loadData().catch(() => {}); }, 1200000);
+        _autoRefreshPedidosTimer = setInterval(() => { loadData().catch(() => {}); }, 300000);
     }
 }
 
