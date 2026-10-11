@@ -500,6 +500,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                 Acepto los Términos y Condiciones y la Política de Privacidad para Proveedores Oficiales de la plataforma.
             </label>
             <div class="modal-check-link"><a href="https://terminosycondicionesconproveedores.revendeways.shop/" target="_blank" rel="noopener noreferrer">Leer Términos y Política de Privacidad</a></div>
+            <!-- 🔒 NUEVO: verificación anti-bot en el registro público de
+                 proveedores (POST /api/proveedor-registro vía
+                 registrodeproveedores_worker.js) — antes era el único
+                 endpoint público del proyecto sin Turnstile ni límite de
+                 intentos. Mismo site key que ya usa este panel
+                 (0x4AAAAAAEuP7UTtW1odDnHM), pero un widget propio (el del
+                 gate de entrada ya se gasta al cargar los pedidos, antes de
+                 llegar acá). Ver onOfTurnstileOk()/enviarRegistroOficial(). -->
+            <div style="display:flex;justify-content:center;margin:2px 0 12px">
+                <div id="of-turnstile-widget" class="cf-turnstile" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-size="normal" data-callback="onOfTurnstileOk" data-expired-callback="onOfTurnstileExpired" data-error-callback="onOfTurnstileError"></div>
+            </div>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-primary" id="of-btn-enviar" disabled onclick="enviarRegistroOficial()">Registrarme como Proveedor Oficial</button>
                 <button type="button" class="modal-btn modal-btn-cancel" onclick="cerrarModalOficializar()">Cancelar</button>
@@ -1638,12 +1649,21 @@ function actualizarGraficoVentas(periodo) {
 }
 
 // ── Modal: Registro de Proveedor Oficial ──
+// 🔒 NUEVO: token de Turnstile propio de este formulario (ver widget
+// #of-turnstile-widget más arriba) — se exige junto con el resto de los
+// campos antes de habilitar "Registrarme como Proveedor Oficial".
+window._ofTurnstileToken = null;
+function onOfTurnstileOk(token) { window._ofTurnstileToken = token; _validarFormOficializar(); }
+function onOfTurnstileExpired() { window._ofTurnstileToken = null; _validarFormOficializar(); }
+function onOfTurnstileError() { window._ofTurnstileToken = null; _validarFormOficializar(); }
 function abrirModalOficializar() {
     document.getElementById('form-oficializar').reset();
     document.getElementById('of-tipo').value = '';
     document.getElementById('of-tipo-btn-label').textContent = 'Seleccionar...';
     document.getElementById('of-tipo-btn-label').style.color = 'var(--text3)';
     document.getElementById('of-btn-enviar').disabled = true;
+    window._ofTurnstileToken = null;
+    try { if (window.turnstile) window.turnstile.reset('#of-turnstile-widget'); } catch (_) {}
     document.getElementById('modal-oficializar-backdrop').classList.add('show');
 }
 function cerrarModalOficializar() {
@@ -1675,7 +1695,7 @@ const OF_CAMPOS_IDS = ['of-empresa','of-cuit','of-responsable','of-whatsapp','of
 function _validarFormOficializar() {
     const todosCompletos = OF_CAMPOS_IDS.every(id => document.getElementById(id).value.trim() !== '');
     const terminos = document.getElementById('of-terminos').checked;
-    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && terminos);
+    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && terminos && window._ofTurnstileToken);
 }
 
 // Habilita el botón "Registrarme como Proveedor Oficial" solo cuando
@@ -1705,6 +1725,8 @@ async function enviarRegistroOficial() {
         tipoProveedor: document.getElementById('of-tipo').value,
         aceptaTerminos: document.getElementById('of-terminos').checked === true,
         versionDocumento: '1.1',
+        // 🔒 NUEVO: ver widget #of-turnstile-widget más arriba.
+        turnstileToken: window._ofTurnstileToken || '',
     };
     btn.disabled = true;
     btn.textContent = 'Enviando...';
@@ -1724,6 +1746,10 @@ async function enviarRegistroOficial() {
     } catch (e) {
         toast('No se pudo conectar con el servidor. Probá de nuevo.', false);
     } finally {
+        // 🔒 un token de Turnstile es de un solo uso (se gaste o no la
+        // llamada) — se pide uno nuevo para reintentar.
+        window._ofTurnstileToken = null;
+        try { if (window.turnstile) window.turnstile.reset('#of-turnstile-widget'); } catch (_) {}
         btn.textContent = 'Registrarme como Proveedor Oficial';
         _validarFormOficializar();
     }
