@@ -657,7 +657,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span id="reclamos-badge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--red,#f43f5e);color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center">0</span>
         </button>
-        <button class="sidebar-btn" onclick="this.blur();loadData()" title="Actualizar">
+        <button class="sidebar-btn" onclick="this.blur();actualizarPanelCompleto()" title="Actualizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
         <button class="sidebar-btn" onclick="openGuide()" title="Guía del panel">
@@ -699,7 +699,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Info Rvndr <span id="rvndr-header-count" style="background:rgba(255,255,255,.25);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:10px">0</span>
                 </button>
-                <button class="btn-head" onclick="this.blur();loadData()">
+                <button class="btn-head" onclick="this.blur();actualizarPanelCompleto()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Actualizar
                 </button>
@@ -2266,6 +2266,26 @@ async function loadData() {
     if (!_autoRefreshPedidosTimer) {
         _autoRefreshPedidosTimer = setInterval(() => { loadData().catch(() => {}); }, 300000);
     }
+}
+
+// 🔧 FIX: el botón "Actualizar" solo llamaba a loadData(), que trae
+// pedidos/panelGestion (los que llegan desde index(1).html), ranking,
+// estados, clientes, revendedores y envíos — pero "Stock global",
+// "Proveedores registrados" y "Afiliados" tienen su propia carga
+// (fetch aparte) que solo se dispara al cambiar de pestaña con
+// switchView(), nunca al tocar "Actualizar". Por eso esas 3 secciones
+// quedaban desactualizadas hasta que el dueño las abría de nuevo a
+// mano. Ahora, además de loadData(), se vuelve a invocar switchView()
+// sobre la pestaña que esté activa en ese momento, para que también
+// se refresque si es una de esas 3 (si es "pedidos"/"lista"/"stats"/
+// "revmes", switchView() no hace nada extra, porque esas ya las cubre
+// loadData() de por sí).
+async function actualizarPanelCompleto() {
+    await loadData().catch(() => {});
+    try {
+        const activo = document.querySelector('.menu-btn.active')?.dataset.view;
+        if (activo) switchView(activo);
+    } catch (_) {}
 }
 
 function vendorLabel(codigo) {
