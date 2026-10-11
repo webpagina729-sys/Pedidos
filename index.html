@@ -2077,6 +2077,10 @@ async function loadData() {
                 gananciaTotal: quitadosG ? itemsG.reduce((t, i) => t + Number(i.ganancia || 0) * Number(i.cantidad || 1), 0) : Number(g.gananciaTotal || 0),
                 fecha: (() => { const m = g.fecha ? _msFecha(g.fecha) : NaN; return Number.isFinite(m) ? m : Date.now(); })(),
                 estadoReal,
+                // 🆕 descuento por nivel (1%-5%) aplicado por workerpagos.js al
+                // momento de crear este pedido (ya verificado server-side ahí;
+                // acá solo se muestra, nunca se recalcula ni se confía para nada).
+                descuentoNivelPct: Number(g.descuentoNivelPct || 0),
                 fechaPago: (() => { const m = pagoInfo && pagoInfo.fechaPago ? _msFecha(pagoInfo.fechaPago) : NaN; return Number.isFinite(m) ? m : null; })(),
                 // 🔧 NUEVO: identidad y elección de entrega del CLIENTE del
                 // revendedor (no confundir con cómo el revendedor recibe SU
@@ -7592,6 +7596,130 @@ window.addEventListener('load', init);
 })();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════
+     NIVEL DE REVENDEDOR (estrellas 1-5 + descuento por nivel) — módulo
+     agregado (no modifica la lógica existente). Usa el endpoint nuevo
+     GET /api/admin/nivel de workerpagos.js (misma X-Panel-Admin-Key que
+     el resto del panel). El dato de estrellas/% se pide y muestra, pero
+     NUNCA se usa para calcular nada: lo único que vale para cobrar es lo
+     que workerpagos.js ya verificó server-side al crear cada pedido.
+       • Info Rvndr: estrellas + "-X% nivel" al lado del nombre.
+       • Estadísticas (detalle de "Más información"): nivel actual y el
+         descuento por nivel que tuvo cada uno de sus pedidos.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script id="nivel-pedidos-modulo">
+(function () {
+    'use strict';
+    var css = document.createElement('style');
+    css.textContent =
+        '.niv-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-left:6px;vertical-align:middle}' +
+        '.niv-estrellas{color:var(--amber);letter-spacing:1px;font-size:11px}' +
+        '.niv-pct{font-weight:800;color:var(--green);background:var(--green-pale);padding:1px 6px;border-radius:20px;font-size:10px;white-space:nowrap}';
+    document.head.appendChild(css);
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+    var _nivCache = {};  // codigo -> { stars, pct, at }
+    var _nivPend = {};   // codigo -> true mientras se está pidiendo
+
+    function estrellasTexto(stars) {
+        stars = Math.max(0, Math.min(5, Number(stars) || 0));
+        var s = ''; for (var i = 0; i < 5; i++) s += i < stars ? '★' : '☆';
+        return s;
+    }
+    function estrellasHtml(stars) { return '<span class="niv-estrellas">' + estrellasTexto(stars) + '</span>'; }
+    function nivBadgeHtml(info) {
+        if (!info) return '';
+        return ' <span class="niv-badge">' + estrellasHtml(info.stars) + (info.pct > 0 ? '<span class="niv-pct">-' + info.pct + '%</span>' : '') + '</span>';
+    }
+
+    async function cargarNivelCodigo(codigo) {
+        if (!codigo) return null;
+        var c = _nivCache[codigo];
+        if (c && Date.now() - c.at < 90000) return c;
+        if (_nivPend[codigo]) return c || null;
+        _nivPend[codigo] = true;
+        try {
+            var r = await fetch(WORKER_PAGOS + '/api/admin/nivel?codigoVendedor=' + encodeURIComponent(codigo), { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
+            var d = await r.json().catch(function () { return null; });
+            if (d && d.ok) _nivCache[codigo] = { stars: Number(d.stars) || 0, pct: Number(d.descuentoPct) || 0, at: Date.now() };
+        } catch (e) { console.warn('nivel: fetch', e); }
+        _nivPend[codigo] = false;
+        return _nivCache[codigo] || null;
+    }
+
+    // ───────── Info Rvndr: estrellas + "-X% nivel" al lado del nombre ─────────
+    var _rlNiv = (typeof renderRvndrLista === 'function') ? renderRvndrLista : null;
+    if (_rlNiv) {
+        renderRvndrLista = function () {
+            var r = _rlNiv.apply(this, arguments);
+            try {
+                document.querySelectorAll('#rvndr-lista-wrap .ribbon').forEach(function (rb) {
+                    var c = rb.querySelector('.r-code');
+                    var cod0 = c ? (c.textContent || '').trim() : '';
+                    if (!cod0) return;
+                    var nm = rb.querySelector('.r-name');
+                    if (!nm || nm.querySelector('.niv-badge')) return;
+                    var cached = _nivCache[cod0];
+                    if (cached) {
+                        nm.insertAdjacentHTML('beforeend', nivBadgeHtml(cached));
+                    } else {
+                        cargarNivelCodigo(cod0).then(function (info) {
+                            if (!info) return;
+                            document.querySelectorAll('#rvndr-lista-wrap .ribbon').forEach(function (rb2) {
+                                var c2 = rb2.querySelector('.r-code');
+                                if (c2 && (c2.textContent || '').trim() === cod0) {
+                                    var nm2 = rb2.querySelector('.r-name');
+                                    if (nm2 && !nm2.querySelector('.niv-badge')) nm2.insertAdjacentHTML('beforeend', nivBadgeHtml(info));
+                                }
+                            });
+                        });
+                    }
+                });
+            } catch (e) { console.warn('nivel: info rvndr', e); }
+            return r;
+        };
+    }
+
+    // ───────── Estadísticas (detalle del revendedor, "Más información") ─────────
+    var _amNiv = (typeof abrirRvndrMasInfo === 'function') ? abrirRvndrMasInfo : null;
+    if (_amNiv) {
+        abrirRvndrMasInfo = function (codigo) {
+            var r = _amNiv.apply(this, arguments);
+            try {
+                var body = document.getElementById('rvdet-body');
+                if (body) {
+                    // Fila de nivel dentro de "Estadísticas de ventas"
+                    var h2s = body.querySelectorAll('h2.section-title');
+                    var estadH2 = Array.prototype.filter.call(h2s, function (h2) { return /Estad[íi]sticas de ventas/.test(h2.textContent); })[0];
+                    if (estadH2 && estadH2.nextElementSibling) {
+                        estadH2.nextElementSibling.insertAdjacentHTML('beforeend', '<div class="ship-row" id="niv-row-estad">Nivel: <strong id="niv-row-val">Cargando...</strong></div>');
+                    }
+                    // Descuento por nivel aplicado en cada uno de sus pedidos
+                    if (!document.getElementById('niv-pedidos-box')) {
+                        var pedidosDeste = panelGestion.filter(function (g) { return g.codigoVendedor === codigo; }).sort(function (a, b) { return b.fecha - a.fecha; });
+                        var filas = pedidosDeste.map(function (g) {
+                            var etiqueta = g.numeroPedido ? ('Pedido #' + esc(g.numeroPedido)) : ('Pedido ' + esc(String(g.pedidoId || '—').slice(-8).toUpperCase()));
+                            var pct = Number(g.descuentoNivelPct) || 0;
+                            return '<div class="ship-row">' + etiqueta + ': <strong>' + (pct > 0 ? ('-' + pct + '% por nivel') : 'Sin descuento por nivel') + '</strong></div>';
+                        }).join('') || '<div class="ship-row" style="opacity:.7">Todavía no tiene pedidos.</div>';
+                        var box = document.createElement('div'); box.id = 'niv-pedidos-box';
+                        box.innerHTML = '<h2 class="section-title" style="font-size:13px">Descuentos por nivel en sus pedidos</h2><div class="ship-block" style="margin-bottom:18px">' + filas + '</div>';
+                        var botones = body.lastElementChild;
+                        body.insertBefore(box, botones);
+                    }
+                }
+                cargarNivelCodigo(codigo).then(function (info) {
+                    var val = document.getElementById('niv-row-val');
+                    if (val && info) val.textContent = estrellasTexto(info.stars) + ' · -' + info.pct + '%';
+                    else if (val) val.textContent = '—';
+                });
+            } catch (e) { console.warn('nivel: más info', e); }
+            return r;
+        };
+    }
+})();
+</script>
 
 <script id="pdf-enlace">
 /* Boletas/facturas por enlace: al abrir el chat de WhatsApp (wa.me) tras generar un PDF, se sube ese mismo PDF
