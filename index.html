@@ -492,6 +492,24 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 #cargarProductosModal .cp-link-repo:hover { text-decoration:underline; }
 #cargarProductosModal .cp-repo-opciones { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
 #cargarProductosModal .cp-repo-opcion { width:100%; justify-content:center; }
+/* 🆕 "Agregar Categoría" reusa exactamente el mismo estilo que "Cargar productos". */
+#agregarCategoriaModal .modal-confirm-btn, #agregarCategoriaModal .btn-head, #agregarCategoriaModal .btn-act { background:#38bdf8; color:#fff; border:none; }
+#agregarCategoriaModal .modal-confirm-btn:hover, #agregarCategoriaModal .btn-head:hover, #agregarCategoriaModal .btn-act:hover { background:#0ea5e9; color:#fff; }
+#agregarCategoriaModal .cp-acciones { gap:8px; margin-top:16px; flex-wrap:wrap; align-items:center; }
+#agregarCategoriaModal .cp-acciones .btn-head, #agregarCategoriaModal .cp-acciones .modal-cancel, #agregarCategoriaModal .cp-acciones .modal-confirm-btn { flex:1 1 auto; width:auto; padding:8px 12px; font-size:12px; border-radius:8px; justify-content:center; }
+#agregarCategoriaModal .cp-var { margin-top:8px; padding-top:8px; border-top:1px dashed var(--border2); }
+#agregarCategoriaModal .cp-var .btn-head, #agregarCategoriaModal .cp-linea .btn-act { padding:6px 10px; font-size:11.5px; border-radius:7px; width:auto; }
+#agregarCategoriaModal .cp-linea { margin:8px 0 0; padding:9px; background:var(--surface); border:1px solid var(--border2); border-radius:9px; }
+#agregarCategoriaModal .cp-linea-head, #agregarCategoriaModal .cp-add { display:flex; gap:6px; align-items:center; }
+#agregarCategoriaModal .cp-linea-head .rvndr-search, #agregarCategoriaModal .cp-add .rvndr-search { margin-bottom:0 !important; flex:1; min-width:0; }
+#agregarCategoriaModal .cp-chips { display:flex; flex-wrap:wrap; gap:5px; margin:7px 0; }
+#agregarCategoriaModal .cp-chip { display:inline-flex; align-items:center; gap:5px; padding:3px 4px 3px 9px; font-size:11.5px; border-radius:14px; background:#e0f2fe; color:#0369a1; }
+#agregarCategoriaModal .cp-chip button { border:none; background:transparent; color:#0369a1; cursor:pointer; font-size:13px; line-height:1; padding:0 4px; }
+#agregarCategoriaModal .cp-nueva { margin-top:8px; }
+#agregarCategoriaModal .modal-cancel, #agregarCategoriaModal .cp-cerrar { background:#fff; color:#000; border:1px solid #d4d4d8; }
+#agregarCategoriaModal .cp-cerrar { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); margin-left:auto; flex-shrink:0; }
+#agregarCategoriaModal .cp-repo-opciones { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+#agregarCategoriaModal .cp-repo-opcion { width:100%; justify-content:center; }
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border:1px solid var(--border2); color: var(--text); padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight:600; box-shadow: var(--shadow-lg); z-index: 999; opacity:0; pointer-events:none; transition: all .25s; }
 .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
@@ -1157,6 +1175,53 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
              al tocar "Confirmar" arriba, solo cuando hay más de un
              repositorio cargado para esta categoría (ver _mostrarElegirRepo()). -->
         <div id="cargarProductosElegirRepoBox" style="display:none"></div>
+    </div>
+</div>
+
+<!-- 🆕 "Agregar Categoría": crea una categoría nueva de cero (nombre,
+     descripción, objetivo, repositorio e imágenes de carrusel) y, con el
+     mismo flujo de "Cargar productos", carga sus primeros productos sin
+     ningún límite de cantidad, todo en un mismo lugar. -->
+<div class="modal-overlay" id="agregarCategoriaModal">
+    <div class="modal-box" style="max-width:440px;text-align:left;max-height:90vh;overflow-y:auto">
+        <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Agregar Categoría</span><button type="button" class="cp-cerrar" onclick="cerrarAgregarCategoria()">Cerrar</button></h3>
+
+        <div id="catMetaForm">
+            <label style="display:block;font-size:12.5px;margin:6px 0 4px">Nombre de Categoría</label>
+            <input id="catNombre" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: Mascotas" autocomplete="off"/>
+            <label style="display:block;font-size:12.5px;margin:6px 0 4px">Descripción</label>
+            <input id="catDescripcion" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: Accesorios y alimento para mascotas, reventa" autocomplete="off"/>
+            <label style="display:block;font-size:12.5px;margin:6px 0 4px">Objetivo</label>
+            <input id="catObjetivo" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: $150.000 o 15 productos" autocomplete="off"/>
+            <label style="display:block;font-size:12.5px;margin:6px 0 4px">Repositorio de categoría</label>
+            <input id="catRepo" class="rvndr-search" style="margin-bottom:6px" placeholder="https://github.com/usuario/repositorio" autocomplete="off"/>
+            <label style="display:block;font-size:12.5px;margin:6px 0 4px">Imágenes de carrusel</label>
+            <textarea id="catCarrusel" class="rvndr-search" style="margin-bottom:6px;min-height:70px;resize:vertical" placeholder="Nombres de archivo del repositorio, uno por línea (ej: foto1.png, foto2.png)"></textarea>
+            <div class="modal-actions cp-acciones">
+                <button class="modal-cancel" onclick="cerrarAgregarCategoria()">Cancelar</button>
+                <button class="modal-confirm-btn" onclick="catPedirPerfil()">Agregar productos</button>
+            </div>
+        </div>
+
+        <div id="catPerfilBox" style="display:none">
+            <p style="font-size:12.5px;color:var(--text2);margin:10px 0 10px">¿Dónde vas a agregar esta categoría?</p>
+            <div class="cp-repo-opciones">
+                <button type="button" class="btn-head cp-repo-opcion" onclick="catElegirPerfil(1)">Perfil 1</button>
+                <button type="button" class="btn-head cp-repo-opcion" onclick="catElegirPerfil(2)">Perfil 2</button>
+            </div>
+            <div class="modal-actions cp-acciones">
+                <button type="button" class="btn-head" onclick="catVolverAMeta()">Volver</button>
+            </div>
+        </div>
+
+        <div id="catProductosBox" style="display:none">
+            <div id="catProductosLista"></div>
+            <div class="modal-actions cp-acciones">
+                <button type="button" class="btn-head" onclick="agregarFilaProducto('catProductosLista')">+ Agregar otro producto</button>
+                <button class="modal-cancel" onclick="cerrarAgregarCategoria()">Cancelar</button>
+                <button class="modal-confirm-btn" id="catCompartirBtn" onclick="confirmarProductosCategoria()">Compartir Categoría</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -6510,7 +6575,8 @@ function renderStockPausaBar() {
     const cont = document.getElementById('stock-pausa-bar');
     if (!cont) return;
     const info = _infoPausaCategoria(stockCatActual);
-    const btnCargar = `<button class="btn-head" style="gap:6px" onclick="abrirCargarProductos()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cargar Productos</button>`;
+    const btnCargar = `<button class="btn-head" style="gap:6px" onclick="abrirCargarProductos()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cargar Productos</button>
+        <button class="btn-head" style="gap:6px" onclick="abrirAgregarCategoria()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg> Agregar Categoría</button>`;
     if (info) {
         const fecha = new Date(info.hasta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         cont.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
@@ -6614,6 +6680,9 @@ const SUBCAT_LABELS = {
 };
 const _ICO_EDITAR = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const _ICO_QUITAR = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+// Tachito gris: eliminar un repositorio de imágenes (nº1 al nº5), tanto en
+// "Cargar productos" como en "Agregar Categoría".
+const _ICO_BASURA = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
 
 function _sumarProductosLocales(clave, productos) {
     Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
@@ -6653,6 +6722,130 @@ function cerrarCargarProductos() {
     _cpPendiente = null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 🆕 AGREGAR CATEGORÍA — crea una categoría de cero y, con la MISMA
+// lógica que "Cargar productos" (mismas filas, mismas variantes, mismo
+// endpoint, sin ningún límite de productos), carga su primer lote. Se
+// registra como una categoría más del panel (STOCK_CAT_LABELS,
+// STOCK_CAT_SUBCATS, CATALOGOS_CENTRALES, REPOS_CENTRALES,
+// CATALOGO_PRODUCTOS_GLOBAL) para que el resto de Stock la trate igual
+// que a cualquier categoría ya existente.
+// ═══════════════════════════════════════════════════════════════
+let _catNueva = null;
+
+function abrirAgregarCategoria() {
+    _catNueva = null;
+    document.getElementById('catNombre').value = '';
+    document.getElementById('catDescripcion').value = '';
+    document.getElementById('catObjetivo').value = '';
+    document.getElementById('catRepo').value = '';
+    document.getElementById('catCarrusel').value = '';
+    document.getElementById('catMetaForm').style.display = 'block';
+    document.getElementById('catPerfilBox').style.display = 'none';
+    document.getElementById('catProductosBox').style.display = 'none';
+    document.getElementById('agregarCategoriaModal').classList.add('show');
+}
+
+function cerrarAgregarCategoria() {
+    document.getElementById('agregarCategoriaModal').classList.remove('show');
+    _catNueva = null;
+}
+
+function catPedirPerfil() {
+    if (!document.getElementById('catNombre').value.trim()) { toast('Poné el nombre de la categoría', 'err'); return; }
+    if (!document.getElementById('catRepo').value.trim()) { toast('Pegá el enlace del repositorio de la categoría', 'err'); return; }
+    if (!document.getElementById('catCarrusel').value.trim()) { toast('Poné al menos una imagen de carrusel', 'err'); return; }
+    document.getElementById('catMetaForm').style.display = 'none';
+    document.getElementById('catPerfilBox').style.display = 'block';
+}
+
+function catVolverAMeta() {
+    document.getElementById('catPerfilBox').style.display = 'none';
+    document.getElementById('catMetaForm').style.display = 'block';
+}
+
+async function catElegirPerfil(perfil) {
+    document.querySelectorAll('#catPerfilBox button').forEach(b => b.disabled = true);
+    const nombre = document.getElementById('catNombre').value.trim();
+    const descripcion = document.getElementById('catDescripcion').value.trim();
+    const objetivo = document.getElementById('catObjetivo').value.trim();
+    const repo = document.getElementById('catRepo').value.trim();
+    const carrusel = document.getElementById('catCarrusel').value.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+
+    const resCrear = await fetchJson(WORKER_PRECIOS + '/api/categorias/crear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id: nombre, nombre, descripcion, objetivo, perfil, carrusel })
+    });
+    if (!resCrear || !resCrear.ok) {
+        document.querySelectorAll('#catPerfilBox button').forEach(b => b.disabled = false);
+        toast('No se pudo crear la categoría' + (resCrear && resCrear.error ? ': ' + resCrear.error : ''), 'err');
+        return;
+    }
+    const nuevaCat = resCrear.categoria;
+    const resRepo = await fetchJson(WORKER_PRECIOS + '/api/catalogo/repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: nuevaCat.id, repo })
+    });
+    if (!resRepo || !resRepo.ok) {
+        document.querySelectorAll('#catPerfilBox button').forEach(b => b.disabled = false);
+        toast('La categoría se creó pero no se pudo guardar su repositorio', 'err');
+        return;
+    }
+
+    _catNueva = { ...nuevaCat, repo: resRepo.repo };
+    // Se da de alta como una categoría más del panel de Stock — así
+    // "Agregar productos" usa EXACTAMENTE la misma lógica (misma función,
+    // mismo endpoint) que para cualquier categoría ya existente.
+    STOCK_CAT_LABELS[nuevaCat.id] = nuevaCat.nombre;
+    STOCK_CAT_SUBCATS[nuevaCat.id] = [nuevaCat.id];
+    CATALOGOS_CENTRALES[nuevaCat.id] = [];
+    REPOS_CENTRALES[nuevaCat.id] = [resRepo.repo];
+    if (!CATALOGO_PRODUCTOS_GLOBAL[nuevaCat.id]) CATALOGO_PRODUCTOS_GLOBAL[nuevaCat.id] = [];
+
+    document.getElementById('catPerfilBox').style.display = 'none';
+    document.getElementById('catProductosLista').innerHTML = '';
+    agregarFilaProducto('catProductosLista');
+    document.getElementById('catProductosBox').style.display = 'block';
+}
+
+async function confirmarProductosCategoria() {
+    if (!_catNueva) return;
+    const { productos, sinNombreLinea } = _leerFilasProductosDesde('catProductosLista');
+    if (sinNombreLinea) { toast('Poné un nombre a cada línea de variantes (ej: Talle, Color)', 'err'); return; }
+    if (!productos.length || productos.some(x => !x.nombre || !x.imagen || !(x.precio > 0))) { toast('Completá nombre, imagen y precio de todos los productos', 'err'); return; }
+
+    document.querySelectorAll('#catProductosBox button').forEach(b => b.disabled = true);
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/agregar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: _catNueva.id, canon: _catNueva.id, repoIndex: 1, productos: productos.map(({ _resto, ...resto }) => resto) })
+    });
+    if (!res || !res.ok) {
+        document.querySelectorAll('#catProductosBox button').forEach(b => b.disabled = false);
+        toast('No se pudieron cargar los productos', 'err');
+        return;
+    }
+    _sumarProductosLocales(_catNueva.id, res.agregados);
+
+    // Restoprecio: mismo mecanismo que "Cargar productos" — categoría
+    // libre en mayúsculas (restoprecios.js no exige ninguna lista fija).
+    const _paraResto = res.agregados.map((a, i) => ({ categoria: String(_catNueva.id).toUpperCase(), nombre: a.nombre, precio_mayorista: productos[i] && productos[i]._resto }))
+        .filter(x => x.precio_mayorista > 0);
+    if (_paraResto.length) {
+        await fetchJson(RESTOPRECIOS_WORKER + 'api/restoprecio/agregar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ productos: _paraResto })
+        });
+    }
+
+    toast('Categoría "' + _catNueva.nombre + '" creada con ' + res.agregados.length + ' producto(s)', true);
+    cerrarAgregarCategoria();
+    if (typeof renderStockLista === 'function') renderStockLista();
+}
+
 // 🆕 Hasta 5 repositorios de imágenes por categoría ("Repositorio nº1" al
 // "nº5", ver REPOS_CENTRALES — ahora un array por categoría en vez de un
 // único string). Cada uno se lista con su numeración y su propio
@@ -6662,10 +6855,27 @@ function mostrarRepoGuardado() {
     const filas = lista.map((url, i) => `<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;margin-bottom:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px">
         <div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">Repositorio nº${i + 1}</div><div style="font-size:12px;word-break:break-all">${esc(url)}</div></div>
         <button class="btn-act" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="mostrarRepoEditor(true, ${i + 1})">${_ICO_EDITAR} Editar</button>
+        <button class="btn-act" title="Eliminar repositorio" style="flex-shrink:0;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="eliminarRepoCategoria(${i + 1})">${_ICO_BASURA}</button>
     </div>`).join('');
     document.getElementById('cargarProductosRepoBox').innerHTML = filas +
         (lista.length < 5 ? `<button type="button" class="cp-link-repo" onclick="mostrarRepoEditor(true)">+ Repositorio</button>` : '');
     document.getElementById('cargarProductosForm').style.display = 'block';
+}
+
+async function eliminarRepoCategoria(index) {
+    if (!confirm('¿Eliminar el Repositorio nº' + index + '? Las imágenes de los productos que ya lo usan no se van a ver más.')) return;
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/repo/eliminar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: stockCatActual, index })
+    });
+    if (res && res.ok) {
+        REPOS_CENTRALES[stockCatActual] = res.repos || [];
+        toast('Repositorio eliminado', true);
+        mostrarRepoGuardado();
+    } else {
+        toast('No se pudo eliminar el repositorio', 'err');
+    }
 }
 
 // indexEditar: número (1-5) del repositorio ya guardado que se está
@@ -6704,8 +6914,8 @@ async function guardarRepoCategoria(indexEditar) {
     }
 }
 
-function agregarFilaProducto() {
-    const lista = document.getElementById('cargarProductosLista');
+function agregarFilaProducto(contId) {
+    const lista = document.getElementById(contId || 'cargarProductosLista');
     const n = lista.children.length + 1;
     const fila = document.createElement('div');
     fila.className = 'cp-fila';
@@ -6781,8 +6991,9 @@ function cpRenderOpciones(l) {
 }
 
 function quitarFilaProducto(btn) {
+    const lista = btn.closest('.cp-fila').parentElement;
     btn.closest('.cp-fila').remove();
-    document.querySelectorAll('#cargarProductosLista .cp-num').forEach((el, i) => { el.textContent = i + 1; });
+    lista.querySelectorAll('.cp-num').forEach((el, i) => { el.textContent = i + 1; });
 }
 
 // Precio en formato argentino: "37.200", "37200", "37.200,50", "$ 37,200" → número correcto.
@@ -6798,11 +7009,13 @@ function _parsePrecioAR(txt) {
     return Number(t) || 0;
 }
 
-async function confirmarCargarProductos() {
-    const sub = document.getElementById('cargarProductosSub').value;
-    const clave = _claveCatalogoCentral(sub);
-    if (!CATALOGOS_CENTRALES[clave]) { toast('Primero cargá el catálogo inicial', 'err'); return; }
-    const productos = Array.from(document.querySelectorAll('#cargarProductosLista .cp-fila')).map(f => {
+// 🆕 Lee todas las filas "Producto" de CUALQUIER lista (contId) y las
+// convierte en el mismo objeto que espera /api/catalogo/agregar. La usan
+// tanto "Cargar productos" como "Agregar Categoría" — es exactamente la
+// misma lógica, sin límite de cantidad de filas.
+function _leerFilasProductosDesde(contId) {
+    let sinNombreLinea = false;
+    const productos = Array.from(document.querySelectorAll('#' + contId + ' .cp-fila')).map(f => {
         const p = {
             nombre: f.querySelector('.cp-nombre').value.trim(),
             imagen: f.querySelector('.cp-imagen').value.trim(),
@@ -6818,19 +7031,26 @@ async function confirmarCargarProductos() {
         // Variantes: cada línea tiene un nombre (Talle, Color…) y sus opciones; las líneas sin opciones no se agregan.
         const lineas = [];
         f.querySelectorAll('.cp-linea').forEach(l => {
-            l._sinNombre = false;
             const pend = l.querySelector('.cp-opc');
             if (pend && pend.value.trim()) cpAgregarOpcion(pend);
             const opciones = l._opts || [];
             const nombreL = l.querySelector('.cp-linea-nombre').value.trim();
             if (!opciones.length) return;
-            if (!nombreL) { l._sinNombre = true; return; }
+            if (!nombreL) { sinNombreLinea = true; return; }
             lineas.push({ nombre: nombreL, opciones: opciones.slice() });
         });
         if (lineas.length) p.lineasVariantes = lineas;
         return p;
     });
-    if (Array.from(document.querySelectorAll('#cargarProductosLista .cp-linea')).some(l => l._sinNombre)) { toast('Poné un nombre a cada línea de variantes (ej: Talle, Color)', 'err'); return; }
+    return { productos, sinNombreLinea };
+}
+
+async function confirmarCargarProductos() {
+    const sub = document.getElementById('cargarProductosSub').value;
+    const clave = _claveCatalogoCentral(sub);
+    if (!CATALOGOS_CENTRALES[clave]) { toast('Primero cargá el catálogo inicial', 'err'); return; }
+    const { productos, sinNombreLinea } = _leerFilasProductosDesde('cargarProductosLista');
+    if (sinNombreLinea) { toast('Poné un nombre a cada línea de variantes (ej: Talle, Color)', 'err'); return; }
     if (productos.some(x => !x.nombre || !x.imagen || !(x.precio > 0))) { toast('Completá nombre, imagen y precio de todos los productos', 'err'); return; }
     // 🆕 Ya no se manda directo al Worker: con 2 o más repositorios
     // cargados para esta categoría, primero hay que elegir a cuál se
