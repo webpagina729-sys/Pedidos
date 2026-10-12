@@ -6384,6 +6384,15 @@ function _camposVarianteDe(p) {
     if (Array.isArray(p.variantes) && p.variantes.length) campos.push('variantes');
     if (Array.isArray(p.colores) && p.colores.length) campos.push('colores');
     if (Array.isArray(p.talles) && p.talles.length) campos.push('talles');
+    // 🔧 FIX: un producto cargado con "líneas de variantes" (Talle, Color…
+    // desde "Cargar productos") ya tiene variantes desde que se crea, aunque
+    // el array plano "variantes" todavía esté vacío (eso recién se llena
+    // cuando se activa una opción puntual desde este mismo modal). Sin este
+    // chequeo, el cuadro de los 3 puntos no aparecía en productos recién
+    // agregados con variantes.
+    if (!campos.includes('variantes') && Array.isArray(p.lineasVariantes) && p.lineasVariantes.some(l => l && l.nombre && Array.isArray(l.opciones) && l.opciones.length)) {
+        campos.push('variantes');
+    }
     return campos;
 }
 
@@ -6570,6 +6579,12 @@ function _sumarProductosLocales(clave, productos) {
     Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
         productos.forEach(n => {
             if (!CATALOGO_PRODUCTOS_GLOBAL[sc].some(p => p.id === n.id)) CATALOGO_PRODUCTOS_GLOBAL[sc].push({ id: n.id, nombre: n.nombre, _agregado: true,
+                // 🆕 precio base y precios propios por variante (si el
+                // producto tiene alguna variante con precio distinto al
+                // del resto) — los necesita el cuadro de precio del modal
+                // de variantes.
+                precio: Number.isFinite(Number(n.precio)) ? Number(n.precio) : null,
+                preciosVariantes: (n.preciosVariantes && typeof n.preciosVariantes === 'object') ? n.preciosVariantes : {},
                 variantes: Array.isArray(n.variantes) ? n.variantes.slice() : [],
                 lineasVariantes: Array.isArray(n.lineasVariantes) ? n.lineasVariantes : [] });
         });
@@ -6953,6 +6968,29 @@ function _listaActivaVariante(catalogo, productId, campo, listaBase) {
     return Array.isArray(override) ? override : listaBase;
 }
 
+// 🆕 Una fila compacta por variante: etiqueta + (si el producto fue
+// agregado desde este panel, así que tiene precio propio en el Worker de
+// precios) un cuadro con el precio vigente de ESA variante puntual —el
+// suyo si tiene uno distinto, sino el precio base del producto— y un
+// lápiz para editarlo. El botón de quitar se mantiene igual que antes.
+function _filaVariante(campo, valorCompleto, etiquetaVisible, producto) {
+    const escJs = (s) => esc(s).replace(/'/g, "\\'");
+    let cajaPrecio = '';
+    if (producto._agregado) {
+        const propio = producto.preciosVariantes && producto.preciosVariantes[valorCompleto] != null ? producto.preciosVariantes[valorCompleto] : null;
+        const precioVigente = propio != null ? propio : producto.precio;
+        cajaPrecio = `
+            <span style="font-size:12px;font-weight:700;color:var(--text);background:var(--bg-light,#f1f3f5);padding:4px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0">${precioVigente != null ? money(precioVigente) : '—'}</span>
+            <button class="btn-act" title="Editar precio de esta variante" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" onclick="editarPrecioVariante('${campo}','${escJs(valorCompleto)}')">${_ICO_EDITAR}</button>`;
+    }
+    return `
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 2px;border-bottom:1px solid var(--border)">
+            <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(valorCompleto.replace(/^[^:]+: /, ''))}</span>
+            ${cajaPrecio}
+            <button class="btn-act" title="Quitar" style="flex-shrink:0;padding:5px 9px;font-size:12px" onclick="pedirEliminarVariante('${campo}','${escJs(valorCompleto)}')">✕</button>
+        </div>`;
+}
+
 function abrirVariantesModal(catalogo, productId) {
     const producto = (CATALOGO_PRODUCTOS_GLOBAL[catalogo] || []).find(p => p.id === productId);
     if (!producto) return;
@@ -6966,14 +7004,11 @@ function abrirVariantesModal(catalogo, productId) {
         const activos = _listaActivaVariante(catalogo, productId, 'variantes', producto.variantes || []);
         const pref = l.nombre + ': ';
         const opcs = activos.filter(v => v.indexOf(pref) === 0).map(v => v.slice(pref.length));
-        const chips = opcs.map(v => `
-            <button class="btn-act" style="margin:3px 4px 3px 0;padding:5px 10px;font-size:12px" onclick="pedirEliminarVariante('variantes','${esc(pref + v).replace(/'/g,"\\'")}')">
-                ${esc(v)} ✕
-            </button>`).join('');
+        const filas = opcs.map(v => _filaVariante('variantes', pref + v, v, producto)).join('');
         return `
             <div style="margin-bottom:16px">
                 <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text-light);margin-bottom:6px">${esc(l.nombre)}</label>
-                <div>${chips || '<span style="font-size:12px;color:var(--text-light)">Sin opciones activas.</span>'}</div>
+                <div style="border:1px solid var(--border);border-radius:9px;overflow:hidden">${filas || '<p style="margin:0;padding:10px;font-size:12px;color:var(--text-light)">Sin opciones activas.</p>'}</div>
                 <button class="btn-act" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="mostrarFormNuevaVariante('L${li}')">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px;margin-right:3px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Agregar opción
@@ -6987,14 +7022,11 @@ function abrirVariantesModal(catalogo, productId) {
         const listaBase = producto[campo] || [];
         const activos = _listaActivaVariante(catalogo, productId, campo, listaBase);
         const etiqueta = ETIQUETA_CAMPO_VARIANTE[campo] || 'Variante';
-        const chips = activos.map(v => `
-            <button class="btn-act" style="margin:3px 4px 3px 0;padding:5px 10px;font-size:12px" onclick="pedirEliminarVariante('${campo}','${esc(v).replace(/'/g,"\\'")}')">
-                ${esc(v)} ✕
-            </button>`).join('');
+        const filas = activos.map(v => _filaVariante(campo, v, v, producto)).join('');
         return `
             <div style="margin-bottom:16px">
                 <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text-light);margin-bottom:6px">${etiqueta}s</label>
-                <div id="variantes-chips-${campo}">${chips || '<span style="font-size:12px;color:var(--text-light)">Sin ' + etiqueta.toLowerCase() + 's activos.</span>'}</div>
+                <div id="variantes-chips-${campo}" style="border:1px solid var(--border);border-radius:9px;overflow:hidden">${filas || '<p style="margin:0;padding:10px;font-size:12px;color:var(--text-light)">Sin ' + etiqueta.toLowerCase() + 's activos.</p>'}</div>
                 <button class="btn-act" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="mostrarFormNuevaVariante('${campo}')">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px;margin-right:3px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Agregar ${etiqueta.toLowerCase()}
@@ -7066,6 +7098,39 @@ async function confirmarEliminarVariante() {
     const activos = _listaActivaVariante(catalogo, productId, campo, listaBase);
     cerrarVarianteDelModal();
     await _guardarListaVariante(catalogo, productId, campo, activos.filter(v => v !== valor), 'quitado', valor, producto?.nombre);
+    abrirVariantesModal(catalogo, productId);
+}
+
+// 🆕 Edita el precio mayorista de UNA variante puntual (ej. "Talle: 40")
+// de un producto agregado desde este panel. Sin precio nuevo (cancelado o
+// vacío) no hace nada; con un valor vacío a propósito se podría limpiar
+// el override, pero acá se pide confirmación explícita con el prompt.
+async function editarPrecioVariante(campo, valorCompleto) {
+    const { catalogo, productId } = variantesModalActual;
+    const producto = (CATALOGO_PRODUCTOS_GLOBAL[catalogo] || []).find(p => p.id === productId);
+    if (!producto || !producto._agregado) return;
+    const propio = producto.preciosVariantes && producto.preciosVariantes[valorCompleto] != null ? producto.preciosVariantes[valorCompleto] : null;
+    const precioActual = propio != null ? propio : producto.precio;
+    const etiqueta = valorCompleto.replace(/^[^:]+: /, '');
+    const entrada = prompt(
+        `Precio mayorista para "${etiqueta}" (dejalo vacío para usar el precio base del producto, $${money(producto.precio || 0).slice(1)}):`,
+        precioActual != null ? String(Math.round(precioActual)) : ''
+    );
+    if (entrada === null) return; // cancelado
+    const texto = entrada.trim();
+    const precioNuevo = texto === '' ? null : Number(texto.replace(/\./g, '').replace(',', '.'));
+    if (texto !== '' && (!Number.isFinite(precioNuevo) || precioNuevo <= 0)) {
+        toast('Precio inválido', 'err');
+        return;
+    }
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/precio-variante', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: catalogo, id: productId, variante: valorCompleto, precio: precioNuevo })
+    });
+    if (!res || !res.ok) { toast('No se pudo guardar el precio', 'err'); return; }
+    producto.preciosVariantes = res.preciosVariantes || {};
+    toast('Precio actualizado', true);
     abrirVariantesModal(catalogo, productId);
 }
 
