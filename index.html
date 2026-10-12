@@ -464,7 +464,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 /* ── generic MODAL ── */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:450; display:none; align-items:center; justify-content:center; padding:16px; }
 .modal-overlay.show { display:flex; }
-.modal-box { background: var(--surface); border:1px solid var(--border2); border-radius:14px; padding:24px; width:100%; max-width:380px; text-align:center; box-shadow: var(--shadow-lg); }
+.modal-box { background: var(--surface); border:1px solid var(--border2); border-radius:14px; padding:24px; width:100%; max-width:380px; max-height:90vh; overflow-y:auto; text-align:center; box-shadow: var(--shadow-lg); }
 .modal-icon { width:44px; height:44px; border-radius:50%; background: var(--red-pale); display:flex; align-items:center; justify-content:center; margin: 0 auto 14px; }
 .modal-box h3 { font-size:16px; font-weight:800; margin-bottom:8px; }
 .modal-box p { font-size:12.5px; color:var(--text2); margin-bottom:20px; }
@@ -549,6 +549,40 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     .estado-head-left { gap: 8px !important; }
     .vendor-avatar { width: 26px !important; height: 26px !important; font-size: 10.5px !important; }
     .cnt, .cnt2 { font-size: 10px !important; padding: 1px 6px !important; }
+
+    /* 🎨 NUEVO (solo estética): fila de "Stock global" — el nombre del
+       producto pasa a su propia línea y los botones (en stock/eliminar/
+       variantes) se acomodan compactos debajo, en vez de desbordar o
+       verse gigantes apretados en una sola línea. */
+    .cat-item { flex-wrap: wrap !important; gap: 6px !important; padding: 8px 4px !important; }
+    .cat-item strong { flex-basis: 100% !important; font-size: 12px !important; }
+    .cat-item .btn-act { padding: 5px 9px !important; font-size: 10.5px !important; gap: 4px !important; }
+
+    /* 🎨 NUEVO (solo estética): modales genéricos (Variantes, confirmar
+       eliminar, etc.) — mismo criterio de compactación que ya tienen los
+       modales .rvndr-box, para que no se vean grandes en celular. */
+    .modal-box { padding: 16px !important; border-radius: 12px !important; }
+    .modal-box h3 { font-size: 14px !important; }
+    .modal-box p { font-size: 11.5px !important; margin-bottom: 14px !important; }
+    .modal-icon { width: 36px !important; height: 36px !important; margin: 0 auto 10px !important; }
+    .modal-cancel, .modal-confirm-btn { padding: 9px !important; font-size: 12px !important; }
+}
+
+/* 🎨 NUEVO (solo estética): mismo ajuste de arriba, pero disparado por
+   altura de pantalla chica en vez de ancho — así también se compacta en
+   celulares usados en horizontal (ancho grande, alto chico), donde el
+   breakpoint de 600px de ancho no alcanza a aplicar. */
+@media (max-height: 500px) and (orientation: landscape) {
+    .cat-item { flex-wrap: wrap !important; gap: 6px !important; padding: 7px 4px !important; }
+    .cat-item strong { flex-basis: 100% !important; font-size: 12px !important; }
+    .cat-item .btn-act { padding: 5px 9px !important; font-size: 10.5px !important; gap: 4px !important; }
+
+    .modal-box { padding: 14px !important; max-height: 85vh !important; }
+    .modal-box h3 { font-size: 14px !important; }
+    .modal-box p { font-size: 11.5px !important; margin-bottom: 10px !important; }
+    .modal-icon { width: 34px !important; height: 34px !important; margin: 0 auto 8px !important; }
+    .modal-cancel, .modal-confirm-btn { padding: 8px !important; font-size: 12px !important; }
+    .rvndr-box { max-height: 85vh !important; }
 }
 </style>
 <script id="admin-key-header">
@@ -6312,6 +6346,10 @@ const STOCK_CAT_SUBCATS = {
 };
 let STOCK_GLOBAL_DATA = {};
 let VARIANTES_GLOBAL_DATA = {};
+// 🆕 Precio propio por variante de productos del catálogo BASE (los que
+// vienen con talle/color de fábrica, no agregados desde "Cargar
+// productos"): { [catalogo]: { [productId]: { [variante]: precio } } }.
+let PRECIOS_VARIANTES_GLOBAL_DATA = {};
 // 🔧 NUEVO: categorías frenadas temporalmente — { [catalogo]: { hasta, dias } }
 let CATEGORIAS_FRENADAS_DATA = {};
 let stockCatActual = 'calzados';
@@ -6329,11 +6367,12 @@ let stockShown = 20;
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar, resFrenadas, resCatalogo] = await Promise.all([
+    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
         fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
         fetchJson(WORKER_PRECIOS + '/api/catalogo?categoria=todas'),
+        fetchJson(WORKER_ESTADOS + '/api/precios-variantes-global'),
     ]);
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
     REPOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.repos) || {};
@@ -6347,6 +6386,7 @@ async function renderStockView() {
     Object.keys(agregados).forEach(clave => _sumarProductosLocales(clave, agregados[clave]));
     STOCK_GLOBAL_DATA = (res && res.ok && res.stock) || {};
     VARIANTES_GLOBAL_DATA = (resVar && resVar.ok && resVar.variantes) || {};
+    PRECIOS_VARIANTES_GLOBAL_DATA = (resPreciosVar && resPreciosVar.ok && resPreciosVar.precios) || {};
     CATEGORIAS_FRENADAS_DATA = (resFrenadas && resFrenadas.ok && resFrenadas.frenadas) || {};
 
     let html = `<h2 class="section-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Stock global de la plataforma</h2>
@@ -6968,21 +7008,39 @@ function _listaActivaVariante(catalogo, productId, campo, listaBase) {
     return Array.isArray(override) ? override : listaBase;
 }
 
-// 🆕 Una fila compacta por variante: etiqueta + (si el producto fue
-// agregado desde este panel, así que tiene precio propio en el Worker de
-// precios) un cuadro con el precio vigente de ESA variante puntual —el
-// suyo si tiene uno distinto, sino el precio base del producto— y un
-// lápiz para editarlo. El botón de quitar se mantiene igual que antes.
-function _filaVariante(campo, valorCompleto, etiquetaVisible, producto) {
-    const escJs = (s) => esc(s).replace(/'/g, "\\'");
-    let cajaPrecio = '';
+// 🆕 Precio base "original" del producto: el propio (si fue agregado
+// desde este panel) o, para productos del catálogo base, el precio
+// mayorista real que ya se consulta al Worker de precios (mismo mapa que
+// usa el resto del panel para pedidos viejos sin precio congelado).
+function _precioBaseProducto(producto) {
+    if (producto._agregado) return producto.precio != null ? producto.precio : null;
+    const nombre = String(producto.nombre || '').trim().toUpperCase();
+    return PRECIOS_MAYORISTAS_REVENDEDOR[nombre] != null ? PRECIOS_MAYORISTAS_REVENDEDOR[nombre] : null;
+}
+
+// Precio vigente de UNA variante puntual: su propio override si tiene uno
+// guardado (en el Worker de precios para productos agregados, o en
+// panel_gestion_estados_worker para productos del catálogo base), sino el
+// precio base del producto.
+function _precioVarianteVigente(catalogo, productId, producto, valorCompleto) {
     if (producto._agregado) {
         const propio = producto.preciosVariantes && producto.preciosVariantes[valorCompleto] != null ? producto.preciosVariantes[valorCompleto] : null;
-        const precioVigente = propio != null ? propio : producto.precio;
-        cajaPrecio = `
-            <span style="font-size:12px;font-weight:700;color:var(--text);background:var(--bg-light,#f1f3f5);padding:4px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0">${precioVigente != null ? money(precioVigente) : '—'}</span>
-            <button class="btn-act" title="Editar precio de esta variante" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" onclick="editarPrecioVariante('${campo}','${escJs(valorCompleto)}')">${_ICO_EDITAR}</button>`;
+        return propio != null ? propio : _precioBaseProducto(producto);
     }
+    const propio = PRECIOS_VARIANTES_GLOBAL_DATA?.[catalogo]?.[String(productId)]?.[valorCompleto];
+    return propio != null ? propio : _precioBaseProducto(producto);
+}
+
+// 🆕 Una fila compacta por variante: etiqueta + un cuadro con el precio
+// vigente de ESA variante puntual —el suyo si tiene uno distinto, sino el
+// precio base/original del producto— y un lápiz para editarlo. El botón
+// de quitar se mantiene igual que antes.
+function _filaVariante(campo, valorCompleto, etiquetaVisible, producto, catalogo, productId) {
+    const escJs = (s) => esc(s).replace(/'/g, "\\'");
+    const precioVigente = _precioVarianteVigente(catalogo, productId, producto, valorCompleto);
+    const cajaPrecio = `
+        <span style="font-size:12px;font-weight:700;color:var(--text);background:var(--bg-light,#f1f3f5);padding:4px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0">${precioVigente != null ? money(precioVigente) : '—'}</span>
+        <button class="btn-act" title="Editar precio de esta variante" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" onclick="editarPrecioVariante('${campo}','${escJs(valorCompleto)}')">${_ICO_EDITAR}</button>`;
     return `
         <div style="display:flex;align-items:center;gap:6px;padding:7px 2px;border-bottom:1px solid var(--border)">
             <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(valorCompleto.replace(/^[^:]+: /, ''))}</span>
@@ -7004,7 +7062,7 @@ function abrirVariantesModal(catalogo, productId) {
         const activos = _listaActivaVariante(catalogo, productId, 'variantes', producto.variantes || []);
         const pref = l.nombre + ': ';
         const opcs = activos.filter(v => v.indexOf(pref) === 0).map(v => v.slice(pref.length));
-        const filas = opcs.map(v => _filaVariante('variantes', pref + v, v, producto)).join('');
+        const filas = opcs.map(v => _filaVariante('variantes', pref + v, v, producto, catalogo, productId)).join('');
         return `
             <div style="margin-bottom:16px">
                 <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text-light);margin-bottom:6px">${esc(l.nombre)}</label>
@@ -7022,7 +7080,7 @@ function abrirVariantesModal(catalogo, productId) {
         const listaBase = producto[campo] || [];
         const activos = _listaActivaVariante(catalogo, productId, campo, listaBase);
         const etiqueta = ETIQUETA_CAMPO_VARIANTE[campo] || 'Variante';
-        const filas = activos.map(v => _filaVariante(campo, v, v, producto)).join('');
+        const filas = activos.map(v => _filaVariante(campo, v, v, producto, catalogo, productId)).join('');
         return `
             <div style="margin-bottom:16px">
                 <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text-light);margin-bottom:6px">${etiqueta}s</label>
@@ -7101,19 +7159,24 @@ async function confirmarEliminarVariante() {
     abrirVariantesModal(catalogo, productId);
 }
 
-// 🆕 Edita el precio mayorista de UNA variante puntual (ej. "Talle: 40")
-// de un producto agregado desde este panel. Sin precio nuevo (cancelado o
-// vacío) no hace nada; con un valor vacío a propósito se podría limpiar
-// el override, pero acá se pide confirmación explícita con el prompt.
+// 🆕 Edita el precio mayorista de UNA variante puntual (ej. "Talle: 40").
+// Productos agregados desde "Cargar productos" guardan esto en su propio
+// registro del Worker de precios (/api/catalogo/precio-variante); los
+// productos del catálogo base (talle/color de fábrica) lo guardan en
+// panel_gestion_estados_worker (/api/precios-variantes-global), separado
+// del catálogo que usan workerpagos/workerwebcliente para validar pagos.
+// Sin precio nuevo (cancelado) no hace nada; con el campo vacío a
+// propósito se limpia el override y la variante vuelve a usar el precio
+// base del producto.
 async function editarPrecioVariante(campo, valorCompleto) {
     const { catalogo, productId } = variantesModalActual;
     const producto = (CATALOGO_PRODUCTOS_GLOBAL[catalogo] || []).find(p => p.id === productId);
-    if (!producto || !producto._agregado) return;
-    const propio = producto.preciosVariantes && producto.preciosVariantes[valorCompleto] != null ? producto.preciosVariantes[valorCompleto] : null;
-    const precioActual = propio != null ? propio : producto.precio;
+    if (!producto) return;
+    const precioBase = _precioBaseProducto(producto);
+    const precioActual = _precioVarianteVigente(catalogo, productId, producto, valorCompleto);
     const etiqueta = valorCompleto.replace(/^[^:]+: /, '');
     const entrada = prompt(
-        `Precio mayorista para "${etiqueta}" (dejalo vacío para usar el precio base del producto, $${money(producto.precio || 0).slice(1)}):`,
+        `Precio mayorista para "${etiqueta}" (dejalo vacío para usar el precio base del producto${precioBase != null ? ', ' + money(precioBase) : ''}):`,
         precioActual != null ? String(Math.round(precioActual)) : ''
     );
     if (entrada === null) return; // cancelado
@@ -7123,13 +7186,23 @@ async function editarPrecioVariante(campo, valorCompleto) {
         toast('Precio inválido', 'err');
         return;
     }
-    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/precio-variante', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ categoria: catalogo, id: productId, variante: valorCompleto, precio: precioNuevo })
-    });
-    if (!res || !res.ok) { toast('No se pudo guardar el precio', 'err'); return; }
-    producto.preciosVariantes = res.preciosVariantes || {};
+    if (producto._agregado) {
+        const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/precio-variante', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ categoria: catalogo, id: productId, variante: valorCompleto, precio: precioNuevo })
+        });
+        if (!res || !res.ok) { toast('No se pudo guardar el precio', 'err'); return; }
+        producto.preciosVariantes = res.preciosVariantes || {};
+    } else {
+        const res = await fetchJson(WORKER_ESTADOS + '/api/precios-variantes-global', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ catalogo, productId, variante: valorCompleto, precio: precioNuevo })
+        });
+        if (!res || !res.ok) { toast('No se pudo guardar el precio', 'err'); return; }
+        PRECIOS_VARIANTES_GLOBAL_DATA = res.precios || PRECIOS_VARIANTES_GLOBAL_DATA;
+    }
     toast('Precio actualizado', true);
     abrirVariantesModal(catalogo, productId);
 }
