@@ -487,6 +487,11 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 #cargarProductosModal .cp-nueva { margin-top:8px; }
 #cargarProductosModal .modal-cancel, #cargarProductosModal .cp-cerrar { background:#fff; color:#000; border:1px solid #d4d4d8; }
 #cargarProductosModal .cp-cerrar { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font); margin-left:auto; flex-shrink:0; }
+/* 🆕 "+ Repositorio" (hasta 5 por categoría) y el paso de "a qué repositorio conectar" al cargar productos */
+#cargarProductosModal .cp-link-repo { display:block; width:100%; text-align:left; background:none; border:none; padding:2px 2px 14px; margin:-4px 0 0; font-size:12px; font-weight:700; color:#0ea5e9; cursor:pointer; font-family:var(--font); }
+#cargarProductosModal .cp-link-repo:hover { text-decoration:underline; }
+#cargarProductosModal .cp-repo-opciones { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+#cargarProductosModal .cp-repo-opcion { width:100%; justify-content:center; }
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border:1px solid var(--border2); color: var(--text); padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight:600; box-shadow: var(--shadow-lg); z-index: 999; opacity:0; pointer-events:none; transition: all .25s; }
 .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
@@ -1114,6 +1119,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <button class="modal-confirm-btn" id="cargarProductosConfirmar" onclick="confirmarCargarProductos()">Confirmar</button>
             </div>
         </div>
+        <!-- 🆕 Paso "¿a qué repositorio conectás estas imágenes?" — aparece
+             al tocar "Confirmar" arriba, solo cuando hay más de un
+             repositorio cargado para esta categoría (ver _mostrarElegirRepo()). -->
+        <div id="cargarProductosElegirRepoBox" style="display:none"></div>
     </div>
 </div>
 
@@ -6310,6 +6319,9 @@ let stockCatActual = 'calzados';
 let CATALOGOS_CENTRALES = {};
 // Repositorio de imágenes guardado por categoría grande: { calzados: 'https://raw.githubusercontent.com/…/', … }
 let REPOS_CENTRALES = {};
+// 🆕 Productos ya validados, esperando que se elija a qué repositorio
+// (1-5) conectar sus imágenes — ver confirmarCargarProductos()/_mostrarElegirRepo().
+let _cpPendiente = null;
 // Las dos listas de perfumes (Perfumería y Belleza → perfumes) comparten un único catálogo central.
 function _claveCatalogoCentral(subcat) { return subcat === 'belleza_perfume' ? 'perfumes' : subcat; }
 let stockShown = 20;
@@ -6574,46 +6586,66 @@ function abrirCargarProductos() {
     sel.style.display = subcats.length > 1 ? 'block' : 'none';
     document.getElementById('cargarProductosLista').innerHTML = '';
     agregarFilaProducto();
-    if (REPOS_CENTRALES[stockCatActual]) mostrarRepoGuardado(); else mostrarRepoEditor(false);
+    document.getElementById('cargarProductosElegirRepoBox').style.display = 'none';
+    _cpPendiente = null;
+    if ((REPOS_CENTRALES[stockCatActual] || []).length) mostrarRepoGuardado(); else mostrarRepoEditor(false);
     document.getElementById('cargarProductosModal').classList.add('show');
 }
 
 function cerrarCargarProductos() {
     document.getElementById('cargarProductosModal').classList.remove('show');
+    document.getElementById('cargarProductosElegirRepoBox').style.display = 'none';
+    _cpPendiente = null;
 }
 
+// 🆕 Hasta 5 repositorios de imágenes por categoría ("Repositorio nº1" al
+// "nº5", ver REPOS_CENTRALES — ahora un array por categoría en vez de un
+// único string). Cada uno se lista con su numeración y su propio
+// "Editar"; debajo, "+ Repositorio" para agregar otro (hasta 5).
 function mostrarRepoGuardado() {
-    document.getElementById('cargarProductosRepoBox').innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;margin:10px 0 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px">
-        <div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">Repositorio de imágenes</div><div style="font-size:12px;word-break:break-all">${esc(REPOS_CENTRALES[stockCatActual])}</div></div>
-        <button class="btn-act" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="mostrarRepoEditor(true)">${_ICO_EDITAR} Editar</button>
-    </div>`;
+    const lista = REPOS_CENTRALES[stockCatActual] || [];
+    const filas = lista.map((url, i) => `<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;margin-bottom:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px">
+        <div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">Repositorio nº${i + 1}</div><div style="font-size:12px;word-break:break-all">${esc(url)}</div></div>
+        <button class="btn-act" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="mostrarRepoEditor(true, ${i + 1})">${_ICO_EDITAR} Editar</button>
+    </div>`).join('');
+    document.getElementById('cargarProductosRepoBox').innerHTML = filas +
+        (lista.length < 5 ? `<button type="button" class="cp-link-repo" onclick="mostrarRepoEditor(true)">+ Repositorio</button>` : '');
     document.getElementById('cargarProductosForm').style.display = 'block';
 }
 
-function mostrarRepoEditor(conCancelar) {
-    document.getElementById('cargarProductosRepoBox').innerHTML = `<label style="display:block;font-size:12.5px;margin:10px 0 4px">Enlace de Repositorio</label>
-        <input id="cargarProductosRepoInput" class="rvndr-search" style="margin-bottom:10px" placeholder="https://github.com/usuario/repositorio" value="${esc(REPOS_CENTRALES[stockCatActual] || '')}" autocomplete="off"/>
+// indexEditar: número (1-5) del repositorio ya guardado que se está
+// editando, o nada/undefined para agregar uno NUEVO ("+ Repositorio").
+function mostrarRepoEditor(conCancelar, indexEditar) {
+    const lista = REPOS_CENTRALES[stockCatActual] || [];
+    const esEdicion = Number.isInteger(indexEditar) && indexEditar >= 1 && indexEditar <= lista.length;
+    const valorActual = esEdicion ? lista[indexEditar - 1] : '';
+    const titulo = esEdicion ? ('Editar Repositorio nº' + indexEditar) : ('Nuevo Repositorio (nº' + (lista.length + 1) + ')');
+    document.getElementById('cargarProductosRepoBox').innerHTML = `<label style="display:block;font-size:12.5px;margin:10px 0 4px">${esc(titulo)}</label>
+        <input id="cargarProductosRepoInput" class="rvndr-search" style="margin-bottom:10px" placeholder="https://github.com/usuario/repositorio" value="${esc(valorActual)}" autocomplete="off"/>
         <div style="display:flex;gap:8px;margin-bottom:14px">
             ${conCancelar ? '<button class="modal-cancel" style="flex:1" onclick="mostrarRepoGuardado()">Cancelar</button>' : ''}
-            <button class="modal-confirm-btn" style="flex:1" onclick="guardarRepoCategoria()">Confirmar</button>
+            <button class="modal-confirm-btn" style="flex:1" onclick="guardarRepoCategoria(${esEdicion ? indexEditar : 'null'})">Confirmar</button>
         </div>`;
     document.getElementById('cargarProductosForm').style.display = 'none';
 }
 
-async function guardarRepoCategoria() {
+async function guardarRepoCategoria(indexEditar) {
     const repo = document.getElementById('cargarProductosRepoInput').value.trim();
     if (!repo) { toast('Pegá el enlace del repositorio', 'err'); return; }
+    const body = { categoria: stockCatActual, repo };
+    if (Number.isInteger(indexEditar)) body.index = indexEditar;
     const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/repo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ categoria: stockCatActual, repo })
+        body: JSON.stringify(body)
     });
     if (res && res.ok) {
-        REPOS_CENTRALES[stockCatActual] = res.repo;
+        REPOS_CENTRALES[stockCatActual] = res.repos || [res.repo];
         toast('Repositorio guardado', true);
         mostrarRepoGuardado();
     } else {
-        toast('No se pudo guardar el repositorio' + (window._lastFetchError?.status === 400 ? ': el enlace no es válido' : ''), 'err');
+        const status = window._lastFetchError?.status;
+        toast('No se pudo guardar el repositorio' + (status === 400 ? ': el enlace no es válido' : (status === 409 ? ': ya hay 5 repositorios cargados para esta categoría' : '')), 'err');
     }
 }
 
@@ -6745,15 +6777,56 @@ async function confirmarCargarProductos() {
     });
     if (Array.from(document.querySelectorAll('#cargarProductosLista .cp-linea')).some(l => l._sinNombre)) { toast('Poné un nombre a cada línea de variantes (ej: Talle, Color)', 'err'); return; }
     if (productos.some(x => !x.nombre || !x.imagen || !(x.precio > 0))) { toast('Completá nombre, imagen y precio de todos los productos', 'err'); return; }
-    const btn = document.getElementById('cargarProductosConfirmar');
-    btn.disabled = true;
+    // 🆕 Ya no se manda directo al Worker: con 2 o más repositorios
+    // cargados para esta categoría, primero hay que elegir a cuál se
+    // conectan las imágenes de este lote (ver _mostrarElegirRepo()).
+    _cpPendiente = { productos, clave, sub };
+    _mostrarElegirRepo();
+}
+
+// 🆕 Paso "¿a qué repositorio conectás estas imágenes?" — reemplaza
+// momentáneamente el formulario de productos por esta pantalla compacta.
+// Con un solo repositorio cargado no hay nada que elegir: solo lo nombra
+// y pide confirmar con "Aceptar y continuar". Con 2 o más, cada
+// repositorio es un botón propio — tocarlo ya elige y continúa.
+function _mostrarElegirRepo() {
+    const lista = REPOS_CENTRALES[stockCatActual] || [];
+    const box = document.getElementById('cargarProductosElegirRepoBox');
+    if (lista.length <= 1) {
+        box.innerHTML = `<p style="font-size:12.5px;color:var(--text2);margin:10px 0 14px">Conectar a <strong style="color:var(--text)">Repositorio nº1</strong></p>
+            <div class="modal-actions cp-acciones">
+                <button type="button" class="btn-head" onclick="_volverAFormCargarProductos()">Volver</button>
+                <button class="modal-confirm-btn" id="cpElegirRepoBtn" onclick="_elegirRepoYEnviar(1)">Aceptar y continuar</button>
+            </div>`;
+    } else {
+        box.innerHTML = `<p style="font-size:12.5px;color:var(--text2);margin:10px 0 10px">¿A qué repositorio conectás las imágenes de estos productos?</p>
+            <div class="cp-repo-opciones">
+                ${lista.map((url, i) => `<button type="button" class="btn-head cp-repo-opcion" onclick="_elegirRepoYEnviar(${i + 1})">Repositorio nº${i + 1}</button>`).join('')}
+            </div>
+            <div class="modal-actions cp-acciones">
+                <button type="button" class="btn-head" onclick="_volverAFormCargarProductos()">Volver</button>
+            </div>`;
+    }
+    document.getElementById('cargarProductosForm').style.display = 'none';
+    box.style.display = 'block';
+}
+
+function _volverAFormCargarProductos() {
+    document.getElementById('cargarProductosElegirRepoBox').style.display = 'none';
+    document.getElementById('cargarProductosForm').style.display = 'block';
+}
+
+async function _elegirRepoYEnviar(repoIndex) {
+    if (!_cpPendiente) return;
+    const { productos, clave, sub } = _cpPendiente;
+    document.querySelectorAll('#cargarProductosElegirRepoBox button').forEach(b => b.disabled = true);
     const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/agregar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ categoria: clave, canon: stockCatActual, productos: productos.map(({ _resto, ...resto }) => resto) })
+        body: JSON.stringify({ categoria: clave, canon: stockCatActual, repoIndex, productos: productos.map(({ _resto, ...resto }) => resto) })
     });
-    btn.disabled = false;
     if (res && res.ok) {
+        _cpPendiente = null;
         _sumarProductosLocales(clave, res.agregados);
         cerrarCargarProductos();
         renderStockLista();
@@ -6777,6 +6850,7 @@ async function confirmarCargarProductos() {
         toast(res.agregados.length + (res.agregados.length === 1 ? ' producto agregado' : ' productos agregados') + (_restoOk ? '' : ' — pero no se pudo guardar el restoprecio'), _restoOk);
     } else {
         toast('No se pudieron agregar los productos' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
+        _mostrarElegirRepo(); // vuelve a habilitar los botones para reintentar
     }
 }
 
@@ -8144,8 +8218,15 @@ window.addEventListener('load', init);
             return fetch(WK + '/api/pdf-subir', { method: 'POST', headers: h, body: body });
         }).then(function (r) { return r.json(); }).then(function (j) {
             if (!j || !j.ok || !j.url) throw new Error('fallo');
+            // 🔧 FIX: antes se mandaba el link a la página con metadatos Open
+            // Graph (/f/<id>.pdf), que WhatsApp muestra como una tarjeta
+            // chica genérica (solo título/descripción). Mandando el link
+            // directo al PDF (?raw=1) WhatsApp lo reconoce como un archivo
+            // y arma la vista previa real del documento (miniatura, páginas,
+            // peso, botones Ver/Guardar como) pegada al mensaje.
+            var urlFinal = j.url + (j.url.indexOf('?') === -1 ? '?raw=1' : '&raw=1');
             var sep = m[2] ? encodeURIComponent('\n') : '';
-            ir(m[1] + m[2] + sep + encodeURIComponent(j.url));
+            ir(m[1] + m[2] + sep + encodeURIComponent(urlFinal));
         }).catch(function () { ir(u); });
         return w;
     };
