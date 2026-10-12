@@ -7039,7 +7039,7 @@ function _filaVariante(campo, valorCompleto, etiquetaVisible, producto, catalogo
     const escJs = (s) => esc(s).replace(/'/g, "\\'");
     const precioVigente = _precioVarianteVigente(catalogo, productId, producto, valorCompleto);
     const cajaPrecio = `
-        <span style="font-size:12px;font-weight:700;color:var(--text);background:var(--bg-light,#f1f3f5);padding:4px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0">${precioVigente != null ? money(precioVigente) : '—'}</span>
+        <span style="font-size:12px;font-weight:700;color:#1565c0;background:#e3f2fd;padding:4px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0">${precioVigente != null ? money(precioVigente) : '—'}</span>
         <button class="btn-act" title="Editar precio de esta variante" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" onclick="editarPrecioVariante('${campo}','${escJs(valorCompleto)}')">${_ICO_EDITAR}</button>`;
     return `
         <div style="display:flex;align-items:center;gap:6px;padding:7px 2px;border-bottom:1px solid var(--border)">
