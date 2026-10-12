@@ -8576,13 +8576,14 @@ window.addEventListener('load', init);
             return fetch(WK + '/api/pdf-subir', { method: 'POST', headers: h, body: body });
         }).then(function (r) { return r.json(); }).then(function (j) {
             if (!j || !j.ok || !j.url) throw new Error('fallo');
-            // 🔧 FIX: antes se mandaba el link a la página con metadatos Open
-            // Graph (/f/<id>.pdf), que WhatsApp muestra como una tarjeta
-            // chica genérica (solo título/descripción). Mandando el link
-            // directo al PDF (?raw=1) WhatsApp lo reconoce como un archivo
-            // y arma la vista previa real del documento (miniatura, páginas,
-            // peso, botones Ver/Guardar como) pegada al mensaje.
-            var urlFinal = j.url + (j.url.indexOf('?') === -1 ? '?raw=1' : '&raw=1');
+            // 🔧 FIX: el link directo al PDF (?raw=1) NO arma vista previa en
+            // WhatsApp — WhatsApp solo arma tarjeta de vista previa para una
+            // página HTML con metadatos Open Graph (og:image incluido; ver
+            // afiliados_worker.js, ahora con og:image agregado). Mandando el
+            // PDF crudo, WhatsApp no tenía de dónde sacar título/imagen y el
+            // link quedaba sin ninguna vista previa. Se manda j.url (la
+            // página HTML, SIN ?raw=1) para que la tarjeta se arme.
+            var urlFinal = j.url;
             var sep = m[2] ? encodeURIComponent('\n') : '';
             ir(m[1] + m[2] + sep + encodeURIComponent(urlFinal));
         }).catch(function () { ir(u); });
