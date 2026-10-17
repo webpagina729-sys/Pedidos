@@ -370,6 +370,12 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 #wa-config-body .prov-btn-icon { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; background:#fff; color:#111318; border:1px solid rgba(0,0,0,.28); border-radius:8px; cursor:pointer; padding:0; transition: all .15s; }
 #wa-config-body .prov-btn-icon:hover { background:#f2f3f5; border-color:rgba(0,0,0,.45); }
 #wa-config-body .prov-btn-enviar { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,.4); font-family:var(--font); color:#fff; white-space:nowrap; background: linear-gradient(135deg, #16d17a, #0a7a44); box-shadow: 0 2px 8px rgba(10,138,63,.4), inset 0 1px 0 rgba(255,255,255,.2); transition: all .18s; }
+/* 🆕 "Delegar Stock" — ON/OFF por proveedor, mismo criterio visual que el resto de los chips/botones del modal. */
+#wa-config-body .prov-stock-row { display:flex; align-items:center; gap:8px; margin:8px 0 10px; padding-top:8px; border-top:1px dashed #e2e4e9; }
+#wa-config-body .prov-stock-label { font-size:11.5px; font-weight:700; color:#5b6373; }
+#wa-config-body .prov-stock-btn { padding:4px 11px; border-radius:20px; font-size:10.5px; font-weight:800; cursor:pointer; border:1px solid #dde1e8; background:#f2f3f5; color:#8b93a3; font-family:var(--font); transition: all .15s; }
+#wa-config-body .prov-stock-btn.on-active { background:rgba(0,201,110,.14); color:#0a7a44; border-color:rgba(0,201,110,.4); }
+#wa-config-body .prov-stock-btn.off-active { background:rgba(244,63,94,.1); color:#b91c3c; border-color:rgba(244,63,94,.35); }
 #wa-config-body .prov-btn-enviar:hover { background: linear-gradient(135deg, #1eeb8a, #0c8f4f); box-shadow: 0 3px 10px rgba(10,138,63,.55), inset 0 1px 0 rgba(255,255,255,.25); }
 
 .ship-block { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 12px; }
@@ -4666,6 +4672,11 @@ function _renderProveedoresConfigBody() {
                     ${p.pausado ? `<span class="prov-pausado-chip">${ICO_PAUSAR_PANEL} Panel pausado</span>` : ''}
                 </div>
                 <div class="prov-card-numero">+${esc(p.numero||'—')}</div>
+                <div class="prov-stock-row">
+                    <span class="prov-stock-label">Delegar Stock:</span>
+                    <button class="prov-stock-btn ${p.stockDelegado ? 'on-active' : ''}" onclick="toggleStockDelegado('${p.id}', true)">ON</button>
+                    <button class="prov-stock-btn ${!p.stockDelegado ? 'off-active' : ''}" onclick="toggleStockDelegado('${p.id}', false)">OFF</button>
+                </div>
                 <div class="prov-card-actions">
                     <div class="prov-card-actions-left">
                         <button class="prov-btn-icon" title="${p.pausado ? 'Reactivar panel' : 'Pausar panel'}" onclick="abrirPausarProveedorModal('${p.id}')">${p.pausado ? ICO_REANUDAR_PANEL : ICO_PAUSAR_PANEL}</button>
@@ -4861,6 +4872,37 @@ async function confirmarPausarProveedor() {
         toast(nuevoPausado ? 'Panel pausado' : 'Panel reactivado', true);
     } else {
         toast('No se pudo actualizar el panel — probá de nuevo', 'err');
+    }
+}
+
+// 🆕 "Delegar Stock" — activa/desactiva, para ESTE proveedor, la
+// sección "Stock" en su panel (proveedores.html), donde solo puede
+// marcar en-stock/sin-stock productos YA existentes de su categoría
+// (nunca crear, editar precio ni eliminar nada — ver
+// handleListarStockProveedor/handleToggleStockProveedor en
+// workerproveedores_worker.js, que validan esto también del lado del
+// servidor). Acción instantánea, sin modal de confirmación: a diferencia
+// de "Pausar panel", esto no le bloquea nada al proveedor — solo le
+// agrega o le quita una pestaña.
+async function toggleStockDelegado(id, activo) {
+    const p = PROVEEDORES_CONFIG.find(x => x.id === id);
+    if (!p) { toast('No se encontró el proveedor', 'err'); return; }
+    if (!!p.stockDelegado === !!activo) return; // ya está en ese estado
+    if (activo && !(p.categorias || []).length) {
+        toast('Primero asignale al menos una categoría a este proveedor', 'err');
+        return;
+    }
+    const res = await fetchJson(WORKER_PROVEEDORES + '/api/proveedor-stock-delegado', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ proveedorId: id, activo })
+    });
+    if (res && res.ok) {
+        p.stockDelegado = activo;
+        _guardarProveedoresConfigLocal();
+        _renderProveedoresConfigBody();
+        toast(activo ? 'Stock delegado — ya le aparece la pestaña "Stock"' : 'Stock delegado desactivado', true);
+    } else {
+        toast('No se pudo actualizar — probá de nuevo', 'err');
     }
 }
 
