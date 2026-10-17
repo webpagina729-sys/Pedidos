@@ -125,6 +125,15 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .ped-fecha { font-size: 11px; color: var(--text3); }
 .empty-state { background: var(--surface); border: 1px dashed var(--border2); border-radius: var(--radius); padding: 30px 20px; text-align: center; color: var(--text3); font-size: 13px; }
 
+/* ── 🆕 STOCK (solo visible si el dueño activó "Delegar Stock") ── */
+.stock-grupo-titulo { font-size: 11.5px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .03em; margin: 16px 0 8px; }
+.stock-grupo-titulo:first-child { margin-top: 0; }
+.stock-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 11px 13px; margin-bottom: 8px; }
+.stock-nombre { font-size: 13px; color: var(--text); flex: 1; min-width: 0; overflow-wrap: break-word; }
+.stock-toggle-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--red-pale); color: var(--red); font-family: var(--font); transition: all .15s; }
+.stock-toggle-btn.on { background: var(--green-pale); color: var(--green); border-color: rgba(0,201,110,.3); }
+.stock-toggle-btn:disabled { opacity: .55; cursor: default; }
+
 /* ── ESTADÍSTICAS ──
    🔧 REDISEÑADO: las 4 tarjetas gigantes (.stat-card, ocupando toda la
    pantalla en celular) se reemplazan por cintas desplegables compactas
@@ -414,6 +423,8 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             <button class="menu-btn" id="tab-btn-despacho" onclick="cambiarTab('despacho')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Listos para despachar</button>
             <button class="menu-btn" id="tab-btn-enviados" onclick="cambiarTab('enviados')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M14 18V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h1"/><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1"/><circle cx="6.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>Todos los pedidos enviados</button>
             <button class="menu-btn" id="tab-btn-stats" onclick="cambiarTab('stats')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Estadísticas</button>
+            <!-- 🆕 "Delegar Stock" — oculto por defecto, _chequearStockDelegado() lo muestra solo si el dueño activó el control de stock para este proveedor. -->
+            <button class="menu-btn" id="tab-btn-stock" onclick="cambiarTab('stock')" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Stock</button>
         </div>
 
         <div class="view show" id="view-nuevos">
@@ -439,6 +450,14 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 
         <div class="view" id="view-stats">
             <div id="stats-content"><div class="loader"><div class="spin"></div><p>Cargando estadísticas...</p></div></div>
+        </div>
+
+        <!-- 🆕 "Delegar Stock" — solo marca en-stock/sin-stock productos YA
+             existentes de la categoría delegada; nunca crea, edita precio
+             ni elimina nada del catálogo. -->
+        <div class="view" id="view-stock">
+            <div class="section-sub">Marcá "Sin stock" el producto que se te agotó — vuelve a aparecer disponible en todas las tiendas apenas lo marqués "En stock" otra vez.</div>
+            <div id="stock-content"><div class="loader"><div class="spin"></div><p>Cargando stock...</p></div></div>
         </div>
     </div>
 </div>
@@ -667,6 +686,23 @@ async function entrarConProveedorId(id) {
     document.getElementById('brand-cat').textContent = 'Revende Ways';
     document.getElementById('page-title-sub').textContent = '';
     cargarDatos();
+    // 🆕 "Delegar Stock" — consulta pública (sin sessionToken, mismo
+    // criterio que proveedor-pausado) e independiente de cargarDatos(): no
+    // necesita esperar a que termine de cargar pedidos para saber si debe
+    // mostrar la pestaña "Stock".
+    _chequearStockDelegado(id);
+}
+
+// 🆕 Muestra/oculta la pestaña "Stock" según si el dueño activó, para
+// ESTE proveedor, el control de stock delegado (ver "Delegar Stock" en
+// pedidos.html / handleGetProveedorStockDelegado en
+// workerproveedores_worker.js). Si nunca se activó, el panel queda
+// exactamente igual que antes — no hay pestaña "Stock" en absoluto.
+async function _chequearStockDelegado(id) {
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-delegado?proveedorId=${encodeURIComponent(id)}`);
+    window._stockDelegadoActivo = !!(res && res.ok && res.activo);
+    const btn = document.getElementById('tab-btn-stock');
+    if (btn) btn.style.display = window._stockDelegadoActivo ? '' : 'none';
 }
 
 function cambiarTab(tab) {
@@ -674,6 +710,10 @@ function cambiarTab(tab) {
     document.getElementById('tab-btn-' + tab).classList.add('active');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('show'));
     document.getElementById('view-' + tab).classList.add('show');
+    // 🆕 Carga perezosa: el listado de stock solo se pide la primera vez
+    // que se abre esa pestaña (y no en cada cambiarTab), para no gastar
+    // una llamada extra en cada clic de menú.
+    if (tab === 'stock' && !window._stockCargado) cargarStockProveedor();
 }
 
 // ── Sub-pestañas de "Todos los pedidos enviados" ──
@@ -682,6 +722,81 @@ function cambiarSubTabEnviados(sub) {
     document.getElementById('sub-tab-btn-' + sub).classList.add('active');
     document.querySelectorAll('.sub-view').forEach(v => v.classList.remove('show'));
     document.getElementById('sub-view-' + sub).classList.add('show');
+}
+
+// ── 🆕 "Delegar Stock" ──────────────────────────────────────────────
+// Solo marca en-stock/sin-stock productos YA existentes de la categoría
+// delegada a este proveedor (nunca crea, edita precio ni elimina nada
+// del catálogo) — ver handleListarStockProveedor/handleToggleStockProveedor
+// en workerproveedores_worker.js, que validan todo esto también del lado
+// del servidor (categoría realmente delegada, delegación activa, sesión
+// vigente) sin confiar en lo que mande este archivo.
+async function cargarStockProveedor() {
+    const el = document.getElementById('stock-content');
+    el.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando stock...</p></div>';
+    if (!PROVEEDOR_ID_ACTUAL || !window._sessionToken) {
+        el.innerHTML = `<div class="empty-state">No se pudo verificar la sesión — volvé a "Pedidos" y entrá de nuevo a "Stock".</div>`;
+        return;
+    }
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&sessionToken=${encodeURIComponent(window._sessionToken)}`);
+    if (!res || !res.ok) {
+        el.innerHTML = `<div class="empty-state">No se pudo cargar el stock${res && res.error ? ': ' + esc(res.error) : ''}.</div>`;
+        return;
+    }
+    window._stockCargado = true;
+    window._stockProductos = res.productos || [];
+    _renderStockProveedor();
+}
+
+function _renderStockProveedor() {
+    const el = document.getElementById('stock-content');
+    const productos = window._stockProductos || [];
+    if (!productos.length) {
+        el.innerHTML = `<div class="empty-state">Todavía no hay productos cargados en tu categoría.</div>`;
+        return;
+    }
+    // Agrupado por subcategoría SOLO si hay más de una (ej. "Belleza" trae
+    // Maquillaje + Perfumes) — con una sola, se muestra como lista simple
+    // sin subtítulos de más.
+    const porCategoria = {};
+    productos.forEach(p => { (porCategoria[p.categoria] = porCategoria[p.categoria] || []).push(p); });
+    const grupos = Object.keys(porCategoria);
+    el.innerHTML = grupos.map(cat => `
+        ${grupos.length > 1 ? `<div class="stock-grupo-titulo">${esc(cat.replace(/_/g, ' '))}</div>` : ''}
+        ${porCategoria[cat].map(p => _stockFilaHTML(p)).join('')}
+    `).join('');
+}
+
+function _stockFilaHTML(p) {
+    return `<div class="stock-fila" id="stock-fila-${p.categoria}-${p.id}">
+        <span class="stock-nombre">${esc(p.nombre)}</span>
+        <button class="stock-toggle-btn ${p.enStock ? 'on' : ''}" onclick="toggleStockProveedor('${esc(p.categoria)}', ${p.id})">${p.enStock ? '✅ En stock' : '⛔ Sin stock'}</button>
+    </div>`;
+}
+
+async function toggleStockProveedor(categoria, productId) {
+    const producto = (window._stockProductos || []).find(p => p.categoria === categoria && p.id === productId);
+    if (!producto) return;
+    const nuevoEnStock = !producto.enStock;
+    const fila = document.getElementById(`stock-fila-${categoria}-${productId}`);
+    const btn = fila ? fila.querySelector('.stock-toggle-btn') : null;
+    if (btn) btn.disabled = true;
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-toggle`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock })
+    });
+    if (res && res.ok) {
+        producto.enStock = nuevoEnStock;
+        if (btn) {
+            btn.className = 'stock-toggle-btn' + (nuevoEnStock ? ' on' : '');
+            btn.textContent = nuevoEnStock ? '✅ En stock' : '⛔ Sin stock';
+            btn.disabled = false;
+        }
+        toast(nuevoEnStock ? 'Producto marcado como en stock' : 'Producto marcado como sin stock', true);
+    } else {
+        if (btn) btn.disabled = false;
+        toast('No se pudo actualizar' + (res && res.error ? ': ' + res.error : ''), false);
+    }
 }
 
 // ── Carga de datos ──
