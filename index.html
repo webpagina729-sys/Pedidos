@@ -1187,6 +1187,9 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Agregar Categoría</span><button type="button" class="cp-cerrar" onclick="cerrarAgregarCategoria()">Cerrar</button></h3>
 
         <div id="catMetaForm">
+            <!-- 🆕 Categorías ya creadas con este modal, con su botón para eliminarlas.
+                 Se llena en abrirAgregarCategoria() → cargarCategoriasExtraLista(). -->
+            <div id="catExtraLista" style="display:none;margin-bottom:12px"></div>
             <label style="display:block;font-size:12.5px;margin:6px 0 4px">Nombre de Categoría</label>
             <input id="catNombre" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: Mascotas" autocomplete="off"/>
             <label style="display:block;font-size:12.5px;margin:6px 0 4px">Descripción</label>
@@ -1206,8 +1209,8 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div id="catPerfilBox" style="display:none">
             <p style="font-size:12.5px;color:var(--text2);margin:10px 0 10px">¿Dónde vas a agregar esta categoría?</p>
             <div class="cp-repo-opciones">
-                <button type="button" class="btn-head cp-repo-opcion" onclick="catElegirPerfil(1)">Perfil 1</button>
-                <button type="button" class="btn-head cp-repo-opcion" onclick="catElegirPerfil(2)">Perfil 2</button>
+                <button type="button" class="btn-head cp-repo-opcion" onclick="catElegirPerfil(1)">Agregar en Inicio</button>
+                <button type="button" class="btn-head cp-repo-opcion" onclick="catElegirPerfil(2)">Agregar en Más Categorías</button>
             </div>
             <div class="modal-actions cp-acciones">
                 <button type="button" class="btn-head" onclick="catVolverAMeta()">Volver</button>
@@ -6745,11 +6748,69 @@ function abrirAgregarCategoria() {
     document.getElementById('catPerfilBox').style.display = 'none';
     document.getElementById('catProductosBox').style.display = 'none';
     document.getElementById('agregarCategoriaModal').classList.add('show');
+    cargarCategoriasExtraLista();
 }
 
 function cerrarAgregarCategoria() {
     document.getElementById('agregarCategoriaModal').classList.remove('show');
     _catNueva = null;
+}
+
+// 🆕 Lista, dentro del mismo modal, las categorías ya creadas con
+// "Agregar Categoría" (vía /api/categorias/listar — público, de solo
+// lectura) y permite eliminarlas con eliminarCategoriaExtra().
+async function cargarCategoriasExtraLista() {
+    const box = document.getElementById('catExtraLista');
+    if (!box) return;
+    box.style.display = 'none';
+    box.innerHTML = '';
+    const res = await fetchJson(WORKER_PRECIOS + '/api/categorias/listar').catch(() => null);
+    const cats = (res && res.ok && Array.isArray(res.categorias)) ? res.categorias : [];
+    if (!cats.length) return;
+    box.style.display = 'block';
+    box.innerHTML = '<label style="display:block;font-size:12.5px;margin:0 0 6px">Categorías ya creadas</label>' +
+        cats.map(c => `<div class="cp-linea" style="display:flex;align-items:center;gap:8px;justify-content:space-between">
+            <div style="min-width:0;overflow:hidden">
+                <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.nombre)}</div>
+                <div style="font-size:11px;color:var(--text3)">${c.perfil === 2 ? 'Más categorías' : 'Inicio'}</div>
+            </div>
+            <button type="button" class="btn-act" title="Eliminar categoría" style="flex-shrink:0;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="eliminarCategoriaExtra('${esc(c.id)}','${esc(c.nombre).replace(/'/g, "\\'")}')">${_ICO_BASURA}</button>
+        </div>`).join('');
+}
+
+// 🆕 Elimina para siempre una categoría creada con "Agregar Categoría":
+// borra la categoría y su catálogo del Worker de precios, y limpia sus
+// productos del Worker de restoprecios.js (ambos por nombre, mismo
+// endpoint que ya usa el resto del panel: /api/restoprecio/eliminar).
+async function eliminarCategoriaExtra(id, nombre) {
+    if (!confirm('¿Eliminar la categoría "' + nombre + '" para siempre? Se van a borrar también todos sus productos. Esta acción no se puede deshacer.')) return;
+    const res = await fetchJson(WORKER_PRECIOS + '/api/categorias/eliminar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id })
+    });
+    if (!res || !res.ok) {
+        toast('No se pudo eliminar la categoría' + (res && res.error ? ': ' + res.error : ''), 'err');
+        return;
+    }
+    const productos = Array.isArray(res.productos) ? res.productos : [];
+    for (const p of productos) {
+        await fetchJson(RESTOPRECIOS_WORKER + 'api/restoprecio/eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ nombre: p })
+        }).catch(() => {});
+    }
+    // Si quedó registrada en memoria en esta misma sesión del panel (recién
+    // creada), se saca también de ahí para que no siga apareciendo en Stock.
+    delete STOCK_CAT_LABELS[id];
+    delete STOCK_CAT_SUBCATS[id];
+    delete CATALOGOS_CENTRALES[id];
+    delete REPOS_CENTRALES[id];
+    delete CATALOGO_PRODUCTOS_GLOBAL[id];
+    toast('Categoría "' + nombre + '" eliminada', true);
+    cargarCategoriasExtraLista();
+    if (typeof renderStockLista === 'function') renderStockLista();
 }
 
 function catPedirPerfil() {
