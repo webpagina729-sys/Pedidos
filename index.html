@@ -926,7 +926,7 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 <div class="rvndr-overlay" id="wa-config-modal">
     <div class="rvndr-box" style="max-width:480px;position:relative">
         <div class="rvndr-head">
-            <h3>WhatsApp de proveedores</h3>
+            <h3 style="color:#000">WhatsApp de proveedores</h3>
             <button class="rvndr-close" onclick="document.getElementById('wa-config-modal').classList.remove('show')">✕</button>
         </div>
         <div class="rvndr-body" id="wa-config-body"></div>
@@ -1201,7 +1201,22 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             <label style="display:block;font-size:12.5px;margin:6px 0 4px">Descripción</label>
             <input id="catDescripcion" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: Accesorios y alimento para mascotas, reventa" autocomplete="off"/>
             <label style="display:block;font-size:12.5px;margin:6px 0 4px">Objetivo</label>
-            <input id="catObjetivo" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: $150.000 o 15 productos" autocomplete="off"/>
+            <!-- 🆕 Selector explícito en vez de texto libre — antes había que
+                 adivinar la palabra clave correcta ("productos"/"unidades")
+                 para que index (1).html lo interpretara bien; ahora no hay
+                 ambigüedad posible. catObjetivoValor()/catElegirPerfil()
+                 arman el mismo formato de texto que siempre esperó el
+                 parser de index (1).html (parseObjetivoTexto), así que no
+                 hace falta tocar nada ahí. -->
+            <div style="display:flex;gap:16px;margin-bottom:6px">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+                    <input type="radio" name="catObjetivoTipo" value="monto" checked onchange="catActualizarObjetivoPlaceholder()"> Monto en $
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+                    <input type="radio" name="catObjetivoTipo" value="unidades" onchange="catActualizarObjetivoPlaceholder()"> Cantidad de productos
+                </label>
+            </div>
+            <input id="catObjetivoValor" type="number" min="0" step="1" inputmode="numeric" class="rvndr-search" style="margin-bottom:6px" placeholder="Ej: 150000" autocomplete="off"/>
             <label style="display:block;font-size:12.5px;margin:6px 0 4px">Repositorio de categoría</label>
             <input id="catRepo" class="rvndr-search" style="margin-bottom:6px" placeholder="https://github.com/usuario/repositorio" autocomplete="off"/>
             <label style="display:block;font-size:12.5px;margin:6px 0 4px">Imágenes de carrusel</label>
@@ -6783,7 +6798,9 @@ function abrirAgregarCategoria() {
     _catNueva = null;
     document.getElementById('catNombre').value = '';
     document.getElementById('catDescripcion').value = '';
-    document.getElementById('catObjetivo').value = '';
+    document.getElementById('catObjetivoValor').value = '';
+    document.querySelector('input[name="catObjetivoTipo"][value="monto"]').checked = true;
+    catActualizarObjetivoPlaceholder();
     document.getElementById('catRepo').value = '';
     document.getElementById('catCarrusel').value = '';
     document.getElementById('catMetaForm').style.display = 'block';
@@ -6791,6 +6808,15 @@ function abrirAgregarCategoria() {
     document.getElementById('catProductosBox').style.display = 'none';
     document.getElementById('agregarCategoriaModal').classList.add('show');
     cargarCategoriasExtraLista();
+}
+
+// 🆕 Cambia el placeholder del número según el tipo de objetivo elegido
+// (monto en $ o cantidad de productos) — solo cosmético, no cambia qué
+// se manda al crear la categoría (eso lo arma catElegirPerfil()).
+function catActualizarObjetivoPlaceholder() {
+    const tipo = document.querySelector('input[name="catObjetivoTipo"]:checked')?.value || 'monto';
+    const input = document.getElementById('catObjetivoValor');
+    if (input) input.placeholder = tipo === 'unidades' ? 'Ej: 15' : 'Ej: 150000';
 }
 
 function cerrarAgregarCategoria() {
@@ -6872,7 +6898,14 @@ async function catElegirPerfil(perfil) {
     document.querySelectorAll('#catPerfilBox button').forEach(b => b.disabled = true);
     const nombre = document.getElementById('catNombre').value.trim();
     const descripcion = document.getElementById('catDescripcion').value.trim();
-    const objetivo = document.getElementById('catObjetivo').value.trim();
+    // 🆕 Arma el mismo formato de texto que siempre esperó el parser de
+    // index (1).html (parseObjetivoTexto) a partir del selector + número,
+    // en vez de depender de que se escriba la palabra clave correcta a
+    // mano. "unidades" → "<n> productos" (dispara la rama de unidades);
+    // "monto" → el número solo (dispara la rama de monto en $).
+    const objetivoTipo = document.querySelector('input[name="catObjetivoTipo"]:checked')?.value || 'monto';
+    const objetivoValor = document.getElementById('catObjetivoValor').value.trim();
+    const objetivo = objetivoValor ? (objetivoTipo === 'unidades' ? `${objetivoValor} productos` : objetivoValor) : '';
     const repo = document.getElementById('catRepo').value.trim();
     const carrusel = document.getElementById('catCarrusel').value.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
 
