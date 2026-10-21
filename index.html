@@ -1942,6 +1942,12 @@ function catOf(items, nichoHint) {
         if (n === 'libreria' || n === 'librería') return 'libreria';
         if (n === 'lenceria' || n === 'lencería' || n.includes('lencer') || n.includes('conjunto')) return 'lenceria';
         if (n === 'suplementos' || n.includes('suplement') || n.includes('salud')) return 'suplementos';
+        // 🔧 FIX: faltaba esta rama — era la única categoría canónica sin
+        // reconocimiento por nichoHint acá, así que un pedido viejo de
+        // Indumentaria sin "categoria" cargado (solo "nicho") caía al
+        // fallback por palabras clave de abajo y terminaba mal etiquetado
+        // como "multishop", igual que ya le pasaba por faltar en CAT_LABELS.
+        if (n === 'indumentaria' || n.includes('indument')) return 'indumentaria';
         if (n === 'multishop' || n.includes('multi')) return 'multishop';
     }
     const nm = i => (i.nombre || '').toUpperCase();
