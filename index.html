@@ -4723,7 +4723,7 @@ function mostrarFormProveedor(id) {
             <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px">Número de WhatsApp</label>
             <div style="display:flex;align-items:stretch;border:1px solid var(--border2);border-radius:9px;overflow:hidden;margin-bottom:10px">
                 <span style="display:flex;align-items:center;padding:9px 10px;background:var(--bg2);font-size:12.5px;font-weight:700;color:var(--text2);white-space:nowrap">+549</span>
-                <input type="tel" id="proveedor-form-numero" placeholder="2395401234" style="flex:1;border:none;outline:none;padding:9px 10px;font-size:13px;background:transparent;color:var(--text)" value="${esc((p?.numero||'').replace(/^549/,''))}">
+                <input type="tel" id="proveedor-form-numero" placeholder="2395401234" style="flex:1;border:none;outline:none;padding:9px 10px;font-size:13px;background:transparent;color:#000" value="${esc((p?.numero||'').replace(/^549/,''))}">
             </div>
             <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px">Categorías asignadas (podés elegir varias)</label>
             <div id="proveedor-form-cats" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
