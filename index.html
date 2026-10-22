@@ -4663,6 +4663,28 @@ function _guardarProveedoresConfigLocal() {
 // que sin abrirlo ningún pedido llegaba a proveedores.html.
 _cargarProveedoresConfigLocal();
 
+// 🔧 FIX: las categorías creadas con "Agregar Categoría" nunca podían
+// delegarse a un proveedor — el selector de "⚙️ WhatsApp de proveedores"
+// solo ofrecía las categorías clásicas de CAT_LABELS (una lista fija), así
+// que proveedorDeCategoria() siempre devolvía null para una categoría
+// nueva y sus pedidos quedaban con proveedorId:null para siempre, sin
+// llegar jamás a proveedores.html (mismo problema que ya tenía
+// "Indumentaria" antes de agregarla a mano a CAT_LABELS, pero ahora
+// resuelto de forma genérica para CUALQUIER categoría nueva). Este mapa
+// (id -> nombre) se completa con las categorías dinámicas ya creadas
+// (/api/categorias/listar, público/solo lectura) y se usa para ofrecerlas
+// también como opción al delegar un proveedor.
+let CATEGORIAS_EXTRA_MAP = {};
+async function _cargarCategoriasExtraMap() {
+    try {
+        const res = await fetchJson(WORKER_PRECIOS + '/api/categorias/listar');
+        const mapa = {};
+        if (res && res.ok && Array.isArray(res.categorias)) res.categorias.forEach(c => { mapa[c.id] = c.nombre; });
+        CATEGORIAS_EXTRA_MAP = mapa;
+    } catch (_) {}
+}
+_cargarCategoriasExtraMap();
+
 // Resuelve qué proveedor tiene asignada una categoría (el primero que la
 // incluya en su lista de categorías) — usado para agrupar facturas/envíos
 // de "Enviar Pedidos" por proveedor en vez de por categoría suelta.
@@ -4687,6 +4709,7 @@ async function abrirConfigWhatsappProveedores() {
         document.getElementById('wa-config-modal').classList.add('show');
         await cargarWhatsappProveedores();
         _cargarProveedoresConfigLocal();
+        await _cargarCategoriasExtraMap();
         _proveedorEditandoId = null;
         _renderProveedoresConfigBody();
     });
@@ -4729,7 +4752,10 @@ function _renderProveedoresConfigBody() {
 function mostrarFormProveedor(id) {
     _proveedorEditandoId = id;
     const p = id ? PROVEEDORES_CONFIG.find(x => x.id === id) : null;
-    const cats = Object.keys(CAT_LABELS);
+    // 🔧 FIX: suma las categorías creadas con "Agregar Categoría" (que no
+    // están en CAT_LABELS, ver CATEGORIAS_EXTRA_MAP más arriba) a las
+    // clásicas, para que también se puedan delegar a un proveedor.
+    const cats = Object.keys(CAT_LABELS).concat(Object.keys(CATEGORIAS_EXTRA_MAP).filter(catId => !CAT_LABELS[catId]));
     const catsSeleccionadas = new Set(p?.categorias || []);
     const wrap = document.getElementById('proveedor-form-wrap');
     wrap.style.display = 'block';
@@ -4745,7 +4771,7 @@ function mostrarFormProveedor(id) {
             <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px">Categorías asignadas (podés elegir varias)</label>
             <div id="proveedor-form-cats" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                 ${cats.map(c => `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#000">
-                    <input type="checkbox" value="${c}" ${catsSeleccionadas.has(c) ? 'checked' : ''}> ${catIcon(c)} ${esc(CAT_LABELS[c])}
+                    <input type="checkbox" value="${c}" ${catsSeleccionadas.has(c) ? 'checked' : ''}> ${catIcon(c)} ${esc(CAT_LABELS[c] || CATEGORIAS_EXTRA_MAP[c] || c)}
                 </label>`).join('')}
             </div>
             <div style="display:flex;gap:8px">
