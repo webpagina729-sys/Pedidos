@@ -1170,6 +1170,17 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div id="cargarProductosRepoBox"></div>
         <div id="cargarProductosForm" style="display:none">
             <select id="cargarProductosSub" class="rvndr-search" style="display:none"></select>
+            <!-- 🆕 "Pegar catálogo": convierte automáticamente un listado pegado
+                 (formato "1) Nombre: ... / Imagen: ... / Precio mayorista: ...")
+                 en filas de producto, sin tipear cada campo a mano. Sigue
+                 pasando por "Confirmar" → elegir repositorio → /api/catalogo/agregar,
+                 el mismo camino que ya funciona, así que los productos quedan
+                 cargados de verdad en el KV y visibles con su nombre acá mismo. -->
+            <div style="margin-bottom:12px;padding:10px;border:1px dashed var(--border2);border-radius:9px">
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Pegar catálogo (carga varios productos de una, sin tipear cada campo)</label>
+                <textarea id="pegarCatalogoTexto" class="rvndr-search" style="min-height:90px;resize:vertical;margin-bottom:6px" placeholder="Pegá acá el listado completo (Nombre / Imagen / Precio mayorista / worker restoprecios / Características / Momento ideal)..."></textarea>
+                <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="pegarCatalogoEnFilas()">Convertir en filas de productos</button>
+            </div>
             <div id="cargarProductosLista"></div>
             <div class="modal-actions cp-acciones">
                 <button type="button" class="btn-head" onclick="agregarFilaProducto()">+ Agregar otro producto</button>
@@ -6601,7 +6612,7 @@ function renderStockLista() {
             <button class="btn-act ${enStock ? 'btn-domicilio' : 'btn-del'}" style="flex-shrink:0" onclick="toggleStockGlobal('${p._subcat}',${p.id},${!enStock})">
                 ${enStock ? '✓ En stock' : '✕ Sin stock'}
             </button>
-            ${CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] ? `<button class="btn-act btn-del" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Eliminar definitivamente</button>` : ''}
+            ${(CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] || []).includes(p.id) ? `<button class="btn-act btn-del" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Eliminar definitivamente</button>` : ''}
             ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._agregado ? _claveCatalogoCentral(p._subcat) : p._subcat}',${p.id})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
             </button>` : ''}
@@ -7057,6 +7068,71 @@ async function guardarRepoCategoria(indexEditar) {
     }
 }
 
+// 🆕 "Pegar catálogo" — convierte un listado de texto pegado (el mismo
+// formato con el que se arman los catálogos a mano: cada producto numerado
+// "1)", con líneas "Nombre:", "Imagen:", "worker restoprecios:", "Precio
+// mayorista:", "Características:" (varias líneas) y "Momento ideal:"
+// (varias líneas)) en productos listos para _leerFilasProductosDesde(), que
+// ya es exactamente lo que espera /api/catalogo/agregar. "Información:" no
+// tiene campo propio en ese endpoint (solo nombre/imagen/precio/resto/
+// características/momento/variantes) así que se ignora, igual que ya pasa
+// con cualquier dato que no tenga dónde guardarse hoy.
+function _limpiarLineaArbolCatalogo(l) {
+    // Saca los caracteres de dibujo de árbol (├ │ └ ─) y espacios del borde.
+    return String(l || '').replace(/^[\s│├└─]+/, '').trim();
+}
+function _parsearCatalogoPegado(texto) {
+    const CAMPOS_LISTA = { 'características': 'caracteristicas', 'caracteristicas': 'caracteristicas', 'información': 'informacion', 'informacion': 'informacion', 'momento ideal': 'momento' };
+    const productos = [];
+    let actual = null, campoListaActual = null;
+    String(texto || '').split(/\r?\n/).forEach(raw => {
+        const linea = _limpiarLineaArbolCatalogo(raw);
+        if (!linea) return;
+        if (/^\d+\)$/.test(linea)) { actual = { nombre: '', imagen: '', precio: 0, resto: 0, caracteristicas: [], momento: [] }; productos.push(actual); campoListaActual = null; return; }
+        if (!actual) return;
+        let m;
+        if ((m = linea.match(/^Nombre:\s*(.+)$/i))) { actual.nombre = m[1].trim(); campoListaActual = null; return; }
+        if ((m = linea.match(/^Imagen:\s*(.+)$/i))) { actual.imagen = m[1].trim(); campoListaActual = null; return; }
+        if ((m = linea.match(/^worker restoprecios:\s*(.+)$/i))) { actual.resto = _parsePrecioAR(m[1]); campoListaActual = null; return; }
+        if ((m = linea.match(/^Precio mayorista:\s*(.+)$/i))) { actual.precio = _parsePrecioAR(m[1]); campoListaActual = null; return; }
+        if (/^%\s*aplicado:/i.test(linea)) { campoListaActual = null; return; }
+        if ((m = linea.match(/^([A-Za-zÁÉÍÓÚáéíóúÑñ ]+):\s*$/))) {
+            const clave = m[1].trim().toLowerCase();
+            campoListaActual = CAMPOS_LISTA[clave] || null;
+            return;
+        }
+        if (campoListaActual === 'caracteristicas') { actual.caracteristicas.push(linea.replace(/^[-•]\s*/, '')); return; }
+        if (campoListaActual === 'momento') { actual.momento.push(linea.replace(/^[-•]\s*/, '')); return; }
+        // campoListaActual === 'informacion' (o ninguno reconocido): se ignora.
+    });
+    return productos.filter(p => p.nombre).map(p => ({
+        nombre: p.nombre, imagen: p.imagen, precio: p.precio, resto: p.resto,
+        caracteristicas: p.caracteristicas.join(', '), momento: p.momento.join(' / '),
+    }));
+}
+function pegarCatalogoEnFilas() {
+    const ta = document.getElementById('pegarCatalogoTexto');
+    const texto = ta ? ta.value : '';
+    if (!texto.trim()) { toast('Pegá primero el listado de productos', 'err'); return; }
+    const productos = _parsearCatalogoPegado(texto);
+    if (!productos.length) { toast('No se reconoció ningún producto en el texto pegado — revisá el formato', 'err'); return; }
+    const lista = document.getElementById('cargarProductosLista');
+    lista.innerHTML = '';
+    productos.forEach(p => {
+        agregarFilaProducto('cargarProductosLista');
+        const fila = lista.lastElementChild;
+        fila.querySelector('.cp-nombre').value = p.nombre;
+        fila.querySelector('.cp-imagen').value = p.imagen;
+        fila.querySelector('.cp-precio').value = p.precio ? String(p.precio) : '';
+        fila.querySelector('.cp-resto').value = p.resto ? String(p.resto) : '';
+        fila.querySelector('.cp-caracteristicas').value = p.caracteristicas;
+        fila.querySelector('.cp-momento').value = p.momento;
+    });
+    ta.value = '';
+    const incompletos = productos.filter(p => !p.nombre || !p.imagen || !(p.precio > 0)).length;
+    toast(productos.length + (productos.length === 1 ? ' producto cargado en la lista' : ' productos cargados en la lista') + (incompletos ? ` — ${incompletos} necesitan revisión (falta nombre, imagen o precio)` : '') + '. Revisá y tocá "Confirmar".', !incompletos);
+}
+
 function agregarFilaProducto(contId) {
     const lista = document.getElementById(contId || 'cargarProductosLista');
     const n = lista.children.length + 1;
@@ -7318,7 +7394,15 @@ async function eliminarProductoDefinitivo(subcat, productId) {
         }).catch(() => {});
         toast('Producto eliminado definitivamente', true);
     } else {
-        toast('No se pudo eliminar' + (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : ''), 'err');
+        // 🔧 FIX: antes solo mostraba el código HTTP ("código 409"/"código
+        // 404") sin decir el motivo real — el Worker SÍ manda un mensaje
+        // claro (ej. "El catálogo todavía no fue cargado" o "Producto no
+        // encontrado") en el cuerpo de la respuesta, pero fetchJson()
+        // devuelve null en cualquier error HTTP y ese cuerpo queda solo en
+        // window._lastFetchError.detalle (texto crudo) sin mostrarse nunca.
+        let motivo = '';
+        try { motivo = JSON.parse(window._lastFetchError?.detalle || '').error || ''; } catch (_) {}
+        toast('No se pudo eliminar' + (motivo ? ': ' + motivo : (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : '')), 'err');
     }
 }
 
