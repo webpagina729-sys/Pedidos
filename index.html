@@ -7114,14 +7114,20 @@ function _parsearCatalogoPegado(texto) {
     String(texto || '').split(/\r?\n/).forEach(raw => {
         const linea = _limpiarLineaArbolCatalogo(raw);
         if (!linea) return;
-        if (/^\d+\)$/.test(linea)) { actual = { nombre: '', imagen: '', precio: 0, resto: 0, caracteristicas: [], momento: [] }; productos.push(actual); campoListaActual = null; return; }
+        if (/^\d+\)$/.test(linea)) { actual = { nombre: '', imagen: '', precio: 0, resto: 0, caracteristicas: [], momento: [], variantes: [] }; productos.push(actual); campoListaActual = null; return; }
         if (!actual) return;
         let m;
         if ((m = linea.match(/^Nombre:\s*(.+)$/i))) { actual.nombre = m[1].trim(); campoListaActual = null; return; }
+        if ((m = linea.match(/^Variantes?:\s*(.+)$/i))) { actual.variantes = m[1].split('/').map(s => s.trim()).filter(Boolean); campoListaActual = null; return; }
         if ((m = linea.match(/^Imagen:\s*(.+)$/i))) { actual.imagen = m[1].trim(); campoListaActual = null; return; }
         if ((m = linea.match(/^worker restoprecios:\s*(.+)$/i))) { actual.resto = _parsePrecioAR(m[1]); campoListaActual = null; return; }
         if ((m = linea.match(/^Precio mayorista:\s*(.+)$/i))) { actual.precio = _parsePrecioAR(m[1]); campoListaActual = null; return; }
         if (/^%\s*aplicado:/i.test(linea)) { campoListaActual = null; return; }
+        // 🆕 "Características:" (o "Características del producto:") en UNA
+        // sola línea, con el texto ya pegado después de los dos puntos —
+        // formato que también se usa, además del de "varias líneas" de
+        // abajo (header solo, con los detalles en las líneas siguientes).
+        if ((m = linea.match(/^Caracter[ií]stica[s]?[^:]*:\s*(.+)$/i))) { actual.caracteristicas.push(m[1].trim()); campoListaActual = null; return; }
         if ((m = linea.match(/^([A-Za-zÁÉÍÓÚáéíóúÑñ ]+):\s*$/))) {
             const clave = m[1].trim().toLowerCase();
             campoListaActual = CAMPOS_LISTA[clave] || null;
@@ -7134,6 +7140,7 @@ function _parsearCatalogoPegado(texto) {
     return productos.filter(p => p.nombre).map(p => ({
         nombre: p.nombre, imagen: p.imagen, precio: p.precio, resto: p.resto,
         caracteristicas: p.caracteristicas.join(', '), momento: p.momento.join(' / '),
+        variantes: p.variantes,
     }));
 }
 function pegarCatalogoEnFilas() {
@@ -7153,6 +7160,16 @@ function pegarCatalogoEnFilas() {
         fila.querySelector('.cp-resto').value = p.resto ? String(p.resto) : '';
         fila.querySelector('.cp-caracteristicas').value = p.caracteristicas;
         fila.querySelector('.cp-momento').value = p.momento;
+        // 🆕 Si el producto pegado traía "Variante: #01 / #02 / ...", se
+        // arma automáticamente una línea de variantes con esas opciones
+        // (misma lógica que "+ Agregar variantes" hecha a mano).
+        if (p.variantes && p.variantes.length) {
+            cpAgregarLinea(fila.querySelector('.cp-var-toggle'));
+            const linea = fila.querySelector('.cp-linea');
+            linea.querySelector('.cp-linea-nombre').value = 'Variante';
+            linea._opts = p.variantes.slice(0, 30);
+            cpRenderOpciones(linea);
+        }
     });
     ta.value = '';
     const incompletos = productos.filter(p => !p.nombre || !p.imagen || !(p.precio > 0)).length;
