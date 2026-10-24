@@ -470,6 +470,12 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 /* ── generic MODAL ── */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:450; display:none; align-items:center; justify-content:center; padding:16px; }
 .modal-overlay.show { display:flex; }
+/* 🔧 FIX: este modal de confirmación se abre arriba de "Avisos
+   Publicados" (.rvndr-overlay, z-index:500) — con el z-index genérico
+   de .modal-overlay (450) quedaba tapado detrás y parecía que el botón
+   "Eliminar" no hacía nada. Solo se sube el z-index de ESTE modal
+   puntual, el resto de los .modal-overlay del archivo no cambia. */
+#aviso-eliminar-modal.show { z-index: 501; }
 .modal-box { background: var(--surface); border:1px solid var(--border2); border-radius:14px; padding:24px; width:100%; max-width:380px; max-height:90vh; overflow-y:auto; text-align:center; box-shadow: var(--shadow-lg); }
 .modal-icon { width:44px; height:44px; border-radius:50%; background: var(--red-pale); display:flex; align-items:center; justify-content:center; margin: 0 auto 14px; }
 .modal-box h3 { font-size:16px; font-weight:800; margin-bottom:8px; }
