@@ -7109,6 +7109,11 @@ async function guardarRepoCategoria(indexEditar) {
 // tiene campo propio en ese endpoint (solo nombre/imagen/precio/resto/
 // características/momento/variantes) así que se ignora, igual que ya pasa
 // con cualquier dato que no tenga dónde guardarse hoy.
+// 🆕 Tope de opciones por línea de variante: 10 para la mayoría, 14 para
+// "Talle"/"Talles" (más números de talle que de otras variantes).
+function _limiteOpcionesVariante(nombre) {
+    return /^talles?$/i.test(String(nombre || '').trim()) ? 14 : 10;
+}
 function _limpiarLineaArbolCatalogo(l) {
     // Saca los caracteres de dibujo de árbol (├ │ └ ─) y espacios del borde.
     return String(l || '').replace(/^[\s│├└─]+/, '').trim();
@@ -7120,12 +7125,20 @@ function _parsearCatalogoPegado(texto) {
     String(texto || '').split(/\r?\n/).forEach(raw => {
         const linea = _limpiarLineaArbolCatalogo(raw);
         if (!linea) return;
-        if (/^\d+\)$/.test(linea)) { actual = { nombre: '', imagen: '', precio: 0, resto: 0, caracteristicas: [], momento: [], variantes: [] }; productos.push(actual); campoListaActual = null; return; }
+        if (/^\d+\)$/.test(linea)) { actual = { nombre: '', imagen: '', precio: 0, resto: 0, caracteristicas: [], momento: [], variantes: [], imagenesExtra: [], lineasVariantes: [] }; productos.push(actual); campoListaActual = null; return; }
         if (!actual) return;
         let m;
         if ((m = linea.match(/^Nombre:\s*(.+)$/i))) { actual.nombre = m[1].trim(); campoListaActual = null; return; }
         if ((m = linea.match(/^Variantes?:\s*(.+)$/i))) { actual.variantes = m[1].split('/').map(s => s.trim()).filter(Boolean); campoListaActual = null; return; }
-        if ((m = linea.match(/^Imagen:\s*(.+)$/i))) { actual.imagen = m[1].trim(); campoListaActual = null; return; }
+        // 🆕 "Imagen: foto1.png / foto2.png / ..." — la primera queda como
+        // imagen principal (igual que antes) y el resto como imágenes extra
+        // para el carrusel (mismo campo que ya usa "+ Agregar otra imagen").
+        if ((m = linea.match(/^Imagen:\s*(.+)$/i))) {
+            const imgs = m[1].split('/').map(s => s.trim()).filter(Boolean);
+            actual.imagen = imgs[0] || '';
+            actual.imagenesExtra = imgs.slice(1);
+            campoListaActual = null; return;
+        }
         if ((m = linea.match(/^worker restoprecios:\s*(.+)$/i))) { actual.resto = _parsePrecioAR(m[1]); campoListaActual = null; return; }
         if ((m = linea.match(/^Precio mayorista:\s*(.+)$/i))) { actual.precio = _parsePrecioAR(m[1]); campoListaActual = null; return; }
         if (/^%\s*aplicado:/i.test(linea)) { campoListaActual = null; return; }
@@ -7134,6 +7147,23 @@ function _parsearCatalogoPegado(texto) {
         // formato que también se usa, además del de "varias líneas" de
         // abajo (header solo, con los detalles en las líneas siguientes).
         if ((m = linea.match(/^Caracter[ií]stica[s]?[^:]*:\s*(.+)$/i))) { actual.caracteristicas.push(m[1].trim()); campoListaActual = null; return; }
+        // 🆕 "Momento ideal: ..." en una sola línea (además del formato de
+        // "varias líneas" ya soportado abajo vía campoListaActual).
+        if ((m = linea.match(/^Momento ideal:\s*(.+)$/i))) { actual.momento.push(m[1].trim()); campoListaActual = null; return; }
+        // 🆕 Cualquier otro campo "Etiqueta: opción1 / opción2 / ..." (por
+        // ejemplo "Color:", "Talles:") se guarda como una línea de variantes
+        // más, con ese mismo nombre — igual que si se hubiera agregado a
+        // mano con "+ Agregar variantes" / "+ Nueva Línea". Esto va DESPUÉS
+        // de todos los campos ya conocidos de arriba (que siempre tienen
+        // prioridad) y antes del patrón de "Etiqueta:" sin nada después de
+        // los dos puntos (ese es para las secciones de varias líneas).
+        if ((m = linea.match(/^([A-Za-zÁÉÍÓÚáéíóúÑñ ]+):\s*(.+)$/))) {
+            const etiqueta = m[1].trim();
+            const opciones = m[2].split('/').map(s => s.trim()).filter(Boolean);
+            if (opciones.length) actual.lineasVariantes.push({ nombre: etiqueta, opciones });
+            campoListaActual = null;
+            return;
+        }
         if ((m = linea.match(/^([A-Za-zÁÉÍÓÚáéíóúÑñ ]+):\s*$/))) {
             const clave = m[1].trim().toLowerCase();
             campoListaActual = CAMPOS_LISTA[clave] || null;
@@ -7144,9 +7174,9 @@ function _parsearCatalogoPegado(texto) {
         // campoListaActual === 'informacion' (o ninguno reconocido): se ignora.
     });
     return productos.filter(p => p.nombre).map(p => ({
-        nombre: p.nombre, imagen: p.imagen, precio: p.precio, resto: p.resto,
+        nombre: p.nombre, imagen: p.imagen, imagenesExtra: p.imagenesExtra, precio: p.precio, resto: p.resto,
         caracteristicas: p.caracteristicas.join(', '), momento: p.momento.join(' / '),
-        variantes: p.variantes,
+        variantes: p.variantes, lineasVariantes: p.lineasVariantes,
     }));
 }
 function pegarCatalogoEnFilas() {
@@ -7162,20 +7192,35 @@ function pegarCatalogoEnFilas() {
         const fila = lista.lastElementChild;
         fila.querySelector('.cp-nombre').value = p.nombre;
         fila.querySelector('.cp-imagen').value = p.imagen;
+        // 🆕 Si "Imagen:" traía varios nombres separados por "/", el resto
+        // (más allá del principal) se agrega como imágenes extra del
+        // carrusel — mismo campo que llena "+ Agregar otra imagen".
+        if (p.imagenesExtra && p.imagenesExtra.length) {
+            p.imagenesExtra.slice(0, 10).forEach(img => {
+                cpAgregarImagenExtra(fila);
+                const campos = fila.querySelectorAll('.cp-imagen-extra');
+                campos[campos.length - 1].value = img;
+            });
+        }
         fila.querySelector('.cp-precio').value = p.precio ? String(p.precio) : '';
         fila.querySelector('.cp-resto').value = p.resto ? String(p.resto) : '';
         fila.querySelector('.cp-caracteristicas').value = p.caracteristicas;
         fila.querySelector('.cp-momento').value = p.momento;
-        // 🆕 Si el producto pegado traía "Variante: #01 / #02 / ...", se
-        // arma automáticamente una línea de variantes con esas opciones
-        // (misma lógica que "+ Agregar variantes" hecha a mano).
-        if (p.variantes && p.variantes.length) {
-            cpAgregarLinea(fila.querySelector('.cp-var-toggle'));
-            const linea = fila.querySelector('.cp-linea');
-            linea.querySelector('.cp-linea-nombre').value = 'Variante';
-            linea._opts = p.variantes.slice(0, 30);
+        // 🆕 Cada dimensión de variante pegada (la clásica "Variantes:" y
+        // cualquier otra como "Color:" o "Talles:") se arma como una línea
+        // de variantes más, con su nombre y opciones — misma lógica que
+        // "+ Agregar variantes" / "+ Nueva Línea" hechas a mano.
+        const dimensiones = [];
+        if (p.variantes && p.variantes.length) dimensiones.push({ nombre: 'Variante', opciones: p.variantes });
+        if (p.lineasVariantes && p.lineasVariantes.length) dimensiones.push(...p.lineasVariantes);
+        dimensiones.forEach(d => {
+            cpAgregarLinea(fila);
+            const lineas = fila.querySelectorAll('.cp-linea');
+            const linea = lineas[lineas.length - 1];
+            linea.querySelector('.cp-linea-nombre').value = d.nombre;
+            linea._opts = d.opciones.slice(0, _limiteOpcionesVariante(d.nombre));
             cpRenderOpciones(linea);
-        }
+        });
     });
     ta.value = '';
     const incompletos = productos.filter(p => !p.nombre || !p.imagen || !(p.precio > 0)).length;
@@ -7248,7 +7293,8 @@ function cpAgregarOpcion(el) {
     const inp = l.querySelector('.cp-opc');
     const v = inp.value.trim().slice(0, 40);
     if (!v) return;
-    if (!l._opts.includes(v) && l._opts.length < 30) l._opts.push(v);
+    const nombreL = l.querySelector('.cp-linea-nombre') ? l.querySelector('.cp-linea-nombre').value : '';
+    if (!l._opts.includes(v) && l._opts.length < _limiteOpcionesVariante(nombreL)) l._opts.push(v);
     inp.value = '';
     cpRenderOpciones(l);
     inp.focus();
