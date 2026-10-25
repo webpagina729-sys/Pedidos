@@ -7194,6 +7194,13 @@ function agregarFilaProducto(contId) {
         </div>
         <input class="rvndr-search cp-nombre" style="margin-bottom:6px" placeholder="Nombre del Producto" autocomplete="off"/>
         <input class="rvndr-search cp-imagen" style="margin-bottom:6px" placeholder="Nombre de Imagen (ej: perfume1.png)" autocomplete="off"/>
+        <!-- 🆕 Imágenes adicionales (carrusel) — opcional. Si se carga al
+             menos una, el producto muestra un carrusel deslizable en vez de
+             una sola foto (index.html ya sabe mostrarlo solo, con
+             producto.imagenes). La primera imagen de arriba sigue siendo
+             la principal/obligatoria, estas son extra. -->
+        <div class="cp-imagenes-extra" style="margin-bottom:6px"></div>
+        <button type="button" class="btn-head" style="margin-bottom:6px" onclick="cpAgregarImagenExtra(this)">+ Agregar otra imagen (carrusel)</button>
         <input class="rvndr-search cp-precio" style="margin-bottom:6px" type="text" inputmode="decimal" autocomplete="off" placeholder="Precio Mayorista"/>
         <input class="rvndr-search cp-resto" style="margin-bottom:6px" type="text" inputmode="decimal" autocomplete="off" placeholder="Restoprecio (tu costo)"/>
         <input class="rvndr-search cp-caracteristicas" style="margin-bottom:6px" placeholder="Característica del producto" autocomplete="off"/>
@@ -7258,6 +7265,27 @@ function cpRenderOpciones(l) {
         `<span class="cp-chip">${esc(o)}<button type="button" title="Quitar" onclick="cpQuitarOpcion(this, ${i})">×</button></span>`).join('');
 }
 
+// 🆕 Carrusel de imágenes por producto: agrega un campo más de "Nombre de
+// imagen" dentro de la misma fila. _leerFilasProductosDesde() junta todos
+// estos con el de arriba en p.imagenes — si al final hay 2 o más, el
+// producto se guarda con carrusel; si solo hay una (la de arriba), queda
+// igual que antes.
+function cpAgregarImagenExtra(btn) {
+    const fila = btn.closest('.cp-fila');
+    const wrap = fila.querySelector('.cp-imagenes-extra');
+    const fileNum = wrap.children.length + 2; // la de arriba ya es la "1"
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+    row.innerHTML = `<input class="rvndr-search cp-imagen-extra" style="flex:1" placeholder="Nombre de imagen ${fileNum} (ej: perfume${fileNum}.png)" autocomplete="off"/>
+        <button type="button" class="btn-act" style="width:26px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" title="Quitar" onclick="cpQuitarImagenExtra(this)">${_ICO_QUITAR}</button>`;
+    wrap.appendChild(row);
+    row.querySelector('.cp-imagen-extra').focus();
+}
+
+function cpQuitarImagenExtra(btn) {
+    btn.closest('div').remove();
+}
+
 function quitarFilaProducto(btn) {
     const lista = btn.closest('.cp-fila').parentElement;
     btn.closest('.cp-fila').remove();
@@ -7289,6 +7317,12 @@ function _leerFilasProductosDesde(contId) {
             imagen: f.querySelector('.cp-imagen').value.trim(),
             precio: _parsePrecioAR(f.querySelector('.cp-precio').value)
         };
+        // 🆕 Carrusel: imágenes adicionales cargadas con "+ Agregar otra
+        // imagen". Si hay al menos una, se manda imagenes = [principal, ...
+        // extra] — con 0 extra no se agrega el campo y el producto queda
+        // exactamente igual que antes (una sola foto).
+        const imagenesExtra = Array.from(f.querySelectorAll('.cp-imagen-extra')).map(inp => inp.value.trim()).filter(Boolean);
+        if (imagenesExtra.length && p.imagen) p.imagenes = [p.imagen, ...imagenesExtra];
         const _resto = _parsePrecioAR(f.querySelector('.cp-resto').value);
         if (_resto > 0) p._resto = _resto; // solo viaja al Worker restoprecios, no al catálogo
         // Característica y Momento ideal: si quedan vacíos no se agregan al producto.
