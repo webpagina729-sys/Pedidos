@@ -6572,6 +6572,16 @@ async function renderStockView() {
             </select>
             <input id="stock-search-input" class="rvndr-search" style="flex:1;min-width:200px;margin-bottom:0" placeholder="Buscar producto por nombre..." autocomplete="off"/>
         </div>
+        <!-- 🆕 Pegar lista de nombres de productos ya cargados: los busca
+             dentro de la categoría elegida arriba y arma una lista en el
+             mismo orden pegado, con botones para Eliminar todos o Quitar
+             de stock a todos los encontrados de una sola vez. -->
+        <div style="margin-bottom:14px;padding:10px;border:1px dashed var(--border2);border-radius:9px">
+            <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Pegar lista de nombres de productos ya cargados (uno por línea) — para eliminar o quitar de stock varios a la vez</label>
+            <textarea id="stockListaNombresTexto" class="rvndr-search" style="min-height:80px;resize:vertical;margin-bottom:6px" placeholder="Pegá acá los nombres, uno por línea..."></textarea>
+            <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="procesarListaNombresStock()">Buscar y organizar</button>
+            <div id="stockListaNombresResultado" style="margin-top:10px"></div>
+        </div>
         <div id="stock-pausa-bar" style="margin-bottom:14px"></div>
         ${Object.keys(CATALOGO_PRODUCTOS_GLOBAL).every(sc => CATALOGOS_CENTRALES[_claveCatalogoCentral(sc)]) ? '' : `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
             <span style="font-size:12.5px;color:#c05621;">Hay categorías cuyo catálogo central todavía no fue cargado en el Worker.</span>
@@ -6622,6 +6632,27 @@ function productosDeCategoriaCanonica(catCanon) {
     return subcats.flatMap(sc => (CATALOGO_PRODUCTOS_GLOBAL[sc] || []).map(p => ({ ...p, _subcat: sc })));
 }
 
+// 🆕 Fila de UN producto con sus 3 acciones, en este orden fijo: botón
+// blanco de tres puntos (variantes) / botón de Stock / Eliminar
+// definitivamente. Se usa tanto en la lista principal de Stock global
+// como en el resultado de "pegar lista de nombres" (misma fila, mismo
+// orden, en los dos lugares).
+function _filaProductoHtml(p) {
+    const overrides = STOCK_GLOBAL_DATA[p._subcat] || {};
+    const enStock = overrides[p.id] !== false;
+    const tieneVariantes = _camposVarianteDe(p).length > 0;
+    return `<div class="cat-item" style="padding:9px 4px;border-bottom:1px solid var(--border)">
+        <strong style="flex:1;min-width:0">${esc(p.nombre)}</strong>
+        ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._agregado ? _claveCatalogoCentral(p._subcat) : p._subcat}',${p.id})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>` : ''}
+        <button class="btn-act ${enStock ? 'btn-domicilio' : 'btn-del'}" style="flex-shrink:0" onclick="toggleStockGlobal('${p._subcat}',${p.id},${!enStock})">
+            ${enStock ? '✓ En stock' : '✕ Sin stock'}
+        </button>
+        ${(CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] || []).includes(p.id) ? `<button class="btn-act btn-del" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Eliminar definitivamente</button>` : ''}
+    </div>`;
+}
+
 function renderStockLista() {
     const wrap = document.getElementById('stock-lista-wrap');
     if (!wrap) return;
@@ -6635,21 +6666,7 @@ function renderStockLista() {
     }
 
     const visibles = filtrados.slice(0, stockShown);
-    let html = visibles.map(p => {
-        const overrides = STOCK_GLOBAL_DATA[p._subcat] || {};
-        const enStock = overrides[p.id] !== false;
-        const tieneVariantes = _camposVarianteDe(p).length > 0;
-        return `<div class="cat-item" style="padding:9px 4px;border-bottom:1px solid var(--border)">
-            <strong style="flex:1;min-width:0">${esc(p.nombre)}</strong>
-            <button class="btn-act ${enStock ? 'btn-domicilio' : 'btn-del'}" style="flex-shrink:0" onclick="toggleStockGlobal('${p._subcat}',${p.id},${!enStock})">
-                ${enStock ? '✓ En stock' : '✕ Sin stock'}
-            </button>
-            ${(CATALOGOS_CENTRALES[_claveCatalogoCentral(p._subcat)] || []).includes(p.id) ? `<button class="btn-act btn-del" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="eliminarProductoDefinitivo('${p._subcat}',${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Eliminar definitivamente</button>` : ''}
-            ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._agregado ? _claveCatalogoCentral(p._subcat) : p._subcat}',${p.id})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-            </button>` : ''}
-        </div>`;
-    }).join('');
+    let html = visibles.map(p => _filaProductoHtml(p)).join('');
 
     if (filtrados.length > stockShown) {
         html += `<button class="btn-head" style="width:100%;justify-content:center;margin-top:10px" onclick="stockShown+=20;renderStockLista()">Ver más (${filtrados.length - stockShown} más)</button>`;
@@ -7523,6 +7540,25 @@ async function eliminarProductoDefinitivo(subcat, productId) {
     const producto = (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === productId);
     if (!producto) return;
     if (!confirm('¿Eliminar DEFINITIVAMENTE "' + producto.nombre + '"?\n\nDesaparece de todas las tiendas y paneles y no se puede deshacer.')) return;
+    const ok = await _ejecutarEliminarProductoDefinitivo(subcat, productId, producto);
+    if (ok) toast('Producto eliminado definitivamente', true);
+}
+
+// 🆕 Lógica real del borrado, separada del confirm() de arriba para poder
+// reutilizarla desde "Eliminar todos" (lista de nombres pegada) sin
+// mostrar un confirm() por cada producto — ahí se confirma UNA sola vez,
+// para todo el lote.
+// 🆕 Antes de borrar, se marca el producto como "Sin stock" (mismo paso
+// que ya hace el botón "Quitar de stock") para que dispare el MISMO
+// aviso "Productos quitados del stock hasta nuevo ingreso" que ya ven
+// los revendedores en index.html/index(1).html cuando se quita stock.
+async function _ejecutarEliminarProductoDefinitivo(subcat, productId, productoParam) {
+    const producto = productoParam || (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === productId);
+    if (!producto) return false;
+    if (!STOCK_GLOBAL_DATA[subcat]) STOCK_GLOBAL_DATA[subcat] = {};
+    STOCK_GLOBAL_DATA[subcat][productId] = false;
+    await _guardarStockGlobalUnaCategoria(subcat, productId, false, producto);
+
     const clave = _claveCatalogoCentral(subcat);
     const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/eliminar', {
         method: 'POST',
@@ -7546,7 +7582,7 @@ async function eliminarProductoDefinitivo(subcat, productId) {
                 try { localStorage.removeItem('_catalogoPreciosWorkerCache'); } catch (_) {}
             }
         }).catch(() => {});
-        toast('Producto eliminado definitivamente', true);
+        return true;
     } else {
         // 🔧 FIX: antes solo mostraba el código HTTP ("código 409"/"código
         // 404") sin decir el motivo real — el Worker SÍ manda un mensaje
@@ -7556,8 +7592,80 @@ async function eliminarProductoDefinitivo(subcat, productId) {
         // window._lastFetchError.detalle (texto crudo) sin mostrarse nunca.
         let motivo = '';
         try { motivo = JSON.parse(window._lastFetchError?.detalle || '').error || ''; } catch (_) {}
-        toast('No se pudo eliminar' + (motivo ? ': ' + motivo : (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : '')), 'err');
+        toast('No se pudo eliminar "' + producto.nombre + '"' + (motivo ? ': ' + motivo : (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : '')), 'err');
+        return false;
     }
+}
+
+// ═══════════════════════════════════════════════════════
+// 🆕 PEGAR LISTA DE NOMBRES — busca cada nombre pegado dentro de la
+// categoría elegida arriba (misma que usa la lista principal de Stock
+// global) y arma el resultado en ESE mismo orden, con botones para
+// eliminar o quitar de stock a todos los encontrados de una sola vez.
+// ═══════════════════════════════════════════════════════
+let _stockListaNombresEncontrados = [];
+
+function _normalizarNombreProducto(s) {
+    return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function procesarListaNombresStock() {
+    const ta = document.getElementById('stockListaNombresTexto');
+    const nombres = String((ta && ta.value) || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const cont = document.getElementById('stockListaNombresResultado');
+    if (!nombres.length) { toast('Pegá primero una lista de nombres', 'err'); return; }
+
+    const productos = productosDeCategoriaCanonica(stockCatActual);
+    const porNombre = {};
+    productos.forEach(p => { porNombre[_normalizarNombreProducto(p.nombre)] = p; });
+
+    const encontrados = [];
+    const items = nombres.map(n => {
+        const p = porNombre[_normalizarNombreProducto(n)];
+        if (p) encontrados.push(p);
+        return { nombre: n, producto: p || null };
+    });
+    _stockListaNombresEncontrados = encontrados;
+
+    const noEncontrados = items.length - encontrados.length;
+    cont.innerHTML = `
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">${encontrados.length} de ${items.length} encontrados en "${esc(STOCK_CAT_LABELS[stockCatActual] || stockCatActual)}"${noEncontrados ? ` — ${noEncontrados} no coinciden con ningún producto de esta categoría` : ''}</div>
+        ${encontrados.length ? `<div style="display:flex;gap:8px;margin-bottom:10px">
+            <button type="button" class="btn-act" style="flex:1;justify-content:center" onclick="quitarTodosDeStockLista()">Quitar todos de stock</button>
+            <button type="button" class="btn-act btn-del" style="flex:1;justify-content:center" onclick="eliminarTodosLista()">Eliminar todos</button>
+        </div>` : ''}
+        <div>${items.map(i => i.producto ? _filaProductoHtml(i.producto) : `<div class="cat-item" style="padding:9px 4px;border-bottom:1px solid var(--border);color:var(--text3);font-size:12.5px">✕ No encontrado: ${esc(i.nombre)}</div>`).join('')}</div>
+    `;
+}
+
+async function quitarTodosDeStockLista() {
+    if (!_stockListaNombresEncontrados.length) return;
+    const n = _stockListaNombresEncontrados.length;
+    if (!confirm('¿Quitar de stock estos ' + n + ' productos?')) return;
+    for (const p of _stockListaNombresEncontrados.slice()) {
+        if (!STOCK_GLOBAL_DATA[p._subcat]) STOCK_GLOBAL_DATA[p._subcat] = {};
+        STOCK_GLOBAL_DATA[p._subcat][p.id] = false;
+        await _guardarStockGlobalUnaCategoria(p._subcat, p.id, false, p);
+    }
+    renderStockLista();
+    toast(n + ' producto' + (n === 1 ? '' : 's') + ' quitado' + (n === 1 ? '' : 's') + ' de stock', true);
+    procesarListaNombresStock();
+}
+
+async function eliminarTodosLista() {
+    if (!_stockListaNombresEncontrados.length) return;
+    const n = _stockListaNombresEncontrados.length;
+    if (!confirm('¿ELIMINAR DEFINITIVAMENTE estos ' + n + ' productos?\n\nDesaparecen de todas las tiendas y paneles y no se puede deshacer.')) return;
+    let ok = 0;
+    for (const p of _stockListaNombresEncontrados.slice()) {
+        if (await _ejecutarEliminarProductoDefinitivo(p._subcat, p.id, p)) ok++;
+    }
+    toast(ok + ' de ' + n + ' productos eliminados definitivamente', ok === n);
+    const ta = document.getElementById('stockListaNombresTexto');
+    if (ta) ta.value = '';
+    const cont = document.getElementById('stockListaNombresResultado');
+    if (cont) cont.innerHTML = '';
+    _stockListaNombresEncontrados = [];
 }
 
 async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
