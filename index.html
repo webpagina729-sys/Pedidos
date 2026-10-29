@@ -8756,32 +8756,181 @@ window.addEventListener('load', init);
     };
 
     // ───────── Ranking de Afiliados (Estadísticas) ─────────
-    var _rank = null, _rankAt = 0;
+    // 🔧 NUEVO: paginado de a 5 (acá y en los afiliados de cada cinta al
+    // abrirla) + gráfico de carrera (líneas, top 10) — ver más abajo.
+    var RANK_PAGE = 5;
+    var _rank = null, _rankAt = 0, _rankLista = [], _rankShown = 0;
     function pintarRanking() {
         var box = document.getElementById('af-ranking-list'); if (!box || !_rank) return;
-        var lista = _rank.filter(function (a) { return a.totalAfiliados > 0; });
-        box.innerHTML = lista.length ? lista.map(function (a, i) {
-            return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), 'Total de afiliados: ' + a.totalAfiliados + ' · Total: ' + money(a.totalALiquidar),
-                '#' + (i + 1), '<div class="af-empty">Cargando...</div>', "'abrirRanking'", 'afr-' + esc(a.codigo));
-        }).join('') : '<div class="af-empty">Todavía no hay revendedores con afiliados.</div>';
+        _rankLista = _rank.filter(function (a) { return a.totalAfiliados > 0; });
+        _rankShown = 0;
+        box.innerHTML = '';
+        if (!_rankLista.length) { box.innerHTML = '<div class="af-empty">Todavía no hay revendedores con afiliados.</div>'; return; }
+        _agregarPaginaRanking();
     }
+    function _agregarPaginaRanking() {
+        var box = document.getElementById('af-ranking-list'); if (!box) return;
+        var btnViejo = document.getElementById('af-ranking-vermas'); if (btnViejo) btnViejo.remove();
+        var siguiente = _rankLista.slice(_rankShown, _rankShown + RANK_PAGE);
+        box.insertAdjacentHTML('beforeend', siguiente.map(function (a, i) {
+            var idx = _rankShown + i;
+            return rib(esc((a.nombre + ' ' + a.apellido).trim() || a.codigo), 'Total de afiliados: ' + a.totalAfiliados + ' · Total: ' + money(a.totalALiquidar),
+                '#' + (idx + 1), '<div class="af-empty">Cargando...</div>', "'abrirRanking'", 'afr-' + esc(a.codigo));
+        }).join(''));
+        _rankShown += siguiente.length;
+        if (_rankShown < _rankLista.length) {
+            box.insertAdjacentHTML('beforeend', '<button type="button" class="af-btn" id="af-ranking-vermas" onclick="AF.verMasRanking()">Ver más (' + (_rankLista.length - _rankShown) + ' restantes)</button>');
+        }
+    }
+    AF.verMasRanking = function () { _agregarPaginaRanking(); };
+    function _referidoRibHTML(x) {
+        var pill = x.vinculo === 'libre' ? '<span class="af-pill r">Libre</span>' : '<span class="af-pill g">Vigente</span>';
+        return rib(esc(x.nombre), esc(x.codigo) + ' · ' + pill, money(x.comisionTotal),
+            ln('Pedidos generados', x.pedidos) + ln('Productos vendidos', x.unidades) + ln('Total vendido', money(x.totalVendido)) +
+            ln('Ganancia del afiliado', money(x.gananciaReferido)) + ln('Total % ($) generado para el revendedor', money(x.comisionTotal)));
+    }
+    function _agregarPaginaReferidos(r, body) {
+        var btnViejo = body.querySelector('.af-ver-mas-ref'); if (btnViejo) btnViejo.remove();
+        var lista = r._referidosLista || [];
+        var siguiente = lista.slice(r._referidosShown, r._referidosShown + RANK_PAGE);
+        body.insertAdjacentHTML('beforeend', siguiente.map(_referidoRibHTML).join(''));
+        r._referidosShown += siguiente.length;
+        if (r._referidosShown < lista.length) {
+            body.insertAdjacentHTML('beforeend', '<button type="button" class="af-btn af-ver-mas-ref" onclick="AF.verMasReferidos(this)">Ver más (' + (lista.length - r._referidosShown) + ' restantes)</button>');
+        }
+    }
+    AF.verMasReferidos = function (btn) {
+        var body = btn.closest('.af-b'), r = body.parentNode;
+        _agregarPaginaReferidos(r, body);
+    };
     AF.abrirRanking = async function (r) {
         var body = r.querySelector(':scope > .af-b'), codigo = r.id.replace(/^afr-/, '');
         var d = await api('/api/admin/afiliador?codigo=' + encodeURIComponent(codigo));
         if (!d.ok) { body.innerHTML = '<div class="af-empty">' + esc(d.error || 'No se pudo cargar') + '</div>'; r.removeAttribute('data-cargada'); return; }
-        body.innerHTML = d.referidos.length ? d.referidos.map(function (x) {
-            var pill = x.vinculo === 'libre' ? '<span class="af-pill r">Libre</span>' : '<span class="af-pill g">Vigente</span>';
-            return rib(esc(x.nombre), esc(x.codigo) + ' · ' + pill, money(x.comisionTotal),
-                ln('Pedidos generados', x.pedidos) + ln('Productos vendidos', x.unidades) + ln('Total vendido', money(x.totalVendido)) +
-                ln('Ganancia del afiliado', money(x.gananciaReferido)) + ln('Total % ($) generado para el revendedor', money(x.comisionTotal)));
-        }).join('') : '<div class="af-empty">Sin afiliados.</div>';
+        if (!d.referidos.length) { body.innerHTML = '<div class="af-empty">Sin afiliados.</div>'; return; }
+        r._referidosLista = d.referidos;
+        r._referidosShown = 0;
+        body.innerHTML = '';
+        _agregarPaginaReferidos(r, body);
     };
     async function cargarRanking() {
-        if (_rank && Date.now() - _rankAt < 60000) { pintarRanking(); return; }
+        if (_rank && Date.now() - _rankAt < 60000) { pintarRanking(); _iniciarCarrera(); return; }
         var d = await api('/api/admin/afiliadores').catch(function () { return {}; });
-        if (d && d.ok) { _rank = d.afiliadores; _rankAt = Date.now(); pintarRanking(); }
+        if (d && d.ok) { _rank = d.afiliadores; _rankAt = Date.now(); pintarRanking(); _iniciarCarrera(); }
         else { var b = document.getElementById('af-ranking-list'); if (b) b.innerHTML = '<div class="af-empty">No se pudo cargar el ranking.</div>'; }
     }
+
+    // ───────── Carrera de Afiliados (gráfico de líneas, top 10) ─────────
+    // 🔧 NUEVO: cada línea = la comisión que generaron, período a período,
+    // TODOS los referidos de ese afiliador (misma fuente de datos — fecha +
+    // comisión de cada venta — que ya usa afiliados.html para su propia
+    // "carrera"; no agrega ningún endpoint nuevo, solo reutiliza
+    // /api/admin/afiliador por cada uno de los primeros 10 del ranking).
+    // Sube y baja según cuánto generaron EN ESE período puntual (no es
+    // acumulado), para que se note cuándo un afiliador creció o bajó.
+    var raceCss = document.createElement('style');
+    raceCss.textContent =
+        '.af-race-box{margin-top:22px}' +
+        '.af-race-periodos{display:flex;gap:6px;margin:10px 0 14px;flex-wrap:wrap}' +
+        '.af-race-periodos button{background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:20px;cursor:pointer;font-family:inherit}' +
+        '.af-race-periodos button.on{background:var(--blue-pale);border-color:var(--blue);color:var(--blue)}' +
+        '.af-race-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:14px 10px 6px;overflow-x:auto}' +
+        '.af-race-svg{display:block;width:100%;min-width:560px}' +
+        '.af-race-nombre{font-size:9px;font-weight:500;font-family:inherit}' +
+        '.af-race-fecha{font-size:8.5px;fill:var(--text3)}';
+    document.head.appendChild(raceCss);
+
+    var RACE_PERIODOS = {
+        semana:   { dias: 7,   cant: 10 },
+        quincena: { dias: 15,  cant: 10 },
+        mes:      { dias: 30,  cant: 10 },
+        anio:     { dias: 365, cant: 6 },
+    };
+    var _raceRaw = null, _racePeriodo = 'mes', _raceCargando = false;
+    function _colorPuesto(i) {
+        if (i === 0) return '#00c96e';           // 1° — verde
+        if (i === 1) return '#22d3ee';           // 2° — celeste
+        if (i === 2) return 'var(--blue)';       // 3° — azul
+        return 'var(--text)';                    // 4° a 10° — blanco (oscuro) / negro (claro), automático
+    }
+    function _iniciarCarrera() {
+        var box = document.getElementById('af-race-list'); if (!box) return;
+        if (_raceRaw) { _dibujarCarrera(); return; }
+        if (_raceCargando) return;
+        _raceCargando = true;
+        var top = (_rank || []).filter(function (a) { return a.totalAfiliados > 0; }).slice(0, 10);
+        if (!top.length) { box.innerHTML = '<div class="af-empty">Todavía no hay afiliados para graficar.</div>'; _raceCargando = false; return; }
+        Promise.all(top.map(function (a) {
+            return api('/api/admin/afiliador?codigo=' + encodeURIComponent(a.codigo)).catch(function () { return null; }).then(function (d) {
+                var eventos = [];
+                if (d && d.ok && Array.isArray(d.referidos)) {
+                    d.referidos.forEach(function (r) {
+                        (r.ventas || []).forEach(function (v) { if (v.fecha) eventos.push([Number(v.fecha) || 0, Number(v.comision) || 0]); });
+                    });
+                }
+                return { codigo: a.codigo, nombre: (a.nombre + ' ' + a.apellido).trim() || a.codigo, eventos: eventos };
+            });
+        })).then(function (datos) {
+            _raceRaw = datos; _raceCargando = false; _dibujarCarrera();
+        }).catch(function () {
+            _raceCargando = false;
+            box.innerHTML = '<div class="af-empty">No se pudo cargar la carrera de afiliados.</div>';
+        });
+    }
+    AF.cambiarPeriodoCarrera = function (p) { _racePeriodo = p; _dibujarCarrera(); };
+    function _bucketsCarrera() {
+        var cfg = RACE_PERIODOS[_racePeriodo], ahora = Date.now(), buckets = [];
+        for (var i = cfg.cant - 1; i >= 0; i--) {
+            var fin = ahora - i * cfg.dias * 86400000;
+            buckets.push({ inicio: fin - cfg.dias * 86400000, fin: fin });
+        }
+        return buckets;
+    }
+    function _fmtBucket(b) {
+        var d = new Date(b.fin);
+        return _racePeriodo === 'anio' ? String(d.getFullYear()) : d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+    }
+    function _dibujarCarrera() {
+        var box = document.getElementById('af-race-list'); if (!box || !_raceRaw) return;
+        document.querySelectorAll('#af-race-periodos button').forEach(function (b) { b.classList.toggle('on', b.dataset.p === _racePeriodo); });
+        var buckets = _bucketsCarrera();
+        var series = _raceRaw.map(function (a) {
+            return { nombre: a.nombre, valores: buckets.map(function (b) {
+                var suma = 0; a.eventos.forEach(function (e) { if (e[0] >= b.inicio && e[0] < b.fin) suma += e[1]; }); return suma;
+            }) };
+        });
+        if (!series.some(function (s) { return s.valores.some(function (v) { return v > 0; }); })) {
+            box.innerHTML = '<div class="af-empty">Sin pedidos pagados en estos períodos todavía.</div>';
+            return;
+        }
+        var W = 900, H = 240, padL = 8, padR = 8, padT = 26, padB = 20;
+        var max = Math.max(1, ...series.map(function (s) { return Math.max.apply(null, s.valores); }));
+        var n = buckets.length;
+        function x(i) { return padL + (n === 1 ? 0 : (i * (W - padL - padR) / (n - 1))); }
+        function y(v) { return padT + (H - padT - padB) * (1 - v / max); }
+        var svg = '<svg class="af-race-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+            '<defs><filter id="af-race-glow" x="-60%" y="-60%" width="220%" height="220%">' +
+            '<feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>' +
+            '</filter></defs>';
+        // fechas en el eje inferior
+        buckets.forEach(function (b, i) {
+            svg += '<text class="af-race-fecha" x="' + x(i) + '" y="' + (H - 4) + '" text-anchor="middle">' + _fmtBucket(b) + '</text>';
+        });
+        // de atrás hacia adelante: el puesto #1 se dibuja último (encima, con brillo).
+        for (var p = series.length - 1; p >= 0; p--) {
+            var s = series[p], color = _colorPuesto(p);
+            var puntos = s.valores.map(function (v, i) { return x(i) + ',' + y(v); }).join(' ');
+            var esPrimero = p === 0;
+            svg += '<polyline points="' + puntos + '" fill="none" style="stroke:' + color + '" stroke-width="1"' + (esPrimero ? ' filter="url(#af-race-glow)"' : '') + '/>';
+            var lastI = n - 1, lx = x(lastI), ly = y(s.valores[lastI]);
+            svg += '<circle cx="' + lx + '" cy="' + ly + '" r="' + (esPrimero ? 2.6 : 2) + '" style="fill:' + color + '"/>';
+            var anchor = lx > W - 80 ? 'end' : 'middle';
+            svg += '<text class="af-race-nombre" x="' + lx + '" y="' + Math.max(10, ly - 7) + '" text-anchor="' + anchor + '" style="fill:' + color + '">' + esc(s.nombre) + '</text>';
+        }
+        svg += '</svg>';
+        box.innerHTML = svg;
+    }
+
     var _rsv = (typeof renderStatsView === 'function') ? renderStatsView : null;
     if (_rsv) {
         renderStatsView = function () {
@@ -8793,6 +8942,15 @@ window.addEventListener('load', init);
                     var box = document.createElement('div'); box.id = 'af-ranking-box'; box.style.marginTop = '22px';
                     box.innerHTML = '<h2 class="section-title">Ranking de Afiliados</h2><div id="af-ranking-list"><div class="loader"><div class="spin"></div></div></div>';
                     el.appendChild(box);
+                    var raceBox = document.createElement('div'); raceBox.id = 'af-race-box'; raceBox.className = 'af-race-box';
+                    raceBox.innerHTML = '<h2 class="section-title">Carrera de Afiliados — Top 10</h2>' +
+                        '<div class="af-race-periodos" id="af-race-periodos">' +
+                        '<button type="button" data-p="semana" onclick="AF.cambiarPeriodoCarrera(\'semana\')">Semana</button>' +
+                        '<button type="button" data-p="quincena" onclick="AF.cambiarPeriodoCarrera(\'quincena\')">Quincena</button>' +
+                        '<button type="button" data-p="mes" onclick="AF.cambiarPeriodoCarrera(\'mes\')">Mes</button>' +
+                        '<button type="button" data-p="anio" onclick="AF.cambiarPeriodoCarrera(\'anio\')">Año</button>' +
+                        '</div><div class="af-race-wrap"><div id="af-race-list"><div class="loader"><div class="spin"></div></div></div></div>';
+                    el.appendChild(raceBox);
                     cargarRanking();
                 }
             } catch (e) { console.warn('afiliados: ranking', e); }
