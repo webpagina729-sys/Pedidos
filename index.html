@@ -6580,6 +6580,19 @@ function enviarRegalo(codigo) {
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
+// 🆕 Botón "Invitar a la comunidad" (cinta de cada revendedor, debajo de
+// "Más información") — abre directo el chat de WhatsApp de ESE
+// revendedor (mismo patrón que enviarRegalo: vendorWa + wa.me) con el
+// mensaje de invitación al grupo, ya con su nombre insertado.
+function invitarComunidad(codigo) {
+    const wa = vendorWa(codigo);
+    if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
+    const info = vendorCache[(codigo || '').toUpperCase()] || {};
+    const nombre = info.nombre || vendorLabel(codigo);
+    const msg = `¡Hola ${nombre}! 👋\n¡Felicitaciones por dar este paso y animarte a crecer! 🚀 Nos alegra un montón que seas parte de esta comunidad.\nQueremos invitarte a nuestro grupo de WhatsApp, donde vas a encontrar una comunidad dispuesta a darte una mano, resolver tus dudas y ayudarte con lo que necesites en el camino. ¡La idea es que no estés solo/a y podamos crecer juntos! 💪\n👇 Sumate desde este enlace:\n🔗 https://chat.whatsapp.com/KxzwYYIhFHqKe2zCoPRhmj\nUna vez que solicites ingresar, un administrador va a aprobar tu acceso.\n¡Dale para adelante, que estamos para acompañarte! 🙌💙`;
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
 // ═══════════════════════════════════════════════════════════
 // VIEW: STOCK GLOBAL DE LA PLATAFORMA
 // 🔧 NUEVO: permite quitar/reponer productos de index.html y
@@ -8221,6 +8234,9 @@ function renderRvndrLista(filter) {
                     </div>
                     <button class="btn-head" style="width:100%;justify-content:center;margin-top:10px" onclick="abrirRvndrMasInfo('${v.codigo}')">
                         Más información
+                    </button>
+                    <button class="btn-head" style="width:100%;justify-content:center;margin-top:8px" onclick="invitarComunidad('${v.codigo}')">
+                        Invitar a la comunidad
                     </button>
                 </div>
             </div>
