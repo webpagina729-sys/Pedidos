@@ -1738,7 +1738,7 @@ function closeAvisoSeguimientoModal() { document.getElementById('aviso-seguimien
 function _enviarMensajeSeguimientoGrupo(codigo, mensaje) {
     const wa = vendorWa(codigo);
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 // Abre WhatsApp del revendedor con el mensaje de seguimiento — cantidad
@@ -1772,11 +1772,11 @@ async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje)
         const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
         _pdfParaEnvio(doc, filename, estado);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
         toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
         return;
     }
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 function _gsGrupo(codigo, categoria, estado) {
@@ -3023,11 +3023,11 @@ async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, men
         const filename = `Factura_Stock_${codigo}_${categoria}.pdf`;
         _pdfParaEnvio(doc, filename, estado);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
         toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
         return;
     }
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 // ── NUEVO: botones de Pendientes (2) y Aprobados (4) de "Pedidos de
 // Stock" — textos EXACTOS pedidos por el dueño, verbatim. Misma mecánica
@@ -3134,7 +3134,7 @@ async function compartirFacturaWhatsAppGrupoStock(codigo, categoria, estado) {
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
     _pdfParaEnvio(doc, filename, estado);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
     toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
 }
 
@@ -3189,7 +3189,7 @@ A seguir así con tu emprendimiento. 🚀
     }
     if (wa) {
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
     } else {
         toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
     }
@@ -3874,7 +3874,7 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     // el chat puntual (wa.me/<numero>) con el mensaje ya escrito.
     _pdfParaEnvio(doc, filename, estado);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
     toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
     // 🆕 "Hacer seguimiento" recién se habilita 2 días después de este envío.
     _waTimerSet('envio', codigo, categoria, estado);
@@ -3934,7 +3934,7 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
     }
     if (wa) {
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
-        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
     } else {
         toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
     }
@@ -4668,7 +4668,7 @@ async function ejecutarPedido(codigo, categoriaOCsv) {
     // figurar en "Pendientes"/"Aprobados" y pasa a "Confirmados".
     _sincronizarPreviewProveedores();
 
-    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${numero}&text=${encodeURIComponent(msg)}`, '_blank');
     toast('Pedido enviado al proveedor y movido a "Pedidos Realizados"', true);
     renderListaView();
 }
@@ -4928,7 +4928,7 @@ function _mostrarEnlaceProveedor(proveedor) {
     const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores.html?proveedor=' + encodeURIComponent(proveedor.id);
     document.getElementById('proveedor-enlace-nombre').textContent = proveedor.nombre;
     document.getElementById('proveedor-enlace-url').textContent = url;
-    document.getElementById('proveedor-enlace-wa').href = 'https://wa.me/' + proveedor.numero + '?text=' + encodeURIComponent(`Hola ${proveedor.nombre}! Te paso el enlace a tu panel de pedidos de Revende Ways: ${url}`);
+    document.getElementById('proveedor-enlace-wa').href = 'https://api.whatsapp.com/send/?phone=' + proveedor.numero + '&text=' + encodeURIComponent(`Hola ${proveedor.nombre}! Te paso el enlace a tu panel de pedidos de Revende Ways: ${url}`);
     window._proveedorEnlaceActual = url;
     document.getElementById('proveedor-enlace-modal').classList.add('show');
 }
@@ -4974,7 +4974,7 @@ function enviarPanelAProveedor(id) {
     if (!p.numero) { toast('Este proveedor no tiene WhatsApp cargado', 'err'); return; }
     const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores.html?proveedor=' + encodeURIComponent(p.id);
     const mensaje = `Hola ${p.nombre} acá te dejo todos los pedidos bien ordenados junto a la boleta de envío descargable de cada uno! Cualquier cosita me preguntas! \n${url}`;
-    window.open(`https://wa.me/${p.numero}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${p.numero}&text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 // 🔧 NUEVO: pausar/reanudar el acceso del proveedor a proveedores.html.
@@ -5634,7 +5634,7 @@ function enviarPedidosEnCaminoDelProveedor(proveedorKey) {
     Object.values(porRevendedor).forEach(tel => {
         if (!tel) return;
         seAbrioAlguno = true;
-        window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send/?phone=${tel}&text=${encodeURIComponent(msg)}`, '_blank');
     });
     if (!seAbrioAlguno) toast('Ninguno de estos revendedores tiene WhatsApp registrado', 'err');
 
@@ -6577,7 +6577,7 @@ function enviarRegalo(codigo) {
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
     const nombre = vendorLabel(codigo);
     const msg = `¡Felicidades ${nombre}! 🎉 Sos uno de los revendedores destacados de Revende Ways este mes. Gracias por tu esfuerzo y dedicación 💪. Como agradecimiento te tenemos preparado un regalo especial 🎁. ¡Seguimos creciendo juntos! 💙`;
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // 🆕 Botón "Invitar a la comunidad" (cinta de cada revendedor, debajo de
@@ -6590,7 +6590,7 @@ function invitarComunidad(codigo) {
     const info = vendorCache[(codigo || '').toUpperCase()] || {};
     const nombre = info.nombre || vendorLabel(codigo);
     const msg = `¡Hola ${nombre}! 👋\n¡Felicitaciones por dar este paso y animarte a crecer! 🚀 Nos alegra un montón que seas parte de esta comunidad.\nQueremos invitarte a nuestro grupo de WhatsApp, donde vas a encontrar una comunidad dispuesta a darte una mano, resolver tus dudas y ayudarte con lo que necesites en el camino. ¡La idea es que no estés solo/a y podamos crecer juntos! 💪\n👇 Sumate desde este enlace:\n🔗 https://chat.whatsapp.com/KxzwYYIhFHqKe2zCoPRhmj\nUna vez que solicites ingresar, un administrador va a aprobar tu acceso.\n¡Dale para adelante, que estamos para acompañarte! 🙌💙`;
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -8764,7 +8764,7 @@ window.addEventListener('load', init);
         var wa = ''; try { wa = _normalizarWhatsappArgentino(r.whatsapp); } catch (_) { wa = r.whatsapp || ''; }
         var mensaje = 'Hola! Soy Servi, Tu cobro ha sido exitoso! Felicidades! Revisa tu billetera';
         if (doc) doc.save(nombreBoleta(r));
-        if (wa) { try { await navigator.clipboard.writeText(mensaje); } catch (_) {} window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(mensaje), '_blank'); }
+        if (wa) { try { await navigator.clipboard.writeText(mensaje); } catch (_) {} window.open('https://api.whatsapp.com/send/?phone=' + wa + '&text=' + encodeURIComponent(mensaje), '_blank'); }
         toast(wa ? 'Pago marcado: boleta descargada y chat del afiliador abierto con el mensaje' : 'Pago marcado: boleta descargada (el afiliador no tiene WhatsApp registrado)', true);
         renderAfiliados();
     };
