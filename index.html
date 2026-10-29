@@ -973,6 +973,38 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- 🆕 "Delegar categoría" — selector compacto, tarjeta de "Proveedores registrados" -->
+<div class="rvndr-overlay" id="modal-delegar-cat-reg">
+    <div class="rvndr-box" style="max-width:380px">
+        <div class="rvndr-head">
+            <h3>Delegar categoría</h3>
+            <button class="rvndr-close" onclick="document.getElementById('modal-delegar-cat-reg').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body">
+            <div id="delegar-cat-reg-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:280px;overflow:auto"></div>
+            <div style="display:flex;gap:8px">
+                <button class="modal-cancel" style="flex:1" onclick="document.getElementById('modal-delegar-cat-reg').classList.remove('show')">Cancelar</button>
+                <button class="modal-confirm-btn" style="flex:1" onclick="guardarDelegarCategoriaReg()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 🆕 "Solicitud" (Agregar Stock del proveedor) — tarjeta de "Proveedores registrados" -->
+<div class="rvndr-overlay" id="modal-solicitud-reg">
+    <div class="rvndr-box" style="max-width:420px">
+        <div class="rvndr-head">
+            <h3>Solicitud del proveedor</h3>
+            <button class="rvndr-close" onclick="document.getElementById('modal-solicitud-reg').classList.remove('show')">✕</button>
+        </div>
+        <div class="rvndr-body">
+            <p id="solicitud-reg-mensaje" style="font-size:13px;color:var(--text);margin-bottom:10px;white-space:pre-wrap"></p>
+            <p id="solicitud-reg-enlace" style="font-size:12px;color:var(--blue,#0066ff);word-break:break-all;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:9px 11px;margin-bottom:14px"></p>
+            <button id="solicitud-reg-btn-accion" class="modal-confirm-btn" style="width:100%"></button>
+        </div>
+    </div>
+</div>
+
 <style>
 .wa-guardando-dots span {
     opacity: .2;
@@ -2034,6 +2066,16 @@ _cargarAgregadosImg();
 function _miniaturaProducto(categoria, nombre) {
     const img = resolverImagenProducto(categoria, nombre);
     return img ? `<img src="${esc(img)}" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:5px;margin-right:7px;cursor:pointer;flex-shrink:0;vertical-align:-7px" onclick="event.stopPropagation();window.open('${esc(img)}','_blank')">` : '';
+}
+// 🆕 LOGIN OFICIAL: texto rojo junto al nombre cuando un proveedor
+// marcó este producto como "sin stock hace 5+ días" vía "Seleccionar
+// productos para notificar" (ver STOCK_NOTIFICADOS_DATA, cargado en
+// renderStockView). Nunca borra nada — es solo el aviso para que decidas
+// qué hacer desde este mismo panel.
+function _textoNotificadoProveedor(subcat, productId) {
+    const info = (STOCK_NOTIFICADOS_DATA[subcat] || {})[String(productId)];
+    if (!info) return '';
+    return ` <span style="color:#e53935;font-size:11px;font-weight:700">● Notificado por el proveedor</span>`;
 }
 
 // Copia EXACTA de "var IM" en index.html — sin tocar ese archivo.
@@ -5729,7 +5771,32 @@ async function cargarProveedoresRegistrados() {
     if (wrap) wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando proveedores...</p></div>';
     const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-registrados?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
     PROVEEDORES_REGISTRADOS = (res && res.ok && Array.isArray(res.proveedores)) ? res.proveedores : [];
+    // 🆕 Necesita PROVEEDORES_CONFIG (categorías/número/stock de cada
+    // proveedorId) para "Delegar categoría" y para la auto-delegación por
+    // coincidencia de teléfono de más abajo.
+    if (!PROVEEDORES_CONFIG.length) await _cargarProveedoresConfigServidor();
+    await _autoDelegarPorTelefonoCoincidente();
     renderProveedoresRegView();
+}
+
+// 🆕 Si el WhatsApp de un registro nuevo (sin categoría todavía) coincide
+// con el número de OTRA ficha de PROVEEDORES_CONFIG que ya tiene
+// categorías asignadas, le copia esas mismas categorías automáticamente
+// (mismo caso: el proveedor ya estaba cargado con otra ficha/categoría y
+// se registra de nuevo con el mismo celular). No toca nada si no hay
+// coincidencia, ni pisa una categoría que el proveedor ya tenga delegada.
+async function _autoDelegarPorTelefonoCoincidente() {
+    for (const reg of PROVEEDORES_REGISTRADOS) {
+        if (!reg.proveedorId) continue;
+        const propio = PROVEEDORES_CONFIG.find(p => p.id === reg.proveedorId);
+        if (!propio || (propio.categorias || []).length) continue; // ya tiene categoría, no tocar
+        const numReg = String(reg.whatsapp || '').replace(/\D/g, '');
+        if (!numReg) continue;
+        const coincidencia = PROVEEDORES_CONFIG.find(p => p.id !== reg.proveedorId && String(p.numero || '').replace(/\D/g, '').endsWith(numReg.slice(-10)) && (p.categorias || []).length);
+        if (!coincidencia) continue;
+        propio.categorias = [...coincidencia.categorias];
+        try { await _sincronizarCategoriasProveedor(propio); } catch (_) {}
+    }
 }
 
 function renderProveedoresRegView() {
@@ -5740,11 +5807,19 @@ function renderProveedoresRegView() {
         return;
     }
     wrap.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
-        ${PROVEEDORES_REGISTRADOS.map(p => `
-        <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;background:var(--surface)">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        ${PROVEEDORES_REGISTRADOS.map(p => {
+            const cfg = PROVEEDORES_CONFIG.find(c => c.id === p.proveedorId) || null;
+            const tieneCategoria = !!(cfg && (cfg.categorias || []).length);
+            const solicitudPendiente = p.solicitud && p.solicitud.estado && p.solicitud.estado !== 'confirmada';
+            return `
+        <div style="border:1px solid var(--border2);border-radius:10px;padding:14px;background:var(--surface);position:relative">
+            ${p.proveedorId ? `<button title="Solicitud del proveedor" onclick="abrirModalSolicitudReg('${esc(p.proveedorId)}')" style="position:absolute;top:10px;right:10px;background:#fff;color:#111;border:1px solid var(--border2);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
+                Solicitud${solicitudPendiente ? '<span style="width:7px;height:7px;border-radius:50%;background:#f43f5e;display:inline-block"></span>' : ''}
+            </button>` : ''}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-right:${p.proveedorId ? '78px' : '0'}">
                 <div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0">${initials(p.empresa)}</div>
                 <strong style="font-size:13.5px">${esc(p.empresa || 'Proveedor')}</strong>
+                ${p.aprobado ? `<span style="display:inline-flex;align-items:center;gap:3px;color:#00c96e;font-size:11px;font-weight:700;white-space:nowrap"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>(Aprobado)</span>` : ''}
             </div>
             <div class="ship-block" style="margin-top:0">
                 <div class="ship-row">Responsable: <strong>${esc(p.responsable || '—')}</strong></div>
@@ -5755,9 +5830,133 @@ function renderProveedoresRegView() {
                 ${p.whatsapp ? `<div class="ship-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px;display:inline-block"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(p.whatsapp)}</div>` : ''}
                 ${p.email ? `<div class="ship-row">${esc(p.email)}</div>` : ''}
                 <div class="ship-row" style="color:var(--text3);font-size:11px">Registrado: ${p.registradoEn ? ba(Date.parse(p.registradoEn)) : '—'}</div>
+                ${tieneCategoria ? `<div class="ship-row" style="color:var(--text2)">Categoría: <strong>${(cfg.categorias||[]).map(c => CAT_LABELS[c]||CATEGORIAS_EXTRA_MAP[c]||c).join(', ')}</strong></div>` : ''}
             </div>
-        </div>`).join('')}
+            ${p.proveedorId ? `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+                <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;${p.aprobado ? 'opacity:.5;pointer-events:none' : ''}" onclick="aprobarProveedorRegistro('${esc(p.id)}')">Aprobar</button>
+                <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700" onclick="abrirDelegarCategoriaReg('${esc(p.proveedorId)}')">Delegar categoría</button>
+                <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;${!tieneCategoria ? 'opacity:.4;pointer-events:none' : ''}" title="${!tieneCategoria ? 'Delegale una categoría primero' : ''}" onclick="notificarProveedorRegistro('${esc(p.proveedorId)}')">Notificar</button>
+            </div>` : ''}
+        </div>`;}).join('')}
     </div>`;
+}
+
+// 🆕 "Aprobar": solo marca el registro (tilde + etiqueta), no activa nada
+// más por sí solo — delegar categoría/stock se hace aparte.
+async function aprobarProveedorRegistro(id) {
+    const res = await fetchJson(WORKER_PROVEEDORES + '/api/proveedor-registro-aprobar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id })
+    });
+    if (!res || !res.ok) { toast('No se pudo aprobar' + (res && res.error ? ': ' + res.error : ''), 'err'); return; }
+    const reg = PROVEEDORES_REGISTRADOS.find(p => p.id === id);
+    if (reg) reg.aprobado = true;
+    renderProveedoresRegView();
+    toast('Proveedor aprobado', true);
+}
+
+let _delegarCatRegProveedorId = null;
+function abrirDelegarCategoriaReg(proveedorId) {
+    _delegarCatRegProveedorId = proveedorId;
+    const cfg = PROVEEDORES_CONFIG.find(p => p.id === proveedorId);
+    const seleccionadas = new Set(cfg?.categorias || []);
+    const cats = Object.keys(CAT_LABELS).concat(Object.keys(CATEGORIAS_EXTRA_MAP).filter(catId => !CAT_LABELS[catId]));
+    document.getElementById('delegar-cat-reg-lista').innerHTML = cats.map(c => `
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+            <input type="checkbox" value="${c}" ${seleccionadas.has(c) ? 'checked' : ''}> ${catIcon(c)} ${esc(CAT_LABELS[c] || CATEGORIAS_EXTRA_MAP[c] || c)}
+        </label>`).join('');
+    document.getElementById('modal-delegar-cat-reg').classList.add('show');
+}
+
+async function guardarDelegarCategoriaReg() {
+    const proveedorId = _delegarCatRegProveedorId;
+    if (!proveedorId) return;
+    const categorias = [...document.querySelectorAll('#delegar-cat-reg-lista input[type="checkbox"]:checked')].map(i => i.value);
+    let cfg = PROVEEDORES_CONFIG.find(p => p.id === proveedorId);
+    if (!cfg) { toast('No se encontró la ficha de este proveedor', 'err'); return; }
+    cfg.categorias = categorias;
+    const res = await _sincronizarCategoriasProveedor(cfg);
+    if (!res || !res.ok) { toast('No se pudo guardar la categoría', 'err'); return; }
+    document.getElementById('modal-delegar-cat-reg').classList.remove('show');
+    renderProveedoresRegView();
+    toast('Categoría delegada', true);
+}
+
+function notificarProveedorRegistro(proveedorId) {
+    const cfg = PROVEEDORES_CONFIG.find(p => p.id === proveedorId);
+    if (!cfg) { toast('No se encontró la ficha de este proveedor', 'err'); return; }
+    const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores?proveedor=' + encodeURIComponent(proveedorId);
+    const mensaje = `🎉 ¡Ya sos Proveedor Oficial de Revende Ways! 🇦🇷\n\n¡Felicitaciones y bienvenido a la comunidad! 🚀 Nos pone muy contentos que te sumes. Queremos acompañarte para que puedas crecer, llegar a más emprendedores y potenciar tu negocio. 💪\n\n📦 ¿Qué podés hacer desde ahora?\n✅ Gestionar tu stock: mantenelo actualizado para que los emprendedores estén siempre informados. ¡Eso te va a ayudar a generar más confianza y conseguir mejores reseñas!\n🛍️ Sumar tus productos: podés compartirnos tu catálogo web o tu Drive. Nuestro equipo se encarga de revisar todo, identificar los productos que falten y cargarlos en la plataforma. ¡Así de fácil!\n\n🔑 ¡Ingresá a tu panel!\nDesde ahí vas a poder administrar tu cuenta y gestionar tu stock. Guardá bien tu contraseña para no perder el acceso. 😉\n👉 Tu panel de pedidos: ${url}\n\n🤝 Estamos para darte una mano. Si tenés alguna duda, necesitás ayuda o no sabés cómo hacer algo, respondé directamente a este mensaje y te ayudamos.\n\n¡Te deseamos muchos éxitos en esta nueva etapa! ❤️\n¡Vamos a crecer juntos en Revende Ways! 🚀🇦🇷`;
+    window.open('https://api.whatsapp.com/send/?phone=' + cfg.numero + '&text=' + encodeURIComponent(mensaje), '_blank');
+}
+
+// 🆕 Modal "Solicitud" (lo que el proveedor mandó desde "Agregar Stock" en
+// proveedores.html) — el botón de adentro va cambiando de estado:
+// sin solicitud → nada que ver; pendiente → "(Solicitud en Revisión)";
+// revision → "(Confirmar Solicitud)"; confirmada → ya cerrada (queda el
+// botón deshabilitado, sin punto rojo en la tarjeta).
+function abrirModalSolicitudReg(proveedorId) {
+    const reg = PROVEEDORES_REGISTRADOS.find(p => p.proveedorId === proveedorId);
+    const sol = reg && reg.solicitud;
+    document.getElementById('solicitud-reg-mensaje').textContent = sol ? (sol.mensaje || '(sin mensaje)') : 'Este proveedor todavía no mandó ninguna solicitud desde "Agregar Stock".';
+    document.getElementById('solicitud-reg-enlace').textContent = sol ? (sol.enlace || '') : '';
+    document.getElementById('solicitud-reg-enlace').style.display = sol && sol.enlace ? 'block' : 'none';
+    const btn = document.getElementById('solicitud-reg-btn-accion');
+    if (!sol) {
+        btn.style.display = 'none';
+    } else if (sol.estado === 'confirmada') {
+        btn.textContent = '(Solicitud confirmada)';
+        btn.disabled = true;
+        btn.style.display = 'block';
+        btn.style.opacity = '.5';
+        btn.onclick = null;
+    } else if (sol.estado === 'revision') {
+        btn.textContent = '(Confirmar Solicitud)';
+        btn.disabled = false;
+        btn.style.display = 'block';
+        btn.style.opacity = '1';
+        btn.onclick = () => _confirmarSolicitudReg(proveedorId);
+    } else {
+        btn.textContent = '(Solicitud en Revisión)';
+        btn.disabled = false;
+        btn.style.display = 'block';
+        btn.style.opacity = '1';
+        btn.onclick = () => _marcarSolicitudEnRevision(proveedorId);
+    }
+    document.getElementById('modal-solicitud-reg').classList.add('show');
+}
+
+async function _setEstadoSolicitudReg(proveedorId, estado) {
+    const res = await fetchJson(WORKER_PROVEEDORES + '/api/proveedor-solicitud-stock-estado', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ proveedorId, estado })
+    });
+    if (!res || !res.ok) { toast('No se pudo actualizar la solicitud' + (res && res.error ? ': ' + res.error : ''), 'err'); return false; }
+    const reg = PROVEEDORES_REGISTRADOS.find(p => p.proveedorId === proveedorId);
+    if (reg && reg.solicitud) reg.solicitud.estado = estado;
+    return true;
+}
+
+async function _marcarSolicitudEnRevision(proveedorId) {
+    if (!(await _setEstadoSolicitudReg(proveedorId, 'revision'))) return;
+    toast('Solicitud en revisión — el proveedor va a ver el aviso en su panel', true);
+    abrirModalSolicitudReg(proveedorId);
+    renderProveedoresRegView();
+}
+
+// 🆕 "Confirmar Solicitud": cierra la solicitud (estado=confirmada, saca
+// el punto rojo) y abre WhatsApp con el mensaje de "catálogo actualizado"
+// — distinto del mensaje de bienvenida de notificarProveedorRegistro().
+async function _confirmarSolicitudReg(proveedorId) {
+    if (!(await _setEstadoSolicitudReg(proveedorId, 'confirmada'))) return;
+    document.getElementById('modal-solicitud-reg').classList.remove('show');
+    renderProveedoresRegView();
+    const cfg = PROVEEDORES_CONFIG.find(p => p.id === proveedorId);
+    if (cfg) {
+        const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores?proveedor=' + encodeURIComponent(proveedorId);
+        const mensaje = `¡Gracias por confiar en Revende Ways! 🇦🇷🙌\n✅ Tu catalogo a sido Actualizado \n👉 Tu panel: ${url}\n🛍️¡Vamos a crecer juntos en Revende Ways! 🚀🇦🇷\nEXITOS!`;
+        window.open('https://api.whatsapp.com/send/?phone=' + cfg.numero + '&text=' + encodeURIComponent(mensaje), '_blank');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6697,6 +6896,8 @@ let VARIANTES_GLOBAL_DATA = {};
 let PRECIOS_VARIANTES_GLOBAL_DATA = {};
 // 🔧 NUEVO: categorías frenadas temporalmente — { [catalogo]: { hasta, dias } }
 let CATEGORIAS_FRENADAS_DATA = {};
+// 🆕 LOGIN OFICIAL: { [catalogo]: { [productId]: {nombre,fechaNotificado,proveedorId} } }
+let STOCK_NOTIFICADOS_DATA = {};
 let stockCatActual = 'calzados';
 // Catálogo central (Worker de precios, KV): { clave: [ids] } de las categorías ya cargadas.
 let CATALOGOS_CENTRALES = {};
@@ -6712,13 +6913,19 @@ let stockShown = 20;
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar] = await Promise.all([
+    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
         fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
         fetchJson(WORKER_PRECIOS + '/api/catalogo?categoria=todas'),
         fetchJson(WORKER_ESTADOS + '/api/precios-variantes-global'),
+        // 🆕 LOGIN OFICIAL: productos que un proveedor marcó "sin stock
+        // hace 5+ días" vía "Seleccionar productos para notificar" en su
+        // panel — nunca se borran solos, se muestran acá con un texto
+        // rojo para que decidas qué hacer (ver _filaProductoHtml).
+        fetchJson(WORKER_PROVEEDORES + '/api/stock-notificados?adminKey=' + encodeURIComponent(PANEL_ADMIN_KEY)),
     ]);
+    STOCK_NOTIFICADOS_DATA = (resNotificados && resNotificados.ok && resNotificados.notificados) || {};
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
     REPOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.repos) || {};
     // El catálogo central manda: lo que ya no está en él se quita de las listas locales.
@@ -6813,7 +7020,7 @@ function _filaProductoHtml(p) {
     const tieneVariantes = _camposVarianteDe(p).length > 0;
     return `<div class="cat-item" style="padding:9px 4px;border-bottom:1px solid var(--border)">
         ${_miniaturaProducto(p._agregado ? _claveCatalogoCentral(p._subcat) : p._subcat, p.nombre)}
-        <strong style="flex:1;min-width:0">${esc(p.nombre)}</strong>
+        <strong style="flex:1;min-width:0">${esc(p.nombre)}${_textoNotificadoProveedor(p._subcat, p.id)}</strong>
         ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._agregado ? _claveCatalogoCentral(p._subcat) : p._subcat}',${p.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
         </button>` : ''}
