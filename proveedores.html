@@ -421,6 +421,8 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                      arriba, sin tocar su markup ni su onclick. -->
                 <button class="btn-oficializar" id="btn-oficializar-estado1" style="display:none" onclick="abrirModalLoginOficial()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Iniciar sesión Oficial</button>
                 <button class="btn-oficializar" id="btn-oficializar-estado2" style="display:none" onclick="abrirModalMisDatos()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Mis Datos</button>
+                <!-- 🆕 "Agregar Stock" — mismo criterio de visibilidad que "Mis Datos" (oficializado + logueado), ver _actualizarBotonHeaderOficial(). -->
+                <button class="btn-oficializar" id="btn-agregar-stock" style="display:none" onclick="abrirModalAgregarStock()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Agregar Stock</button>
             </div>
         </div>
 
@@ -641,6 +643,34 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
     </div>
 </div>
 
+<!-- 🆕 Modal: "Agregar Stock" — comparte catálogo/enlace para que el equipo lo revise -->
+<div class="modal-backdrop" id="modal-agregar-stock-backdrop" onclick="if(event.target===this) cerrarModalAgregarStock()">
+    <div class="modal-box">
+        <div class="modal-title">Agregar Stock</div>
+        <div class="modal-sub">Comparte tu catalogo para que nuestro equipo lo revise.</div>
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin:10px 0 5px">Mensaje (máx. 150 caracteres)</label>
+        <textarea id="agregar-stock-mensaje" maxlength="150" rows="3" style="width:100%;padding:9px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-family:var(--font);font-size:13px;resize:vertical" placeholder="Ej: Actualicé mi catálogo, agregué 5 productos nuevos..." oninput="document.getElementById('agregar-stock-contador').textContent = this.value.length + '/150'"></textarea>
+        <div id="agregar-stock-contador" style="text-align:right;font-size:11px;color:var(--text3);margin:3px 0 10px">0/150</div>
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px">Enlace a tu catálogo</label>
+        <input type="url" id="agregar-stock-enlace" placeholder="https://..." style="width:100%;padding:9px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;margin-bottom:14px">
+        <div class="modal-actions">
+            <button type="button" class="modal-btn modal-btn-primary" style="width:100%" onclick="enviarSolicitudStock()">Enviar</button>
+            <button type="button" class="modal-btn modal-btn-cancel" style="width:100%" onclick="cerrarModalAgregarStock()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🆕 Modal: "Recibimos tu solicitud" — se muestra cuando el dueño pasa la solicitud a "en revisión" -->
+<div class="modal-backdrop" id="modal-solicitud-recibida-backdrop" onclick="if(event.target===this) cerrarModalSolicitudRecibida()">
+    <div class="modal-box">
+        <div class="modal-title">📩 ¡Recibimos tu solicitud!</div>
+        <div class="modal-sub">¡Gracias por contactarte con Revende Ways! 🇦🇷<br><br>Nuestro equipo ya está procesando tu información. Apenas tengamos novedades, nos vamos a comunicar con vos para contarte cómo seguimos.<br><br>¡Gracias por tu paciencia y por confiar en nosotros! ❤️🚀</div>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn modal-btn-primary" style="width:100%" onclick="cerrarModalSolicitudRecibida()">Entendido</button>
+        </div>
+    </div>
+</div>
+
 <!-- ── Modal: aviso de productos sin stock hace 5+ días ── -->
 <div class="modal-backdrop" id="modal-aviso-sinstock-backdrop" onclick="if(event.target===this) cerrarModalAvisoSinStock()">
     <div class="modal-box">
@@ -837,6 +867,9 @@ async function entrarConProveedorId(id) {
     // Iniciar sesión Oficial / Mis Datos) — independiente de cargarDatos(),
     // mismo criterio que _chequearStockDelegado de arriba.
     _actualizarBotonHeaderOficial();
+    // 🆕 "Agregar Stock" → "Solicitud" en pedidos.html: revisa si el dueño
+    // ya pasó la solicitud a "revision", para mostrar el aviso una sola vez.
+    _revisarAvisoSolicitudStock(id);
 }
 
 // 🆕 Detecta que "Delegar Stock" pasó a ON (lo activó el proveedor desde
@@ -864,6 +897,52 @@ async function _chequearStockDelegado(id) {
     window._stockDelegadoActivo = !!(res && res.ok && res.activo);
     const btn = document.getElementById('tab-btn-stock');
     if (btn) btn.style.display = window._stockDelegadoActivo ? '' : 'none';
+}
+
+// ── 🆕 "Agregar Stock" (comparte catálogo/enlace para revisión) ──────
+function abrirModalAgregarStock() {
+    document.getElementById('agregar-stock-mensaje').value = '';
+    document.getElementById('agregar-stock-contador').textContent = '0/150';
+    document.getElementById('agregar-stock-enlace').value = '';
+    document.getElementById('modal-agregar-stock-backdrop').classList.add('show');
+}
+function cerrarModalAgregarStock() {
+    document.getElementById('modal-agregar-stock-backdrop').classList.remove('show');
+}
+async function enviarSolicitudStock() {
+    const mensaje = document.getElementById('agregar-stock-mensaje').value.trim().slice(0, 150);
+    const enlace = document.getElementById('agregar-stock-enlace').value.trim();
+    if (!enlace) { alert('Pegá el enlace de tu catálogo.'); return; }
+    _restaurarAuthToken();
+    if (!window._authToken) { alert('Iniciá sesión de nuevo para poder enviar esto.'); return; }
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-solicitud-stock`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, mensaje, enlace })
+    });
+    if (!res || !res.ok) { alert('No se pudo enviar' + (res && res.error ? ': ' + res.error : '') + '. Probá de nuevo.'); return; }
+    cerrarModalAgregarStock();
+    // 🆕 nueva solicitud → se puede volver a avisar cuando el dueño la
+    // pase a "revision", aunque ya se haya visto un aviso anterior.
+    try { sessionStorage.removeItem('rw_prov_solicitud_visto_' + PROVEEDOR_ID_ACTUAL); } catch (_) {}
+}
+
+// 🆕 Chequea (en cada carga del panel) si el dueño ya pasó la solicitud a
+// "revision" y muestra el aviso "Recibimos tu solicitud" una sola vez por
+// solicitud — mismo patrón de sessionStorage que
+// _avisarSiStockDelegadoRecienActivado.
+async function _revisarAvisoSolicitudStock(id) {
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-solicitud-stock?proveedorId=${encodeURIComponent(id)}`);
+    const sol = res && res.ok ? res.solicitud : null;
+    if (!sol || sol.estado !== 'revision') return;
+    const key = 'rw_prov_solicitud_visto_' + id;
+    let yaVisto = false;
+    try { yaVisto = sessionStorage.getItem(key) === '1'; } catch (_) {}
+    if (yaVisto) return;
+    try { sessionStorage.setItem(key, '1'); } catch (_) {}
+    document.getElementById('modal-solicitud-recibida-backdrop').classList.add('show');
+}
+function cerrarModalSolicitudRecibida() {
+    document.getElementById('modal-solicitud-recibida-backdrop').classList.remove('show');
 }
 
 function cambiarTab(tab) {
@@ -2168,12 +2247,16 @@ async function _actualizarBotonHeaderOficial() {
     const b0 = document.getElementById('btn-oficializar-estado0');
     const b1 = document.getElementById('btn-oficializar-estado1');
     const b2 = document.getElementById('btn-oficializar-estado2');
+    const bStock = document.getElementById('btn-agregar-stock');
     if (!window._oficializado) {
         b0.style.display = ''; b1.style.display = 'none'; b2.style.display = 'none';
+        if (bStock) bStock.style.display = 'none';
     } else if (!window._authToken) {
         b0.style.display = 'none'; b1.style.display = ''; b2.style.display = 'none';
+        if (bStock) bStock.style.display = 'none';
     } else {
         b0.style.display = 'none'; b1.style.display = 'none'; b2.style.display = '';
+        if (bStock) bStock.style.display = '';
     }
     _actualizarTabGestionStock();
 }
