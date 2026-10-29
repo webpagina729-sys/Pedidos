@@ -4663,11 +4663,33 @@ function _cargarProveedoresConfigLocal() {
 function _guardarProveedoresConfigLocal() {
     try { localStorage.setItem(PROVEEDORES_CONFIG_KEY, JSON.stringify(PROVEEDORES_CONFIG)); } catch(_) {}
 }
+// 🔧 FIX: la ficha completa del proveedor (nombre, WhatsApp, categorías)
+// ahora vive en Firestore (vía workerproveedores, colección
+// "proveedoresConfig") y no solo en localStorage — así no se pierde ni
+// aparece vacía al entrar desde otro navegador/dispositivo o con el caché
+// borrado. localStorage se mantiene SOLO como caché para poder pintar algo
+// de inmediato mientras llega la respuesta del servidor; el servidor es la
+// fuente de verdad y siempre pisa lo que haya en caché.
+async function _cargarProveedoresConfigServidor() {
+    try {
+        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-config?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+        if (res && res.ok && Array.isArray(res.proveedores)) {
+            PROVEEDORES_CONFIG = res.proveedores.map(p => ({ id: p.id, nombre: p.nombre || '', numero: p.numero || '', categorias: Array.isArray(p.categorias) ? p.categorias : [] }));
+            _guardarProveedoresConfigLocal();
+        }
+    } catch (_) {
+        // sin conexión / error de red: se sigue trabajando con lo que haya
+        // quedado en caché local (_cargarProveedoresConfigLocal).
+    }
+}
 // Se carga apenas inicia el panel: proveedorDeCategoria() la necesita para
 // saber a qué proveedor corresponde cada pedido (vista previa y "Enviar
 // Pedidos"). Antes solo se cargaba al abrir el modal de configuración, así
-// que sin abrirlo ningún pedido llegaba a proveedores.html.
+// que sin abrirlo ningún pedido llegaba a proveedores.html. Primero se lee
+// la caché local (instantáneo) y después se refresca contra el servidor
+// (fuente de verdad) en cuanto responde.
 _cargarProveedoresConfigLocal();
+_cargarProveedoresConfigServidor();
 
 // 🔧 FIX: las categorías creadas con "Agregar Categoría" nunca podían
 // delegarse a un proveedor — el selector de "⚙️ WhatsApp de proveedores"
@@ -4714,7 +4736,7 @@ async function abrirConfigWhatsappProveedores() {
     pedirVerificacionPanelPin(async () => {
         document.getElementById('wa-config-modal').classList.add('show');
         await cargarWhatsappProveedores();
-        _cargarProveedoresConfigLocal();
+        await _cargarProveedoresConfigServidor();
         await _cargarCategoriasExtraMap();
         _proveedorEditandoId = null;
         _renderProveedoresConfigBody();
@@ -4815,6 +4837,19 @@ async function guardarProveedor() {
         _guardarProveedoresConfigLocal();
         if (proveedor) await _sincronizarCategoriasProveedor(proveedor);
 
+        // 🔧 FIX: ficha completa (nombre + número + categorías) al
+        // servidor/Firestore — colección "proveedoresConfig" en
+        // workerproveedores — para que no se pierda ni aparezca vacía al
+        // entrar desde otro navegador/dispositivo.
+        let errorServidorFicha = false;
+        if (proveedor) {
+            const resFicha = await fetchJson(WORKER_PROVEEDORES + '/api/proveedores-config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({ id: proveedor.id, nombre: proveedor.nombre, numero: proveedor.numero, categorias: proveedor.categorias || [] })
+            });
+            if (!resFicha || !resFicha.ok) errorServidorFicha = true;
+        }
+
         // Mantiene vivo el mecanismo viejo (categoria -> número) para que
         // ejecutarPedido()/_enviarPedidoAWorkerProveedores() sigan
         // resolviendo el número aunque todavía no lean PROVEEDORES_CONFIG.
@@ -4827,7 +4862,7 @@ async function guardarProveedor() {
             if (res && res.ok) WHATSAPP_PROVEEDORES[c] = numero;
             else huboError = true;
         }
-        toast(huboError ? 'Proveedor guardado (algunos números no se sincronizaron con el Worker)' : 'Proveedor guardado', !huboError);
+        toast((huboError || errorServidorFicha) ? 'Proveedor guardado (algunos datos no se sincronizaron con el servidor)' : 'Proveedor guardado', !(huboError || errorServidorFicha));
         cerrarFormProveedor();
         _renderProveedoresConfigBody();
         // 🔧 NUEVO: al guardar (alta o edición), genera el enlace
@@ -4875,13 +4910,25 @@ async function _copiarEnlaceProveedor() {
     }
 }
 
-function eliminarProveedor(id) {
+async function eliminarProveedor(id) {
     if (!confirm('¿Eliminar este proveedor? Sus categorías quedan sin proveedor asignado hasta que se reconfiguren.')) return;
     _sincronizarCategoriasProveedor({ id, categorias: [] });
+    // 🔧 FIX: borra también la ficha del proveedor en el servidor/Firestore
+    // (colección "proveedoresConfig") — si solo se borra local, reaparece
+    // al entrar desde otro navegador/dispositivo o al refrescar la lista
+    // contra el servidor.
+    let errorServidor = false;
+    try {
+        const res = await fetchJson(WORKER_PROVEEDORES + '/api/proveedores-config-eliminar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ id })
+        });
+        if (!res || !res.ok) errorServidor = true;
+    } catch (_) { errorServidor = true; }
     PROVEEDORES_CONFIG = PROVEEDORES_CONFIG.filter(p => p.id !== id);
     _guardarProveedoresConfigLocal();
     _renderProveedoresConfigBody();
-    toast('Proveedor eliminado', true);
+    toast(errorServidor ? 'Proveedor eliminado localmente (no se pudo confirmar con el servidor)' : 'Proveedor eliminado', !errorServidor);
 }
 
 // 🔧 NUEVO: "Enviar Panel" — manda directo al chat de WhatsApp del
