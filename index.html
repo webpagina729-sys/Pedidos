@@ -2564,6 +2564,11 @@ async function loadData() {
     // refleja solo con este refresco periódico.
     await cargarEnvios();
 
+    // 🔧 NUEVO: se guarda el scroll ANTES de repintar todo — el repintado
+    // completo (abajo) reconstruye el HTML de cada sección, lo que de
+    // paso resetea la posición de scroll de la página; se restaura justo
+    // después (ver _reaplicarRibbonsAbiertos más abajo, mismo motivo).
+    const _scrollYPrevia = window.scrollY;
     renderPedidosView();
     renderListaView();
     renderStatsView();
@@ -2571,6 +2576,11 @@ async function loadData() {
     renderPedidosStockView(); // 🆕 NUEVO: "Pedidos de Stock" (colección Firestore dedicada "pedidosStock")
     _datosCargadosUnaVez = true;
     renderEnviosView(); // 🆕 NUEVO: "Envíos"
+    // 🔧 NUEVO: reabre las cintas que estaban abiertas antes de este
+    // repintado y restaura el scroll — ver _ribbonsAbiertos/
+    // toggleRibbonEl/toggleEstadoRibbon más arriba.
+    _reaplicarRibbonsAbiertos();
+    window.scrollTo(0, _scrollYPrevia);
     actualizarContadorRvndrHeader();
     _revisarAvisosSeguimientoGrupal(); // 🆕 aviso consolidado (un solo modal, nunca uno por pedido)
 
@@ -3267,7 +3277,25 @@ async function _sincronizarPreviewProveedores() {
     }
 }
 
-function toggleEstadoRibbon(id) { document.getElementById(id)?.classList.toggle('expanded'); }
+// 🔧 NUEVO: recuerda qué cintas (de cualquier sector del panel) estaban
+// abiertas, para volver a abrirlas después de un repintado completo (ver
+// _reaplicarRibbonsAbiertos, llamado al final de loadData()). Antes el
+// único registro de "abierta" era la clase CSS "expanded" puesta sobre el
+// elemento del DOM — y como cada actualización reconstruye el HTML de
+// cero (innerHTML nuevo), los elementos viejos se destruían junto con esa
+// clase: toda cinta abierta se cerraba sola cada vez que el panel se
+// actualizaba (auto-refresh de 5 min, o "Actualizar" a mano), aunque los
+// datos no hubieran cambiado en absoluto.
+var _ribbonsAbiertos = new Set();
+function _reaplicarRibbonsAbiertos() {
+    _ribbonsAbiertos.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('expanded'); });
+}
+function toggleEstadoRibbon(id) {
+    const el = document.getElementById(id); if (!el) return;
+    const abrir = !el.classList.contains('expanded');
+    el.classList.toggle('expanded', abrir);
+    if (abrir) _ribbonsAbiertos.add(id); else _ribbonsAbiertos.delete(id);
+}
 
 // Sub-cintas por Revendedor (nombre y apellido) dentro de un estado.
 // 🆕 NUEVO: parámetros opcionales contenidoFn/footerFn/idPrefix — permiten
@@ -3920,8 +3948,13 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
 // de datos anterior (p.estadoPago, p.total, p.cliente directo), de antes
 // de la reestructuración a panelGestion. Sin ningún llamado.
 
-function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle('expanded'); }
-function toggleRibbonEl(fullId) { document.getElementById(fullId)?.classList.toggle('expanded'); }
+function toggleRibbon(id) { toggleRibbonEl('oc-' + id); }
+function toggleRibbonEl(fullId) {
+    const el = document.getElementById(fullId); if (!el) return;
+    const abrir = !el.classList.contains('expanded');
+    el.classList.toggle('expanded', abrir);
+    if (abrir) _ribbonsAbiertos.add(fullId); else _ribbonsAbiertos.delete(fullId);
+}
 
 // 🧹 LIMPIEZA: se eliminó marcarComoEliminadoManual() y su botón "🗑️ Ya
 // no existe / Sincronizar" — cuando el cliente elimina un pedido desde su
@@ -5535,7 +5568,13 @@ function _renderEnviosCategoria(estadoTab, provKey, vId, cat, gsCat) {
 // completo: productos+cantidades, datos de envío, número de pedido y
 // total mayorista.
 function _renderEnvioPedidoRow(p) {
-    const rowId = 'envio-ped-' + String(p.id || p.pedidoId || Math.random()).replace(/[^a-zA-Z0-9-]/g, '_');
+    // 🔧 FIX: antes, si el pedido no tenía id ni pedidoId, se usaba
+    // Math.random() como último recurso — un id distinto en cada
+    // repintado, que nunca podía "recordarse" entre actualizaciones (ver
+    // _reaplicarRibbonsAbiertos). Se reemplaza por un id estable armado
+    // con datos propios del pedido (código + fecha), igual en cada
+    // repintado mientras el pedido sea el mismo.
+    const rowId = 'envio-ped-' + String(p.id || p.pedidoId || (p.codigoVendedor + '-' + p.enviadoEn)).replace(/[^a-zA-Z0-9-]/g, '_');
     const de = p.datosEnvio || {};
     const nombreCompleto = [de.nombre, de.apellido].filter(Boolean).join(' ') || p.nombreRevendedor || vendorLabel(p.codigoVendedor);
     const direccion = de.direccion || [de.calle, de.numero].filter(Boolean).join(' ');
@@ -5844,6 +5883,14 @@ function verMasProductosPorCategoria(cat) {
 // ═══════════════════════════════════════════════════════════
 function renderStatsView() {
     const el = document.getElementById('stats-content');
+    // 🔧 FIX: statRow() le pone a cada fila un id con un contador
+    // (_statRowSeq) que antes NUNCA se reiniciaba — subía para siempre
+    // durante toda la sesión. Como las filas de Estadísticas se llaman
+    // siempre en el mismo orden, reiniciarlo acá (antes de volver a armar
+    // todas las filas) hace que cada fila tenga siempre el MISMO id en
+    // cada repintado — necesario para que _reaplicarRibbonsAbiertos()
+    // pueda reconocerlas y volver a abrirlas tras una actualización.
+    _statRowSeq = 0;
     // 🔧 FIX: antes, si no había NINGÚN dato todavía, se cortaba acá y
     // nunca se mostraba la estructura completa (KPIs, gráficos, Mis
     // Ganancias) — quedaba solo un cartel de "sin datos". Ahora la
@@ -9290,8 +9337,13 @@ window.addEventListener('load', init);
 <script id="fechas-pago-stats">
 /* Estadísticas → "Fechas de pago esperadas": lee la colección nueva
    fechasPagoRevendedores (vía el worker) y las ordena de la más cercana a la
-   más lejana. Solo agrega esta sección; no modifica nada existente. */
-var _fpFechas = null, _fpCargando = false;
+   más lejana. Solo agrega esta sección; no modifica nada existente.
+   🔧 NUEVO: lista paginada de 10 en 10 ("Ver más") + un ranking agrupado
+   por fecha debajo (misma fecha de varios revendedores = una sola fila,
+   con el total de pedidos posibles entre todos), ordenado igual que la
+   lista de arriba — de la fecha más próxima a la más lejana. */
+var FP_PAGE = 10;
+var _fpFechas = null, _fpCargando = false, _fpShown = 0;
 function _fpTxt(f) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''); return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (f || ''); }
 function _fpDias(f) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''); if (!m) return 0;
@@ -9309,27 +9361,67 @@ function _fpPedidosEsperados(codigo) {
     } catch (_) {}
     return { total: total, porCat: porCat };
 }
+function _fpOrdenada() {
+    if (!Array.isArray(_fpFechas)) return [];
+    var prox = _fpFechas.filter(function (x) { return _fpDias(x.fechaLimite) >= 0; }).sort(function (a, b) { return a.fechaLimite.localeCompare(b.fechaLimite); });
+    var venc = _fpFechas.filter(function (x) { return _fpDias(x.fechaLimite) < 0; }).sort(function (a, b) { return b.fechaLimite.localeCompare(a.fechaLimite); });
+    return prox.concat(venc);
+}
+function _fpCuandoTxt(n) { return n > 1 ? ('faltan ' + n + ' días') : n === 1 ? 'falta 1 día' : n === 0 ? 'vence hoy' : ('vencida hace ' + (-n) + (n === -1 ? ' día' : ' días')); }
+function _fpColor(n) { return n < 0 ? 'var(--red)' : (n <= 2 ? 'var(--amber)' : 'var(--text3)'); }
+function _fpFilaHTML(x) {
+    var n = _fpDias(x.fechaLimite);
+    var nombre = [x.nombre, x.apellido].filter(Boolean).join(' ') || (typeof vendorLabel === 'function' ? vendorLabel(x.codigoVendedor) : x.codigoVendedor) || 'Revendedor';
+    var pe = _fpPedidosEsperados(x.codigoVendedor);
+    var cats = Object.keys(pe.porCat).sort(function (a, b) { return pe.porCat[b] - pe.porCat[a]; }).map(function (c) { return esc((typeof CAT_LABELS !== 'undefined' && CAT_LABELS[c]) || c) + ': <strong>' + pe.porCat[c] + '</strong>'; }).join(' · ');
+    var det = '<div style="flex-basis:100%;font-size:11px;color:var(--text3)">' + (pe.total ? ('Se esperan <strong>' + pe.total + '</strong> pedido' + (pe.total !== 1 ? 's' : '') + ' — ' + cats) : 'Sin pedidos pendientes por ahora') + '</div>';
+    return '<div class="ship-row" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>' + esc(nombre) + (x.codigoVendedor ? ' <span style="color:var(--text3);font-size:11px">' + esc(x.codigoVendedor) + '</span>' : '') + '</span><span><strong>' + _fpTxt(x.fechaLimite) + '</strong> <span style="color:' + _fpColor(n) + ';font-size:11px">· ' + _fpCuandoTxt(n) + '</span></span>' + det + '</div>';
+}
 function _fpHtmlLista() {
     if (_fpFechas === null) return '<div class="ship-row" style="color:var(--text3)">Cargando…</div>';
     if (_fpFechas === false) return '<div class="ship-row" style="color:var(--text3)">No se pudo cargar la lista.</div>';
-    if (!_fpFechas.length) return '<div class="ship-row" style="color:var(--text3)">Todavía ningún revendedor configuró su fecha de pago.</div>';
-    var prox = _fpFechas.filter(function (x) { return _fpDias(x.fechaLimite) >= 0; }).sort(function (a, b) { return a.fechaLimite.localeCompare(b.fechaLimite); });
-    var venc = _fpFechas.filter(function (x) { return _fpDias(x.fechaLimite) < 0; }).sort(function (a, b) { return b.fechaLimite.localeCompare(a.fechaLimite); });
-    return prox.concat(venc).map(function (x) {
-        var n = _fpDias(x.fechaLimite);
-        var nombre = [x.nombre, x.apellido].filter(Boolean).join(' ') || (typeof vendorLabel === 'function' ? vendorLabel(x.codigoVendedor) : x.codigoVendedor) || 'Revendedor';
-        var cuando = n > 1 ? ('faltan ' + n + ' días') : n === 1 ? 'falta 1 día' : n === 0 ? 'vence hoy' : ('vencida hace ' + (-n) + (n === -1 ? ' día' : ' días'));
-        var pe = _fpPedidosEsperados(x.codigoVendedor);
-        var cats = Object.keys(pe.porCat).sort(function (a, b) { return pe.porCat[b] - pe.porCat[a]; }).map(function (c) { return esc((typeof CAT_LABELS !== 'undefined' && CAT_LABELS[c]) || c) + ': <strong>' + pe.porCat[c] + '</strong>'; }).join(' · ');
-        var det = '<div style="flex-basis:100%;font-size:11px;color:var(--text3)">' + (pe.total ? ('Se esperan <strong>' + pe.total + '</strong> pedido' + (pe.total !== 1 ? 's' : '') + ' — ' + cats) : 'Sin pedidos pendientes por ahora') + '</div>';
-        var col = n < 0 ? 'var(--red)' : (n <= 2 ? 'var(--amber)' : 'var(--text3)');
-        return '<div class="ship-row" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>' + esc(nombre) + (x.codigoVendedor ? ' <span style="color:var(--text3);font-size:11px">' + esc(x.codigoVendedor) + '</span>' : '') + '</span><span><strong>' + _fpTxt(x.fechaLimite) + '</strong> <span style="color:' + col + ';font-size:11px">· ' + cuando + '</span></span>' + det + '</div>';
+    var lista = _fpOrdenada();
+    if (!lista.length) return '<div class="ship-row" style="color:var(--text3)">Todavía ningún revendedor configuró su fecha de pago.</div>';
+    if (!_fpShown) _fpShown = Math.min(FP_PAGE, lista.length);
+    var html = lista.slice(0, _fpShown).map(_fpFilaHTML).join('');
+    if (_fpShown < lista.length) {
+        html += '<button type="button" class="af-btn" onclick="_fpVerMas()">Ver más (' + (lista.length - _fpShown) + ' restantes)</button>';
+    }
+    return html;
+}
+function _fpVerMas() { _fpShown += FP_PAGE; _fpPintar(); }
+// Ranking agrupado por fecha: una sola fila por cada fecha distinta,
+// sumando cuántos revendedores la eligieron y cuántos pedidos posibles
+// hay entre todos ellos — ordenado igual que la lista de arriba (fecha
+// más próxima primero, vencidas al final).
+function _fpAgruparPorFecha() {
+    var lista = _fpOrdenada(), grupos = {}, orden = [];
+    lista.forEach(function (x) {
+        var f = x.fechaLimite;
+        if (!grupos[f]) { grupos[f] = { fecha: f, revendedores: 0, pedidos: 0 }; orden.push(f); }
+        grupos[f].revendedores++;
+        grupos[f].pedidos += _fpPedidosEsperados(x.codigoVendedor).total;
+    });
+    return orden.map(function (f) { return grupos[f]; });
+}
+function _fpHtmlRanking() {
+    if (_fpFechas === null) return '<div class="ship-row" style="color:var(--text3)">Cargando…</div>';
+    if (_fpFechas === false) return '';
+    var grupos = _fpAgruparPorFecha();
+    if (!grupos.length) return '<div class="ship-row" style="color:var(--text3)">Todavía ningún revendedor configuró su fecha de pago.</div>';
+    return grupos.map(function (g, i) {
+        var n = _fpDias(g.fecha);
+        return '<div class="ship-row" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
+            '<span><strong>#' + (i + 1) + '</strong> ' + _fpTxt(g.fecha) + ' <span style="color:' + _fpColor(n) + ';font-size:11px">· ' + _fpCuandoTxt(n) + '</span></span>' +
+            '<span>' + g.revendedores + ' revendedor' + (g.revendedores !== 1 ? 'es' : '') + ' · <strong>' + g.pedidos + '</strong> pedido' + (g.pedidos !== 1 ? 's' : '') + ' posible' + (g.pedidos !== 1 ? 's' : '') + '</span>' +
+            '</div>';
     }).join('');
 }
 function _fpPintar() {
-    var l = document.getElementById('fp-stats-lista'), n = document.getElementById('fp-stats-n');
+    var l = document.getElementById('fp-stats-lista'), n = document.getElementById('fp-stats-n'), rk = document.getElementById('fp-stats-ranking');
     if (l) l.innerHTML = _fpHtmlLista();
     if (n) n.textContent = Array.isArray(_fpFechas) ? _fpFechas.length : '…';
+    if (rk) rk.innerHTML = _fpHtmlRanking();
 }
 async function _fpCargar() {
     if (_fpCargando) return; _fpCargando = true;
@@ -9343,7 +9435,11 @@ async function _fpCargar() {
 function renderFechasPagoStats() {
     var ico = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
     setTimeout(_fpCargar, 0);
-    return statRow(ico, 'Fechas de pago esperadas', '<span id="fp-stats-n">' + (Array.isArray(_fpFechas) ? _fpFechas.length : '…') + '</span>', '<div id="fp-stats-lista">' + _fpHtmlLista() + '</div>');
+    return statRow(ico, 'Fechas de pago esperadas', '<span id="fp-stats-n">' + (Array.isArray(_fpFechas) ? _fpFechas.length : '…') + '</span>',
+        '<div id="fp-stats-lista">' + _fpHtmlLista() + '</div>' +
+        '<div class="af-grp" style="margin-top:14px">Ranking por fecha</div>' +
+        '<div id="fp-stats-ranking">' + _fpHtmlRanking() + '</div>'
+    );
 }
 </script>
 
