@@ -1439,6 +1439,91 @@ function _renderMeterList(ranking, claseFill) {
 // marcados "En Camino" — venta ya despachada, cuenta en firme). Pausar el
 // panel NO afecta nada de esto: esta función sigue usando
 // PEDIDOS_PROVEEDOR tal cual lo trae cargarDatos(), en vivo.
+// ═══════════════════════════════════════════════════════════════
+// 🆕 "Fechas de pago esperadas" (SOLO de los revendedores de ESTE
+// proveedor) — llama a /api/proveedor-fechas-pago (ver
+// workerproveedores_worker.js), que ya devuelve solo codigoVendedor +
+// fechaLimite + cantidadPedidos, filtrado a las categorías delegadas a
+// este proveedor. Acá se agrupa por fecha (mismo criterio que el
+// ranking de pedidos.html) y se muestra SOLO ese ranking, de 5 en 5 —
+// sin la lista detallada por revendedor, a pedido explícito.
+// ═══════════════════════════════════════════════════════════════
+let FP_PROV_DATOS = null;      // null = no cargado, false = error, [] = sin datos
+let FP_PROV_CARGANDO = false;
+let FP_PROV_MOSTRADOS = 0;
+const FP_PROV_POR_PAGINA = 5;
+
+function _fpProvDias(f) {
+    try {
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        const [a, m, d] = f.split('-').map(Number);
+        return Math.round((new Date(a, m - 1, d) - hoy) / 86400000);
+    } catch (_) { return 0; }
+}
+function _fpProvTxt(f) {
+    try { const [a, m, d] = f.split('-').map(Number); return String(d).padStart(2, '0') + '/' + String(m).padStart(2, '0') + '/' + a; }
+    catch (_) { return f; }
+}
+function _fpProvCuandoTxt(n) {
+    return n > 1 ? ('faltan ' + n + ' días') : n === 1 ? 'falta 1 día' : n === 0 ? 'vence hoy' : ('vencida hace ' + (-n) + (n === -1 ? ' día' : ' días'));
+}
+function _fpProvColor(n) { return n < 0 ? 'var(--red)' : (n <= 2 ? 'var(--amber)' : 'var(--text3)'); }
+
+// Agrupa por fecha (próximas primero, luego vencidas) — igual orden que
+// _fpOrdenada() en pedidos.html.
+function _fpProvAgrupar() {
+    if (!Array.isArray(FP_PROV_DATOS)) return [];
+    const prox = FP_PROV_DATOS.filter(x => _fpProvDias(x.fechaLimite) >= 0).sort((a, b) => a.fechaLimite.localeCompare(b.fechaLimite));
+    const venc = FP_PROV_DATOS.filter(x => _fpProvDias(x.fechaLimite) < 0).sort((a, b) => b.fechaLimite.localeCompare(a.fechaLimite));
+    const ordenada = prox.concat(venc);
+    const grupos = {}, orden = [];
+    ordenada.forEach(x => {
+        const f = x.fechaLimite;
+        if (!grupos[f]) { grupos[f] = { fecha: f, revendedores: 0, pedidos: 0 }; orden.push(f); }
+        grupos[f].revendedores++;
+        grupos[f].pedidos += Number(x.cantidadPedidos) || 0;
+    });
+    return orden.map(f => grupos[f]);
+}
+
+function _fpProvHtmlRanking() {
+    if (FP_PROV_DATOS === null) return '<div class="empty-state">Cargando…</div>';
+    if (FP_PROV_DATOS === false) return '<div class="empty-state">No se pudo cargar. Probá "Actualizar".</div>';
+    const grupos = _fpProvAgrupar();
+    if (!grupos.length) return '<div class="empty-state">Todavía no hay pedidos pendientes con fecha de pago configurada.</div>';
+    const visibles = grupos.slice(0, FP_PROV_MOSTRADOS || FP_PROV_POR_PAGINA);
+    let html = visibles.map((g, i) => {
+        const n = _fpProvDias(g.fecha);
+        return `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--text2);margin-bottom:6px">
+            <span><strong style="color:var(--text)">#${i + 1}</strong> ${_fpProvTxt(g.fecha)} <span style="color:${_fpProvColor(n)};font-size:11px">· ${_fpProvCuandoTxt(n)}</span></span>
+            <span>${g.revendedores} revendedor${g.revendedores !== 1 ? 'es' : ''} · <strong style="color:var(--text)">${g.pedidos}</strong> pedido${g.pedidos !== 1 ? 's' : ''} posible${g.pedidos !== 1 ? 's' : ''}</span>
+        </div>`;
+    }).join('');
+    if (grupos.length > visibles.length) {
+        html += `<div class="meter-pager"><button onclick="_fpProvVerMas()">Ver más</button></div>`;
+    }
+    return html;
+}
+
+function _fpProvVerMas() {
+    FP_PROV_MOSTRADOS = (FP_PROV_MOSTRADOS || FP_PROV_POR_PAGINA) + FP_PROV_POR_PAGINA;
+    const el = document.getElementById('fp-prov-ranking');
+    if (el) el.innerHTML = _fpProvHtmlRanking();
+}
+
+async function _fpProvCargar() {
+    if (FP_PROV_CARGANDO || !PROVEEDOR_ID_ACTUAL || !window._sessionToken) return;
+    FP_PROV_CARGANDO = true;
+    try {
+        const r = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-fechas-pago?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&sessionToken=${encodeURIComponent(window._sessionToken)}`);
+        FP_PROV_DATOS = (r && r.ok && Array.isArray(r.fechas)) ? r.fechas : false;
+    } catch (_) { FP_PROV_DATOS = false; }
+    FP_PROV_CARGANDO = false;
+    FP_PROV_MOSTRADOS = FP_PROV_POR_PAGINA;
+    const rk = document.getElementById('fp-prov-ranking');
+    if (rk) rk.innerHTML = _fpProvHtmlRanking();
+}
+
 function renderEstadisticas() {
     const todos = PEDIDOS_PROVEEDOR;
     // 🔧 FIX: "oficiales" debe ser "ya despachado" = en camino O ya entregado
@@ -1498,6 +1583,19 @@ function renderEstadisticas() {
     html += _estadoCintaHTML('frecuencia-pendientes', 'Frecuencia de venta, Pendientes',
         '<span class="badge-pill pendiente">Sin despachar</span>',
         `Pedidos todavía no despachados o no confirmados desde "En Camino"<div class="mini-list" style="margin-top:10px">${_renderMeterList(rankingPendientes, 'pendiente')}</div>`,
+        '', 'font-size:12px;font-weight:600');
+
+    // 🆕 "Fechas de pago esperadas" — SOLO el ranking agrupado por fecha
+    // (cantidad de pedidos posibles + cantidad de revendedores), igual al
+    // que ya existe en pedidos.html pero acá SOLO de los revendedores de
+    // ESTE proveedor (sus categorías delegadas) y SIN la lista detallada
+    // por revendedor (sin nombres), paginado de 5 en 5. Se carga aparte
+    // (setTimeout) para no bloquear el resto de "Estadísticas".
+    setTimeout(_fpProvCargar, 0);
+    html += _estadoCintaHTML('fechas-pago-prov', 'Fechas de pago esperadas',
+        '<span class="count-badge">' + (Array.isArray(FP_PROV_DATOS) ? _fpProvAgrupar().length : '…') + '</span>',
+        'Fechas de pago que configuraron tus revendedores, con la cantidad de pedidos esperados para cada una.',
+        '<div id="fp-prov-ranking">' + _fpProvHtmlRanking() + '</div>',
         '', 'font-size:12px;font-weight:600');
 
     // 🔧 Segunda línea divisoria: el panel gráfico va debajo, sin
