@@ -1242,6 +1242,14 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Agregar Categoría</span><button type="button" class="cp-cerrar" onclick="cerrarAgregarCategoria()">Cerrar</button></h3>
 
         <div id="catMetaForm">
+            <!-- 🆕 Categorías ORIGINALES (calzados, perfumes, etc. — no las
+                 creadas acá abajo) con un interruptor para ocultarlas de
+                 revendedores/clientes sin borrar nada. Se llena en
+                 abrirAgregarCategoria() → cargarCategoriasOcultasLista(). -->
+            <div id="catOcultasLista" style="margin-bottom:14px">
+                <label style="display:block;font-size:12.5px;margin:0 0 6px">Categorías originales — ocultar de revendedores y clientes</label>
+                <div id="catOcultasBox" style="display:flex;flex-direction:column;gap:6px"><div class="loader" style="padding:6px 0"><div class="spin"></div></div></div>
+            </div>
             <!-- 🆕 Categorías ya creadas con este modal, con su botón para eliminarlas.
                  Se llena en abrirAgregarCategoria() → cargarCategoriasExtraLista(). -->
             <div id="catExtraLista" style="display:none;margin-bottom:12px"></div>
@@ -7252,6 +7260,45 @@ function abrirAgregarCategoria() {
     document.getElementById('catProductosBox').style.display = 'none';
     document.getElementById('agregarCategoriaModal').classList.add('show');
     cargarCategoriasExtraLista();
+    cargarCategoriasOcultasLista();
+}
+
+// 🆕 "Ocultar categoría": lista las 10 categorías originales (CAT_LABELS)
+// con un interruptor on/off por cada una, reflejando /api/categorias-ocultas.
+// Apagar el interruptor = esa categoría deja de verse en index.html,
+// mas-categorias.html, tienda.html y stock.html para revendedores/clientes.
+// El admin (acá en pedidos.html) sigue viéndola y gestionándola sin cambios
+// — este panel nunca filtra por esta lista.
+let _categoriasOcultasActual = [];
+async function cargarCategoriasOcultasLista() {
+    const box = document.getElementById('catOcultasBox');
+    if (!box) return;
+    const res = await fetchJson(WORKER_PRECIOS + '/api/categorias-ocultas').catch(() => null);
+    _categoriasOcultasActual = (res && res.ok && Array.isArray(res.categorias)) ? res.categorias : [];
+    box.innerHTML = Object.keys(CAT_LABELS).map(id => {
+        const oculta = _categoriasOcultasActual.includes(id);
+        return `<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;font-size:12.5px;cursor:pointer">
+            <span>${esc(CAT_LABELS[id])}${oculta ? ' <span style=\"color:#f43f5e;font-weight:700\">(oculta)</span>' : ''}</span>
+            <input type="checkbox" ${oculta ? '' : 'checked'} onchange="toggleCategoriaOculta('${id}', !this.checked)">
+        </label>`;
+    }).join('');
+}
+
+// El checkbox representa "visible" (tildado = visible, destildado = oculta)
+// para que sea intuitivo en la UI, aunque la lista que se guarda es de
+// categorías OCULTAS — se traduce acá, no en el HTML.
+async function toggleCategoriaOculta(id, ocultar) {
+    let lista = _categoriasOcultasActual.slice();
+    if (ocultar) { if (!lista.includes(id)) lista.push(id); }
+    else { lista = lista.filter(x => x !== id); }
+    const res = await fetchJson(WORKER_PRECIOS + '/api/categorias-ocultas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categorias: lista })
+    });
+    if (!res || !res.ok) { toast('No se pudo actualizar' + (res && res.error ? ': ' + res.error : ''), 'err'); cargarCategoriasOcultasLista(); return; }
+    _categoriasOcultasActual = res.categorias || lista;
+    toast(ocultar ? 'Categoría ocultada para revendedores y clientes' : 'Categoría visible de nuevo', true);
+    cargarCategoriasOcultasLista();
 }
 
 // 🆕 Cambia el placeholder del número según el tipo de objetivo elegido
