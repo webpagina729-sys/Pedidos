@@ -5866,7 +5866,9 @@ function renderProveedoresRegView() {
                 <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;${p.aprobado ? 'opacity:.5;pointer-events:none' : ''}" onclick="aprobarProveedorRegistro('${esc(p.id)}')">Aprobar</button>
                 <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700" onclick="abrirDelegarCategoriaReg('${esc(p.proveedorId)}')">Delegar categoría</button>
                 <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;${!tieneCategoria ? 'opacity:.4;pointer-events:none' : ''}" title="${!tieneCategoria ? 'Delegale una categoría primero' : ''}" onclick="notificarProveedorRegistro('${esc(p.proveedorId)}')">Notificar</button>
-            </div>` : ''}
+            </div>` : `<div style="margin-top:10px">
+                <button class="prov-btn-icon" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;background:#f59e0b;border-color:#f59e0b;color:#111" title="Este registro es de antes del arreglo y no tiene proveedorId — generale uno para poder Aprobar/Delegar/Notificar" onclick="vincularProveedorRegistro('${esc(p.id)}')">⚠️ Vincular proveedor</button>
+            </div>`}
         </div>`;}).join('')}
     </div>`;
 }
@@ -5883,6 +5885,23 @@ async function aprobarProveedorRegistro(id) {
     if (reg) reg.aprobado = true;
     renderProveedoresRegView();
     toast('Proveedor aprobado', true);
+}
+
+// 🔧 FIX: genera un proveedorId para un registro viejo que quedó sin uno
+// (se registró antes del arreglo, por la URL genérica de proveedores.html
+// sin "?proveedor=<id>") y por eso nunca mostraba "Aprobar"/"Delegar
+// categoría"/"Notificar". Después de esto, esos 3 botones aparecen igual
+// que en cualquier otro registro.
+async function vincularProveedorRegistro(id) {
+    const res = await fetchJson(WORKER_PROVEEDORES + '/api/proveedor-registro-vincular', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id })
+    });
+    if (!res || !res.ok) { toast('No se pudo vincular' + (res && res.error ? ': ' + res.error : ''), 'err'); return; }
+    const reg = PROVEEDORES_REGISTRADOS.find(p => p.id === id);
+    if (reg) reg.proveedorId = res.proveedorId;
+    renderProveedoresRegView();
+    toast('Proveedor vinculado — ya podés Aprobar/Delegar/Notificar', true);
 }
 
 let _delegarCatRegProveedorId = null;
