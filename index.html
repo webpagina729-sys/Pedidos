@@ -5098,6 +5098,26 @@ async function guardarProveedor() {
 // generado sea siempre el que se comparte con proveedores.
 const DOMINIO_PANEL_PROVEEDORES = 'https://pedidos.revendeways.shop';
 
+// 🆕 Decide a qué archivo mandar al proveedor: si ya se oficializó (ya
+// creó su contraseña — ver /api/proveedor-oficial-estado), va a
+// proveedoresoficiales.html (panel con login); si todavía no, va a
+// proveedores.html (ahí está el formulario para registrarse/oficializar).
+// Se recalcula en el momento con el estado real del servidor — así que
+// en cuanto el proveedor crea su contraseña (o se lo "Aprueba" y queda
+// con categoría delegada), todo enlace que se genere de ahora en más ya
+// sale apuntando al panel que corresponde, sin que haya que tocar nada
+// a mano. Usado por _mostrarEnlaceProveedor, enviarPanelAProveedor,
+// notificarProveedorRegistro y _confirmarSolicitudReg.
+async function _enlacePanelProveedor(proveedorId) {
+    let oficializado = false;
+    try {
+        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-oficial-estado?proveedorId=${encodeURIComponent(proveedorId)}`);
+        oficializado = !!(res && res.ok && res.oficializado);
+    } catch (_) {}
+    const archivo = oficializado ? 'proveedoresoficiales.html' : 'proveedores.html';
+    return DOMINIO_PANEL_PROVEEDORES + '/' + archivo + '?proveedor=' + encodeURIComponent(proveedorId);
+}
+
 // arma el enlace de proveedores.html para este proveedor y abre el modal
 // para copiarlo/mandarlo por WhatsApp. El id de la URL es el MISMO id
 // que ya usa PROVEEDORES_CONFIG (prov.id): es el mismo valor que ahora
@@ -5105,8 +5125,8 @@ const DOMINIO_PANEL_PROVEEDORES = 'https://pedidos.revendeways.shop';
 // (ver _enviarPedidoAWorkerProveedores), así que proveedores.html puede
 // resolver de qué proveedor se trata sin leer el localStorage de este
 // panel (dominios distintos).
-function _mostrarEnlaceProveedor(proveedor) {
-    const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores.html?proveedor=' + encodeURIComponent(proveedor.id);
+async function _mostrarEnlaceProveedor(proveedor) {
+    const url = await _enlacePanelProveedor(proveedor.id);
     document.getElementById('proveedor-enlace-nombre').textContent = proveedor.nombre;
     document.getElementById('proveedor-enlace-url').textContent = url;
     document.getElementById('proveedor-enlace-wa').href = 'https://api.whatsapp.com/send/?phone=' + proveedor.numero + '&text=' + encodeURIComponent(`Hola ${proveedor.nombre}! Te paso el enlace a tu panel de pedidos de Revende Ways: ${url}`);
@@ -5149,13 +5169,19 @@ async function eliminarProveedor(id) {
 // proveedor (sin pantalla de compartir del sistema, mismo criterio que el
 // resto de los envíos por WhatsApp de este panel) el mensaje fijo pedido
 // junto con el enlace a su panel de pedidos (proveedores.html).
-function enviarPanelAProveedor(id) {
+async function enviarPanelAProveedor(id) {
     const p = PROVEEDORES_CONFIG.find(x => x.id === id);
     if (!p) { toast('No se encontró el proveedor', 'err'); return; }
     if (!p.numero) { toast('Este proveedor no tiene WhatsApp cargado', 'err'); return; }
-    const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores.html?proveedor=' + encodeURIComponent(p.id);
+    // 🆕 Se abre la pestaña YA, en el mismo click (si no, el navegador la
+    // bloquea como popup porque _enlacePanelProveedor hace un fetch antes
+    // de abrir) — recién al resolver el link de abajo se la redirige a
+    // WhatsApp con el mensaje final.
+    const w = window.open('', '_blank');
+    const url = await _enlacePanelProveedor(p.id);
     const mensaje = `Hola ${p.nombre} acá te dejo todos los pedidos bien ordenados junto a la boleta de envío descargable de cada uno! Cualquier cosita me preguntas! \n${url}`;
-    window.open(`https://api.whatsapp.com/send/?phone=${p.numero}&text=${encodeURIComponent(mensaje)}`, '_blank');
+    const waUrl = `https://api.whatsapp.com/send/?phone=${p.numero}&text=${encodeURIComponent(mensaje)}`;
+    if (w) w.location.href = waUrl; else window.open(waUrl, '_blank');
 }
 
 // 🔧 NUEVO: pausar/reanudar el acceso del proveedor a proveedores.html.
@@ -6067,12 +6093,14 @@ async function guardarDelegarCategoriaReg() {
     toast('Categoría delegada', true);
 }
 
-function notificarProveedorRegistro(proveedorId) {
+async function notificarProveedorRegistro(proveedorId) {
     const cfg = PROVEEDORES_CONFIG.find(p => p.id === proveedorId);
     if (!cfg) { toast('No se encontró la ficha de este proveedor', 'err'); return; }
-    const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores?proveedor=' + encodeURIComponent(proveedorId);
+    const w = window.open('', '_blank'); // ver nota en enviarPanelAProveedor
+    const url = await _enlacePanelProveedor(proveedorId);
     const mensaje = `🎉 ¡Ya sos Proveedor Oficial de Revende Ways! 🇦🇷\n\n¡Felicitaciones y bienvenido a la comunidad! 🚀 Nos pone muy contentos que te sumes. Queremos acompañarte para que puedas crecer, llegar a más emprendedores y potenciar tu negocio. 💪\n\n📦 ¿Qué podés hacer desde ahora?\n✅ Gestionar tu stock: mantenelo actualizado para que los emprendedores estén siempre informados. ¡Eso te va a ayudar a generar más confianza y conseguir mejores reseñas!\n🛍️ Sumar tus productos: podés compartirnos tu catálogo web o tu Drive. Nuestro equipo se encarga de revisar todo, identificar los productos que falten y cargarlos en la plataforma. ¡Así de fácil!\n\n🔑 ¡Ingresá a tu panel!\nDesde ahí vas a poder administrar tu cuenta y gestionar tu stock. Guardá bien tu contraseña para no perder el acceso. 😉\n👉 Tu panel de pedidos: ${url}\n\n🤝 Estamos para darte una mano. Si tenés alguna duda, necesitás ayuda o no sabés cómo hacer algo, respondé directamente a este mensaje y te ayudamos.\n\n¡Te deseamos muchos éxitos en esta nueva etapa! ❤️\n¡Vamos a crecer juntos en Revende Ways! 🚀🇦🇷`;
-    window.open('https://api.whatsapp.com/send/?phone=' + cfg.numero + '&text=' + encodeURIComponent(mensaje), '_blank');
+    const waUrl = 'https://api.whatsapp.com/send/?phone=' + cfg.numero + '&text=' + encodeURIComponent(mensaje);
+    if (w) w.location.href = waUrl; else window.open(waUrl, '_blank');
 }
 
 // 🆕 Modal "Solicitud" (lo que el proveedor mandó desde "Agregar Stock" en
@@ -6138,7 +6166,7 @@ async function _confirmarSolicitudReg(proveedorId) {
     renderProveedoresRegView();
     const cfg = PROVEEDORES_CONFIG.find(p => p.id === proveedorId);
     if (cfg) {
-        const url = DOMINIO_PANEL_PROVEEDORES + '/proveedores?proveedor=' + encodeURIComponent(proveedorId);
+        const url = await _enlacePanelProveedor(proveedorId);
         const mensaje = `¡Gracias por confiar en Revende Ways! 🇦🇷🙌\n✅ Tu catalogo a sido Actualizado \n👉 Tu panel: ${url}\n🛍️¡Vamos a crecer juntos en Revende Ways! 🚀🇦🇷\nEXITOS!`;
         window.open('https://api.whatsapp.com/send/?phone=' + cfg.numero + '&text=' + encodeURIComponent(mensaje), '_blank');
     }
