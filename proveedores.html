@@ -501,7 +501,6 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                 <div class="modal-field">
                     <label>WhatsApp</label>
                     <input type="text" id="of-whatsapp" required>
-                    <div id="of-whatsapp-error" style="font-size:11px;color:#f43f5e;margin-top:4px"></div>
                 </div>
             </div>
             <div class="modal-field">
@@ -534,11 +533,6 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                 </button>
                 <input type="hidden" id="of-tipo">
             </div>
-            <div class="modal-field">
-                <label>Contraseña (para iniciar sesión después)</label>
-                <input type="password" id="of-password" minlength="6" autocomplete="new-password" required>
-                <div style="font-size:11px;color:var(--text3);margin-top:4px">La vas a usar junto a tu correo o celular para entrar a "Mis Datos" y gestionar tu stock. Mínimo 6 caracteres.</div>
-            </div>
             <label class="modal-check">
                 <input type="checkbox" id="of-terminos">
                 Acepto los Términos y Condiciones y la Política de Privacidad para Proveedores Oficiales de la plataforma.
@@ -560,6 +554,35 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                 <button type="button" class="modal-btn modal-btn-cancel" onclick="cerrarModalOficializar()">Cancelar</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- 🆕 Acceso al panel — SOLO WhatsApp + contraseña, obligatorio para
+     entrar a proveedores.html si todavía no es Proveedor Oficial.
+     Separado a propósito del registro completo de arriba
+     (#modal-oficializar-backdrop): crear esta contraseña NO lo hace
+     oficial — eso requiere completar ese registro por separado (botón
+     "Oficializar" del header, una vez adentro). Sin botón "Cancelar"
+     porque es obligatorio y no hay panel al que volver todavía. -->
+<div class="modal-backdrop" id="modal-acceso-backdrop">
+    <div class="modal-box">
+        <div class="modal-title">Ingresá a tu panel</div>
+        <div class="modal-sub">Ingresá tu WhatsApp y una contraseña. Si es la primera vez, se crea sola; si ya la tenías, iniciá sesión con la misma.</div>
+        <div class="modal-field">
+            <label>WhatsApp</label>
+            <input type="text" id="acc-whatsapp" autocomplete="username" onblur="_validarWhatsappAcceso()">
+            <div id="acc-whatsapp-error" style="font-size:11px;color:#f43f5e;margin-top:4px"></div>
+        </div>
+        <div class="modal-field">
+            <label>Contraseña</label>
+            <input type="password" id="acc-password" minlength="6" autocomplete="current-password">
+        </div>
+        <div style="display:flex;justify-content:center;margin:2px 0 12px">
+            <div id="acc-turnstile-widget" class="cf-turnstile" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-size="normal" data-callback="onAccTurnstileOk" data-expired-callback="onAccTurnstileExpired" data-error-callback="onAccTurnstileError"></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn modal-btn-primary" id="acc-btn-enviar" onclick="enviarAccesoSimple()">Ingresar</button>
+        </div>
     </div>
 </div>
 
@@ -2160,19 +2183,12 @@ function seleccionarTipoProveedor(t) {
     _validarFormOficializar();
 }
 
-const OF_CAMPOS_IDS = ['of-empresa','of-cuit','of-responsable','of-whatsapp','of-email','of-rubro','of-ciudad','of-provincia','of-tipo','of-password'];
-
-// 🆕 El WhatsApp solo se considera válido para poder escribir la
-// contraseña después de pasar por _validarWhatsappAntesDePassword() (ver
-// más abajo) — arranca en false y se pone en true si coincide (o si no
-// hay nada para comparar todavía).
-let _whatsappValidadoOk = false;
+const OF_CAMPOS_IDS = ['of-empresa','of-cuit','of-responsable','of-whatsapp','of-email','of-rubro','of-ciudad','of-provincia','of-tipo'];
 
 function _validarFormOficializar() {
     const todosCompletos = OF_CAMPOS_IDS.every(id => document.getElementById(id).value.trim() !== '');
-    const passwordOk = document.getElementById('of-password').value.trim().length >= 6;
     const terminos = document.getElementById('of-terminos').checked;
-    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && passwordOk && terminos && window._ofTurnstileToken && _whatsappValidadoOk);
+    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && terminos && window._ofTurnstileToken);
 }
 
 // Habilita el botón "Registrarme como Proveedor Oficial" solo cuando
@@ -2186,23 +2202,28 @@ function _validarFormOficializar() {
         if (el) el.addEventListener('input', _validarFormOficializar);
         if (el) el.addEventListener('change', _validarFormOficializar);
     });
-    const elPass = document.getElementById('of-password');
-    if (elPass) elPass.addEventListener('focus', _validarWhatsappAntesDePassword);
 })();
 
-// 🆕 Al pasar al campo de contraseña: si el WhatsApp viene sin "549", se
-// lo agrega automáticamente (mismo criterio que _autoformatCelularLogin,
-// ver más abajo); después consulta al servidor si ese número coincide
-// con el que Revende Ways ya tiene cargado para la categoría delegada de
-// este proveedorId (⚙️ WhatsApp de Proveedores). Si no coincide, no deja
-// escribir la contraseña. Si todavía no hay ficha de categoría (proveedor
-// nuevo), no hay nada para comparar y deja seguir igual que antes.
-async function _validarWhatsappAntesDePassword() {
-    const inputWa = document.getElementById('of-whatsapp');
-    const inputPass = document.getElementById('of-password');
-    const errEl = document.getElementById('of-whatsapp-error');
+// ── Modal: Acceso al panel (WhatsApp + contraseña, obligatorio para
+// entrar, NO es "Oficializar" — ver nota en #modal-acceso-backdrop) ──
+window._accTurnstileToken = null;
+function onAccTurnstileOk(token) { window._accTurnstileToken = token; }
+function onAccTurnstileExpired() { window._accTurnstileToken = null; }
+function onAccTurnstileError() { window._accTurnstileToken = null; }
+
+// 🆕 Al salir del campo de WhatsApp: si viene sin "549", se lo agrega
+// automáticamente (mismo criterio que _autoformatCelularLogin, ver más
+// abajo); después consulta al servidor si ese número coincide con el que
+// Revende Ways ya tiene cargado para la categoría delegada de este
+// proveedorId (⚙️ WhatsApp de Proveedores). Si no coincide, avisa pero no
+// bloquea el tipeo — el servidor vuelve a validar esto mismo al enviar
+// (handleAccesoSimpleProveedor). Si todavía no hay ficha de categoría
+// (proveedor nuevo), no hay nada para comparar y no muestra error.
+async function _validarWhatsappAcceso() {
+    const inputWa = document.getElementById('acc-whatsapp');
+    const errEl = document.getElementById('acc-whatsapp-error');
     const raw = inputWa.value.trim();
-    if (!raw) { inputPass.blur(); return; }
+    if (!raw) { return; }
     const soloDigitos = raw.replace(/\D/g, '');
     let normalizado;
     if (soloDigitos.startsWith('549')) normalizado = '+' + soloDigitos;
@@ -2210,29 +2231,51 @@ async function _validarWhatsappAntesDePassword() {
     else if (soloDigitos.startsWith('9') && soloDigitos.length <= 11) normalizado = '+54' + soloDigitos;
     else normalizado = '+549' + soloDigitos;
     inputWa.value = normalizado;
-    if (!PROVEEDOR_ID_ACTUAL) { _whatsappValidadoOk = true; _validarFormOficializar(); return; }
-    inputPass.disabled = true;
+    if (!PROVEEDOR_ID_ACTUAL) { errEl.textContent = ''; return; }
     try {
         const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-verificar-whatsapp`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, whatsapp: normalizado })
         });
-        if (res && res.ok && res.coincide === false) {
-            errEl.textContent = 'Este número no coincide con el que Revende Ways tiene registrado para tu categoría delegada';
-            _whatsappValidadoOk = false;
-            inputPass.value = '';
+        errEl.textContent = (res && res.ok && res.coincide === false)
+            ? 'Este número no coincide con el que Revende Ways tiene registrado para tu categoría delegada'
+            : '';
+    } catch (_) {
+        errEl.textContent = '';
+    }
+}
+
+async function enviarAccesoSimple() {
+    const btn = document.getElementById('acc-btn-enviar');
+    const errEl = document.getElementById('acc-whatsapp-error');
+    const whatsapp = document.getElementById('acc-whatsapp').value.trim();
+    const password = document.getElementById('acc-password').value;
+    if (!whatsapp || !password) { toast('Completá WhatsApp y contraseña', false); return; }
+    if (password.length < 6) { toast('La contraseña debe tener al menos 6 caracteres', false); return; }
+    errEl.textContent = '';
+    btn.disabled = true;
+    try {
+        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-acceso-simple`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                proveedorId: PROVEEDOR_ID_ACTUAL, whatsapp, password,
+                turnstileToken: window._accTurnstileToken || '',
+            }),
+        });
+        if (res && res.ok && res.authToken) {
+            document.getElementById('modal-acceso-backdrop').classList.remove('show');
+            document.getElementById('login-wrap').style.display = 'none';
+            _preguntarGuardarSesion(res.authToken);
+            entrarConProveedorId(PROVEEDOR_ID_ACTUAL);
         } else {
-            errEl.textContent = '';
-            _whatsappValidadoOk = true;
+            errEl.textContent = (res && res.error) || 'No se pudo ingresar';
         }
     } catch (_) {
-        // fallo de red: no bloquea acá — el servidor vuelve a validar esto
-        // mismo al enviar el formulario (handleCrearProveedorRegistro).
-        _whatsappValidadoOk = true;
+        errEl.textContent = 'No se pudo conectar — probá de nuevo';
     } finally {
-        inputPass.disabled = false;
-        _validarFormOficializar();
-        if (_whatsappValidadoOk) inputPass.focus();
+        window._accTurnstileToken = null;
+        try { if (window.turnstile) window.turnstile.reset('#acc-turnstile-widget'); } catch (_) {}
+        btn.disabled = false;
     }
 }
 
@@ -2252,10 +2295,12 @@ async function enviarRegistroOficial() {
         versionDocumento: '1.1',
         // 🔒 NUEVO: ver widget #of-turnstile-widget más arriba.
         turnstileToken: window._ofTurnstileToken || '',
-        // 🆕 LOGIN OFICIAL: se guarda junto al resto para poder iniciar
-        // sesión después (ver workerproveedores_worker.js, proveedoresOficiales).
+        // 🆕 Esto marca al proveedor como OFICIAL (ver
+        // handleCrearProveedorRegistro, registroOficialCompleto) — la
+        // contraseña de acceso ya se creó antes, por separado, en el gate
+        // de entrada obligatorio (#modal-acceso-backdrop); este formulario
+        // ya NO la vuelve a pedir.
         proveedorId: PROVEEDOR_ID_ACTUAL || '',
-        password: document.getElementById('of-password').value,
     };
     btn.disabled = true;
     btn.textContent = 'Enviando...';
@@ -2268,19 +2313,13 @@ async function enviarRegistroOficial() {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data && data.ok) {
             cerrarModalOficializar();
-            if (window._ingresoObligatorio) {
-                // 🆕 Esto era el gate de ENTRADA (ver _exigirIngresoOficial) —
-                // ya quedó oficializado, así que entra directo al panel en
-                // vez de mandarlo a loguearse aparte.
-                window._ingresoObligatorio = false;
-                toast('¡Listo! Ya podés usar tu panel.', true);
-                entrarConProveedorId(PROVEEDOR_ID_ACTUAL);
-            } else {
-                toast('¡Registro enviado! Ya podés iniciar sesión con tu correo o celular y la contraseña que pusiste.', true);
-                // 🆕 LOGIN OFICIAL: refresca el botón del header (pasa de
-                // "Oficializar" a "Iniciar sesión Oficial") sin esperar un reload.
-                if (typeof _actualizarBotonHeaderOficial === 'function') _actualizarBotonHeaderOficial();
-            }
+            toast('¡Listo! Ya sos Proveedor Oficial.', true);
+            // 🆕 Ya no hace falta "entrar directo" acá — para llegar hasta
+            // este formulario ya tenía que tener acceso al panel (ver
+            // #modal-acceso-backdrop / _exigirIngresoOficial). Solo hace
+            // falta refrescar el botón del header (pasa de "Oficializar" a
+            // "Iniciar sesión Oficial") sin esperar un reload.
+            if (typeof _actualizarBotonHeaderOficial === 'function') _actualizarBotonHeaderOficial();
         } else {
             toast((data && data.error) ? data.error : 'No se pudo enviar el registro. Probá de nuevo.', false);
         }
@@ -2808,13 +2847,13 @@ var IM_PROVEEDOR = {"bases":["https://raw.githubusercontent.com/webpagina729-sys
 // hace que el error se vea por defecto mientras carga un enlace válido,
 // antes de que este init() y el fetch de cargarDatos() lleguen a
 // responder.
-// 🆕 Ahora el WhatsApp + contraseña son requisito para ENTRAR al panel,
-// no una opción aparte una vez ya adentro: si el proveedor todavía no se
-// oficializó, ve el formulario de "Registro de Proveedor Oficial" ANTES
-// de ver nada de pedidos/stock — recién al completarlo (con el WhatsApp
-// ya validado contra la categoría delegada en "⚙️ WhatsApp de
-// Proveedores", NUNCA contra lo que diga su propio registro) entra al
-// panel. Si ya está oficializado, entra directo como siempre.
+// 🆕 WhatsApp + contraseña son requisito para ENTRAR al panel — pero esto
+// es un acceso LIVIANO (ver #modal-acceso-backdrop/enviarAccesoSimple), NO
+// el registro completo de "Oficializar". "Oficializado" (y por lo tanto
+// el enlace a proveedoresoficiales.html) solo se gana completando ese
+// registro completo por separado (botón del header, ver
+// _actualizarBotonHeaderOficial) — nunca con solo crear esta contraseña
+// de entrada. Si ya está oficializado, entra directo como siempre.
 async function init() {
     const proveedorId = _leerProveedorIdDeUrl();
     if (!proveedorId) { _mostrarEnlaceInvalido(); return; }
@@ -2829,9 +2868,9 @@ async function init() {
 
 // 🆕 Gate de entrada para quien todavía no se oficializó: respeta el
 // "⏸ Pausar panel" de siempre (mismo chequeo que entrarConProveedorId) y
-// si no está pausado, abre el formulario de oficializar como única
-// pantalla posible — sin botón "Cancelar", porque no hay panel al que
-// volver todavía.
+// si no está pausado, abre el acceso liviano (WhatsApp + contraseña) como
+// única pantalla posible — ese modal no tiene botón "Cancelar" (no hay
+// panel al que volver todavía).
 async function _exigirIngresoOficial(proveedorId) {
     const pausadoRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-pausado?proveedorId=${encodeURIComponent(proveedorId)}`);
     if (pausadoRes && pausadoRes.ok && pausadoRes.pausado) {
@@ -2839,10 +2878,12 @@ async function _exigirIngresoOficial(proveedorId) {
         document.getElementById('login-wrap').style.display = 'flex';
         return;
     }
-    window._ingresoObligatorio = true;
-    abrirModalOficializar();
-    const cancelBtn = document.querySelector('#modal-oficializar-backdrop .modal-btn-cancel');
-    if (cancelBtn) cancelBtn.style.display = 'none';
+    document.getElementById('acc-whatsapp').value = '';
+    document.getElementById('acc-password').value = '';
+    document.getElementById('acc-whatsapp-error').textContent = '';
+    window._accTurnstileToken = null;
+    try { if (window.turnstile) window.turnstile.reset('#acc-turnstile-widget'); } catch (_) {}
+    document.getElementById('modal-acceso-backdrop').classList.add('show');
 }
 
 // ── 🔒 GATE ANTI-BOT (Cloudflare Turnstile) ──
