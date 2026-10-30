@@ -78,7 +78,19 @@ export default {
     // esta vez con url.pathname = '/proveedores' (sin ".html"), que no
     // coincidía con el chequeo original y por eso terminaba cayendo igual
     // en el gate de sesión. Por eso hay que exceptuar las DOS variantes.
-    if (url.pathname === '/proveedores.html' || url.pathname === '/proveedores') {
+    //
+    // 🔧 FIX 3: mismo caso que proveedores.html, pero para
+    // proveedoresoficiales.html (el panel de proveedores ya oficializados,
+    // que también se comparte por enlace externo y tiene su propio login
+    // de email+contraseña contra el worker de proveedores). Sin esta
+    // excepción, cualquier proveedor que entraba a su enlace se topaba
+    // con el PIN del dueño en vez de con su propio login. Se exceptúan
+    // también las dos variantes (con y sin ".html") por el mismo motivo
+    // del FIX 2.
+    if (
+      url.pathname === '/proveedores.html' || url.pathname === '/proveedores' ||
+      url.pathname === '/proveedoresoficiales.html' || url.pathname === '/proveedoresoficiales'
+    ) {
       return env.ASSETS.fetch(request);
     }
 
