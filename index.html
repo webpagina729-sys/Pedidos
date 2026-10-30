@@ -1242,14 +1242,6 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Agregar Categoría</span><button type="button" class="cp-cerrar" onclick="cerrarAgregarCategoria()">Cerrar</button></h3>
 
         <div id="catMetaForm">
-            <!-- 🆕 Categorías ORIGINALES (calzados, perfumes, etc. — no las
-                 creadas acá abajo) con un interruptor para ocultarlas de
-                 revendedores/clientes sin borrar nada. Se llena en
-                 abrirAgregarCategoria() → cargarCategoriasOcultasLista(). -->
-            <div id="catOcultasLista" style="margin-bottom:14px">
-                <label style="display:block;font-size:12.5px;margin:0 0 6px">Categorías originales — ocultar de revendedores y clientes</label>
-                <div id="catOcultasBox" style="display:flex;flex-direction:column;gap:6px"><div class="loader" style="padding:6px 0"><div class="spin"></div></div></div>
-            </div>
             <!-- 🆕 Categorías ya creadas con este modal, con su botón para eliminarlas.
                  Se llena en abrirAgregarCategoria() → cargarCategoriasExtraLista(). -->
             <div id="catExtraLista" style="display:none;margin-bottom:12px"></div>
@@ -1302,6 +1294,36 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <button class="modal-cancel" onclick="cerrarAgregarCategoria()">Cancelar</button>
                 <button class="modal-confirm-btn" id="catCompartirBtn" onclick="confirmarProductosCategoria()">Compartir Categoría</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- 🆕 "Ocultar Categorías": botón propio al lado de "Agregar Categoría".
+     Lista las 10 categorías ORIGINALES (CAT_LABELS) con un interruptor
+     on/off por cada una, reflejando /api/categorias-ocultas. Apagar el
+     interruptor = esa categoría deja de verse en index.html,
+     mas-categorias.html, tienda.html y stock.html para
+     revendedores/clientes. El admin (acá en pedidos.html) sigue
+     viéndola y gestionándola sin cambios — este panel nunca filtra por
+     esta lista. -->
+<div class="modal-overlay" id="ocultarCategoriasModal">
+    <div class="modal-box" style="max-width:420px;text-align:left;max-height:85vh;overflow-y:auto">
+        <h3 style="display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><span>Ocultar Categorías</span><button type="button" class="cp-cerrar" onclick="cerrarOcultarCategorias()">Cerrar</button></h3>
+        <p style="font-size:12.5px;color:var(--text2);margin:0 0 12px">Las categorías que ocultes dejan de verse para revendedores y sus clientes. Vos seguís viéndolas y gestionándolas sin cambios acá.</p>
+        <div id="catOcultasBox" style="display:flex;flex-direction:column;gap:6px"><div class="loader" style="padding:6px 0"><div class="spin"></div></div></div>
+    </div>
+</div>
+
+<!-- 🆕 Confirmación compacta antes de ocultar una categoría (no se pide
+     confirmación para volver a mostrarla, solo para ocultarla). -->
+<div class="modal-overlay" id="confirmarOcultarCategoriaModal">
+    <div class="modal-box">
+        <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <h3>¿Seguro querés ocultar esta categoría?</h3>
+        <p style="font-size:12.5px;"><span id="confirmarOcultarNombre" style="font-weight:700"></span> dejará de verse para revendedores y sus clientes. Vos la seguís viendo y podés volver a mostrarla cuando quieras.</p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="cancelarOcultarCategoria()">Cancelar</button>
+            <button class="modal-confirm-btn" style="background:#f43f5e" onclick="confirmarOcultarCategoria()">Ocultar</button>
         </div>
     </div>
 </div>
@@ -7089,7 +7111,8 @@ function renderStockPausaBar() {
     if (!cont) return;
     const info = _infoPausaCategoria(stockCatActual);
     const btnCargar = `<button class="btn-head" style="gap:6px" onclick="abrirCargarProductos()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cargar Productos</button>
-        <button class="btn-head" style="gap:6px" onclick="abrirAgregarCategoria()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg> Agregar Categoría</button>`;
+        <button class="btn-head" style="gap:6px" onclick="abrirAgregarCategoria()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg> Agregar Categoría</button>
+        <button class="btn-head" style="gap:6px" onclick="abrirOcultarCategorias()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Ocultar Categorías</button>`;
     if (info) {
         const fecha = new Date(info.hasta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         cont.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
@@ -7260,15 +7283,23 @@ function abrirAgregarCategoria() {
     document.getElementById('catProductosBox').style.display = 'none';
     document.getElementById('agregarCategoriaModal').classList.add('show');
     cargarCategoriasExtraLista();
-    cargarCategoriasOcultasLista();
 }
 
-// 🆕 "Ocultar categoría": lista las 10 categorías originales (CAT_LABELS)
-// con un interruptor on/off por cada una, reflejando /api/categorias-ocultas.
-// Apagar el interruptor = esa categoría deja de verse en index.html,
+// 🆕 "Ocultar categoría": botón propio al lado de "Agregar Categoría".
+// Lista las 10 categorías originales (CAT_LABELS) con un interruptor
+// on/off por cada una, reflejando /api/categorias-ocultas. Apagar el
+// interruptor = esa categoría deja de verse en index.html,
 // mas-categorias.html, tienda.html y stock.html para revendedores/clientes.
 // El admin (acá en pedidos.html) sigue viéndola y gestionándola sin cambios
 // — este panel nunca filtra por esta lista.
+function abrirOcultarCategorias() {
+    document.getElementById('ocultarCategoriasModal').classList.add('show');
+    cargarCategoriasOcultasLista();
+}
+function cerrarOcultarCategorias() {
+    document.getElementById('ocultarCategoriasModal').classList.remove('show');
+}
+
 let _categoriasOcultasActual = [];
 async function cargarCategoriasOcultasLista() {
     const box = document.getElementById('catOcultasBox');
@@ -7279,7 +7310,7 @@ async function cargarCategoriasOcultasLista() {
         const oculta = _categoriasOcultasActual.includes(id);
         return `<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;font-size:12.5px;cursor:pointer">
             <span>${esc(CAT_LABELS[id])}${oculta ? ' <span style=\"color:#f43f5e;font-weight:700\">(oculta)</span>' : ''}</span>
-            <input type="checkbox" ${oculta ? '' : 'checked'} onchange="toggleCategoriaOculta('${id}', !this.checked)">
+            <input type="checkbox" ${oculta ? '' : 'checked'} onchange="onToggleCategoriaOculta(this, '${id}')">
         </label>`;
     }).join('');
 }
@@ -7287,6 +7318,29 @@ async function cargarCategoriasOcultasLista() {
 // El checkbox representa "visible" (tildado = visible, destildado = oculta)
 // para que sea intuitivo en la UI, aunque la lista que se guarda es de
 // categorías OCULTAS — se traduce acá, no en el HTML.
+// 🆕 Ocultar una categoría pide confirmación compacta antes de aplicarse
+// (confirmarOcultarCategoriaModal); volver a mostrarla NO la pide, porque
+// no es una acción destructiva.
+let _catOcultarPendiente = null;
+function onToggleCategoriaOculta(checkboxEl, id) {
+    const ocultar = !checkboxEl.checked;
+    if (!ocultar) { toggleCategoriaOculta(id, false); return; }
+    _catOcultarPendiente = { id, checkboxEl };
+    document.getElementById('confirmarOcultarNombre').textContent = CAT_LABELS[id] || id;
+    document.getElementById('confirmarOcultarCategoriaModal').classList.add('show');
+}
+function cancelarOcultarCategoria() {
+    if (_catOcultarPendiente && _catOcultarPendiente.checkboxEl) _catOcultarPendiente.checkboxEl.checked = true;
+    _catOcultarPendiente = null;
+    document.getElementById('confirmarOcultarCategoriaModal').classList.remove('show');
+}
+async function confirmarOcultarCategoria() {
+    document.getElementById('confirmarOcultarCategoriaModal').classList.remove('show');
+    if (!_catOcultarPendiente) return;
+    const { id } = _catOcultarPendiente;
+    _catOcultarPendiente = null;
+    await toggleCategoriaOculta(id, true);
+}
 async function toggleCategoriaOculta(id, ocultar) {
     let lista = _categoriasOcultasActual.slice();
     if (ocultar) { if (!lista.includes(id)) lista.push(id); }
