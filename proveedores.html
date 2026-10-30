@@ -501,6 +501,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
                 <div class="modal-field">
                     <label>WhatsApp</label>
                     <input type="text" id="of-whatsapp" required>
+                    <div id="of-whatsapp-error" style="font-size:11px;color:#f43f5e;margin-top:4px"></div>
                 </div>
             </div>
             <div class="modal-field">
@@ -593,6 +594,20 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
         <div class="modal-actions">
             <button type="button" class="modal-btn modal-btn-primary" id="login-of-btn" onclick="enviarLoginOficial()">Iniciar sesión</button>
             <button type="button" class="modal-btn modal-btn-cancel" onclick="cerrarModalLoginOficial()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🆕 "¿Guardar la sesión?" — se muestra después de cada login exitoso
+     (ver función _preguntarGuardarSesion). No se puede cerrar tocando
+     afuera: hay que elegir una de las dos opciones. -->
+<div class="modal-backdrop" id="modal-guardar-sesion-backdrop">
+    <div class="modal-box" style="max-width:300px;text-align:center">
+        <div class="modal-title">¿Guardar la sesión?</div>
+        <div class="modal-sub">Al guardar la próxima vez no tendrás que volver a poner Teléfono/Contraseña</div>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn modal-btn-primary" onclick="_responderGuardarSesion(true)">Guardar</button>
+            <button type="button" class="modal-btn modal-btn-cancel" onclick="_responderGuardarSesion(false)">No guardar</button>
         </div>
     </div>
 </div>
@@ -2147,11 +2162,17 @@ function seleccionarTipoProveedor(t) {
 
 const OF_CAMPOS_IDS = ['of-empresa','of-cuit','of-responsable','of-whatsapp','of-email','of-rubro','of-ciudad','of-provincia','of-tipo','of-password'];
 
+// 🆕 El WhatsApp solo se considera válido para poder escribir la
+// contraseña después de pasar por _validarWhatsappAntesDePassword() (ver
+// más abajo) — arranca en false y se pone en true si coincide (o si no
+// hay nada para comparar todavía).
+let _whatsappValidadoOk = false;
+
 function _validarFormOficializar() {
     const todosCompletos = OF_CAMPOS_IDS.every(id => document.getElementById(id).value.trim() !== '');
     const passwordOk = document.getElementById('of-password').value.trim().length >= 6;
     const terminos = document.getElementById('of-terminos').checked;
-    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && passwordOk && terminos && window._ofTurnstileToken);
+    document.getElementById('of-btn-enviar').disabled = !(todosCompletos && passwordOk && terminos && window._ofTurnstileToken && _whatsappValidadoOk);
 }
 
 // Habilita el botón "Registrarme como Proveedor Oficial" solo cuando
@@ -2165,7 +2186,55 @@ function _validarFormOficializar() {
         if (el) el.addEventListener('input', _validarFormOficializar);
         if (el) el.addEventListener('change', _validarFormOficializar);
     });
+    const elPass = document.getElementById('of-password');
+    if (elPass) elPass.addEventListener('focus', _validarWhatsappAntesDePassword);
 })();
+
+// 🆕 Al pasar al campo de contraseña: si el WhatsApp viene sin "549", se
+// lo agrega automáticamente (mismo criterio que _autoformatCelularLogin,
+// ver más abajo); después consulta al servidor si ese número coincide
+// con el que Revende Ways ya tiene cargado para la categoría delegada de
+// este proveedorId (⚙️ WhatsApp de Proveedores). Si no coincide, no deja
+// escribir la contraseña. Si todavía no hay ficha de categoría (proveedor
+// nuevo), no hay nada para comparar y deja seguir igual que antes.
+async function _validarWhatsappAntesDePassword() {
+    const inputWa = document.getElementById('of-whatsapp');
+    const inputPass = document.getElementById('of-password');
+    const errEl = document.getElementById('of-whatsapp-error');
+    const raw = inputWa.value.trim();
+    if (!raw) { inputPass.blur(); return; }
+    const soloDigitos = raw.replace(/\D/g, '');
+    let normalizado;
+    if (soloDigitos.startsWith('549')) normalizado = '+' + soloDigitos;
+    else if (soloDigitos.startsWith('54')) normalizado = '+549' + soloDigitos.slice(2);
+    else if (soloDigitos.startsWith('9') && soloDigitos.length <= 11) normalizado = '+54' + soloDigitos;
+    else normalizado = '+549' + soloDigitos;
+    inputWa.value = normalizado;
+    if (!PROVEEDOR_ID_ACTUAL) { _whatsappValidadoOk = true; _validarFormOficializar(); return; }
+    inputPass.disabled = true;
+    try {
+        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-verificar-whatsapp`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, whatsapp: normalizado })
+        });
+        if (res && res.ok && res.coincide === false) {
+            errEl.textContent = 'Este número no coincide con el que Revende Ways tiene registrado para tu categoría delegada';
+            _whatsappValidadoOk = false;
+            inputPass.value = '';
+        } else {
+            errEl.textContent = '';
+            _whatsappValidadoOk = true;
+        }
+    } catch (_) {
+        // fallo de red: no bloquea acá — el servidor vuelve a validar esto
+        // mismo al enviar el formulario (handleCrearProveedorRegistro).
+        _whatsappValidadoOk = true;
+    } finally {
+        inputPass.disabled = false;
+        _validarFormOficializar();
+        if (_whatsappValidadoOk) inputPass.focus();
+    }
+}
 
 async function enviarRegistroOficial() {
     const btn = document.getElementById('of-btn-enviar');
@@ -2198,11 +2267,20 @@ async function enviarRegistroOficial() {
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data && data.ok) {
-            toast('¡Registro enviado! Ya podés iniciar sesión con tu correo o celular y la contraseña que pusiste.', true);
             cerrarModalOficializar();
-            // 🆕 LOGIN OFICIAL: refresca el botón del header (pasa de
-            // "Oficializar" a "Iniciar sesión Oficial") sin esperar un reload.
-            if (typeof _actualizarBotonHeaderOficial === 'function') _actualizarBotonHeaderOficial();
+            if (window._ingresoObligatorio) {
+                // 🆕 Esto era el gate de ENTRADA (ver _exigirIngresoOficial) —
+                // ya quedó oficializado, así que entra directo al panel en
+                // vez de mandarlo a loguearse aparte.
+                window._ingresoObligatorio = false;
+                toast('¡Listo! Ya podés usar tu panel.', true);
+                entrarConProveedorId(PROVEEDOR_ID_ACTUAL);
+            } else {
+                toast('¡Registro enviado! Ya podés iniciar sesión con tu correo o celular y la contraseña que pusiste.', true);
+                // 🆕 LOGIN OFICIAL: refresca el botón del header (pasa de
+                // "Oficializar" a "Iniciar sesión Oficial") sin esperar un reload.
+                if (typeof _actualizarBotonHeaderOficial === 'function') _actualizarBotonHeaderOficial();
+            }
         } else {
             toast((data && data.error) ? data.error : 'No se pudo enviar el registro. Probá de nuevo.', false);
         }
@@ -2233,7 +2311,35 @@ function _guardarAuthToken(t) {
     try { sessionStorage.setItem(_authTokenStorageKey(), t || ''); } catch (_) {}
 }
 function _restaurarAuthToken() {
-    try { window._authToken = sessionStorage.getItem(_authTokenStorageKey()) || null; } catch (_) { window._authToken = null; }
+    try {
+        // 🆕 revisa primero la sesión de esta pestaña y, si no hay, la
+        // guardada permanente (ver _preguntarGuardarSesion/"¿Guardar la
+        // sesión?") — así un "Guardar" sobrevive a cerrar el navegador.
+        window._authToken = sessionStorage.getItem(_authTokenStorageKey()) || localStorage.getItem(_authTokenStorageKey()) || null;
+    } catch (_) { window._authToken = null; }
+}
+
+// 🆕 "¿Guardar la sesión?" — se pregunta después de cada login exitoso
+// (ver enviarLoginOficial más abajo). El token ya queda usable para esta
+// visita en sessionStorage apenas se loguea, sin esperar la respuesta;
+// la pregunta solo decide si además se guarda en localStorage para que
+// la próxima visita entre sin pedir celular/contraseña de nuevo.
+let _authTokenPendienteGuardar = null;
+function _preguntarGuardarSesion(token) {
+    _guardarAuthToken(token); // ya logueado para esta pestaña, pase lo que pase
+    _authTokenPendienteGuardar = token;
+    const el = document.getElementById('modal-guardar-sesion-backdrop');
+    if (el) el.classList.add('show');
+}
+function _responderGuardarSesion(guardar) {
+    const el = document.getElementById('modal-guardar-sesion-backdrop');
+    if (el) el.classList.remove('show');
+    const token = _authTokenPendienteGuardar;
+    _authTokenPendienteGuardar = null;
+    if (!token) return;
+    if (guardar) {
+        try { localStorage.setItem(_authTokenStorageKey(), token); } catch (_) {}
+    }
 }
 
 // Decide cuál de los 3 estados del botón del header mostrar. Se llama
@@ -2309,9 +2415,9 @@ async function enviarLoginOficial() {
             body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, identificador, password }),
         });
         if (res && res.ok && res.authToken) {
-            _guardarAuthToken(res.authToken);
             toast('¡Sesión iniciada!', true);
             cerrarModalLoginOficial();
+            _preguntarGuardarSesion(res.authToken);
             _actualizarBotonHeaderOficial();
         } else {
             toast((res && res.error) ? res.error : 'No se pudo iniciar sesión', false);
@@ -2702,13 +2808,41 @@ var IM_PROVEEDOR = {"bases":["https://raw.githubusercontent.com/webpagina729-sys
 // hace que el error se vea por defecto mientras carga un enlace válido,
 // antes de que este init() y el fetch de cargarDatos() lleguen a
 // responder.
-function init() {
+// 🆕 Ahora el WhatsApp + contraseña son requisito para ENTRAR al panel,
+// no una opción aparte una vez ya adentro: si el proveedor todavía no se
+// oficializó, ve el formulario de "Registro de Proveedor Oficial" ANTES
+// de ver nada de pedidos/stock — recién al completarlo (con el WhatsApp
+// ya validado contra la categoría delegada en "⚙️ WhatsApp de
+// Proveedores", NUNCA contra lo que diga su propio registro) entra al
+// panel. Si ya está oficializado, entra directo como siempre.
+async function init() {
     const proveedorId = _leerProveedorIdDeUrl();
-    if (proveedorId) {
+    if (!proveedorId) { _mostrarEnlaceInvalido(); return; }
+    PROVEEDOR_ID_ACTUAL = proveedorId;
+    const estado = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-oficial-estado?proveedorId=${encodeURIComponent(proveedorId)}`);
+    if (estado && estado.ok && estado.oficializado) {
         entrarConProveedorId(proveedorId);
     } else {
-        _mostrarEnlaceInvalido();
+        _exigirIngresoOficial(proveedorId);
     }
+}
+
+// 🆕 Gate de entrada para quien todavía no se oficializó: respeta el
+// "⏸ Pausar panel" de siempre (mismo chequeo que entrarConProveedorId) y
+// si no está pausado, abre el formulario de oficializar como única
+// pantalla posible — sin botón "Cancelar", porque no hay panel al que
+// volver todavía.
+async function _exigirIngresoOficial(proveedorId) {
+    const pausadoRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-pausado?proveedorId=${encodeURIComponent(proveedorId)}`);
+    if (pausadoRes && pausadoRes.ok && pausadoRes.pausado) {
+        document.getElementById('login-wrap-msg').textContent = 'Este panel fue pausado temporalmente por Revende Ways. Volvé a intentarlo más tarde o consultales por WhatsApp.';
+        document.getElementById('login-wrap').style.display = 'flex';
+        return;
+    }
+    window._ingresoObligatorio = true;
+    abrirModalOficializar();
+    const cancelBtn = document.querySelector('#modal-oficializar-backdrop .modal-btn-cancel');
+    if (cancelBtn) cancelBtn.style.display = 'none';
 }
 
 // ── 🔒 GATE ANTI-BOT (Cloudflare Turnstile) ──
