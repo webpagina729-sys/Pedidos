@@ -614,6 +614,12 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             <label>Contraseña</label>
             <input type="password" id="login-of-password" autocomplete="current-password">
         </div>
+        <!-- 🔒 NUEVO: este login (/api/proveedor-login) no tenía ningún
+             freno anti-bot ni límite de intentos — se podían probar
+             contraseñas sin fin. Mismo site key que el resto del panel. -->
+        <div style="display:flex;justify-content:center;margin:2px 0 12px">
+            <div id="login-of-turnstile-widget" class="cf-turnstile" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-size="normal" data-callback="onLoginOfTurnstileOk" data-expired-callback="onLoginOfTurnstileExpired" data-error-callback="onLoginOfTurnstileError"></div>
+        </div>
         <div class="modal-actions">
             <button type="button" class="modal-btn modal-btn-primary" id="login-of-btn" onclick="enviarLoginOficial()">Iniciar sesión</button>
             <button type="button" class="modal-btn modal-btn-cancel" onclick="cerrarModalLoginOficial()">Cancelar</button>
@@ -2420,9 +2426,15 @@ function _actualizarTabGestionStock() {
 }
 
 // ── Modal: Iniciar sesión Oficial ──
+window._loginOfTurnstileToken = null;
+function onLoginOfTurnstileOk(token) { window._loginOfTurnstileToken = token; }
+function onLoginOfTurnstileExpired() { window._loginOfTurnstileToken = null; }
+function onLoginOfTurnstileError() { window._loginOfTurnstileToken = null; }
 function abrirModalLoginOficial() {
     document.getElementById('login-of-identificador').value = '';
     document.getElementById('login-of-password').value = '';
+    window._loginOfTurnstileToken = null;
+    try { if (window.turnstile) window.turnstile.reset('#login-of-turnstile-widget'); } catch (_) {}
     document.getElementById('modal-login-oficial-backdrop').classList.add('show');
 }
 function cerrarModalLoginOficial() {
@@ -2446,12 +2458,13 @@ async function enviarLoginOficial() {
     const identificador = document.getElementById('login-of-identificador').value.trim();
     const password = document.getElementById('login-of-password').value;
     if (!identificador || !password) { toast('Completá correo/celular y contraseña', false); return; }
+    if (!window._loginOfTurnstileToken) { toast('Completá la verificación de seguridad', false); return; }
     const btn = document.getElementById('login-of-btn');
     btn.disabled = true; btn.textContent = 'Ingresando...';
     try {
         const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-login`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, identificador, password }),
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, identificador, password, turnstileToken: window._loginOfTurnstileToken }),
         });
         if (res && res.ok && res.authToken) {
             toast('¡Sesión iniciada!', true);
@@ -2462,6 +2475,8 @@ async function enviarLoginOficial() {
             toast((res && res.error) ? res.error : 'No se pudo iniciar sesión', false);
         }
     } finally {
+        window._loginOfTurnstileToken = null;
+        try { if (window.turnstile) window.turnstile.reset('#login-of-turnstile-widget'); } catch (_) {}
         btn.disabled = false; btn.textContent = 'Iniciar sesión';
     }
 }
@@ -2584,7 +2599,7 @@ async function cargarGestionStockProveedor() {
     el.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando...</p></div>';
     if (!window._stockCargado) await cargarStockProveedor();
     await _cargarAgregadosImg();
-    const fechasRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&sessionToken=${encodeURIComponent(window._sessionToken || '')}`);
+    const fechasRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&authToken=${encodeURIComponent(window._authToken || '')}`);
     window._stockFechasSinStock = (fechasRes && fechasRes.ok && fechasRes.fechas) || {};
     _renderGestionStock();
     _revisarAvisoSinStock();
@@ -2641,7 +2656,7 @@ async function _toggleStockGestion(categoria, productId) {
         }
         fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock }),
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, categoria, productId, enStock: nuevoEnStock }),
         }).then(r => { window._stockFechasSinStock = (r && r.ok && r.fechas) || window._stockFechasSinStock; _revisarAvisoSinStock(); });
         toast(nuevoEnStock ? 'Producto marcado como en stock' : 'Producto marcado como sin stock', true);
     } else {
@@ -2714,7 +2729,7 @@ async function confirmarNotificarProductos() {
     const resultados = await Promise.all(Object.keys(porCategoria).map(categoria =>
         fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-notificar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productos: porCategoria[categoria] }),
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, categoria, productos: porCategoria[categoria] }),
         })
     ));
     if (resultados.every(r => r && r.ok)) {
@@ -2743,7 +2758,7 @@ async function _cargarVariantesProvDelTipo() {
     const tipo = document.getElementById('variantes-prov-tipo').value;
     const { categoria, productId } = variantesProvActual;
     document.getElementById('variantes-prov-chips').innerHTML = '<div class="loader"><div class="spin"></div></div>';
-    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-variante?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&sessionToken=${encodeURIComponent(window._sessionToken || '')}&categoria=${encodeURIComponent(categoria)}&productId=${productId}`);
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-variante?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&authToken=${encodeURIComponent(window._authToken || '')}&categoria=${encodeURIComponent(categoria)}&productId=${productId}`);
     const lista = (res && res.ok && res.variantes && res.variantes[tipo]) || [];
     window._variantesProvLista = lista.slice();
     _renderVariantesProvChips();
@@ -2759,7 +2774,7 @@ async function _guardarVariantesProvLista() {
     const tipo = document.getElementById('variantes-prov-tipo').value;
     const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-variante`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, tipo, lista: window._variantesProvLista }),
+        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, categoria, productId, tipo, lista: window._variantesProvLista }),
     });
     if (!res || !res.ok) toast((res && res.error) ? res.error : 'No se pudo guardar', false);
 }
