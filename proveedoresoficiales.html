@@ -406,6 +406,12 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             <input type="email" id="gate-login-email" required autocomplete="email" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:7px;margin-bottom:10px;font-size:13px;box-sizing:border-box">
             <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Contraseña</label>
             <input type="password" id="gate-login-password" required autocomplete="current-password" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:7px;margin-bottom:12px;font-size:13px;box-sizing:border-box">
+            <!-- 🔒 NUEVO: /api/proveedor-login no tenía ningún freno
+                 anti-bot ni límite de intentos — se podían probar
+                 contraseñas sin fin. Mismo site key que el gate de arriba. -->
+            <div style="display:flex;justify-content:center;margin:2px 0 10px">
+                <div id="gate-login-turnstile-widget" class="cf-turnstile" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-size="normal" data-callback="onGateLoginTurnstileOk" data-expired-callback="onGateLoginTurnstileExpired" data-error-callback="onGateLoginTurnstileError"></div>
+            </div>
             <button type="submit" id="gate-login-submit" style="width:100%;padding:9px;border-radius:7px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:13px;cursor:pointer">Iniciar sesión</button>
             <p id="gate-login-error" style="color:#f43f5e;font-size:12px;margin-top:8px"></p>
             <p style="color:var(--text3);font-size:11px;margin-top:10px">Si todavía no creaste tu contraseña, pedile a Revende Ways el enlace de registro.</p>
@@ -2545,7 +2551,7 @@ async function cargarGestionStockProveedor() {
     el.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando...</p></div>';
     if (!window._stockCargado) await cargarStockProveedor();
     await _cargarAgregadosImg();
-    const fechasRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&sessionToken=${encodeURIComponent(window._sessionToken || '')}`);
+    const fechasRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&authToken=${encodeURIComponent(window._authToken || '')}`);
     window._stockFechasSinStock = (fechasRes && fechasRes.ok && fechasRes.fechas) || {};
     _renderGestionStock();
     _revisarAvisoSinStock();
@@ -2602,7 +2608,7 @@ async function _toggleStockGestion(categoria, productId) {
         }
         fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock }),
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, categoria, productId, enStock: nuevoEnStock }),
         }).then(r => { window._stockFechasSinStock = (r && r.ok && r.fechas) || window._stockFechasSinStock; _revisarAvisoSinStock(); });
         toast(nuevoEnStock ? 'Producto marcado como en stock' : 'Producto marcado como sin stock', true);
     } else {
@@ -2675,7 +2681,7 @@ async function confirmarNotificarProductos() {
     const resultados = await Promise.all(Object.keys(porCategoria).map(categoria =>
         fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-notificar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productos: porCategoria[categoria] }),
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, categoria, productos: porCategoria[categoria] }),
         })
     ));
     if (resultados.every(r => r && r.ok)) {
@@ -2704,7 +2710,7 @@ async function _cargarVariantesProvDelTipo() {
     const tipo = document.getElementById('variantes-prov-tipo').value;
     const { categoria, productId } = variantesProvActual;
     document.getElementById('variantes-prov-chips').innerHTML = '<div class="loader"><div class="spin"></div></div>';
-    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-variante?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&sessionToken=${encodeURIComponent(window._sessionToken || '')}&categoria=${encodeURIComponent(categoria)}&productId=${productId}`);
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-variante?proveedorId=${encodeURIComponent(PROVEEDOR_ID_ACTUAL)}&authToken=${encodeURIComponent(window._authToken || '')}&categoria=${encodeURIComponent(categoria)}&productId=${productId}`);
     const lista = (res && res.ok && res.variantes && res.variantes[tipo]) || [];
     window._variantesProvLista = lista.slice();
     _renderVariantesProvChips();
@@ -2720,7 +2726,7 @@ async function _guardarVariantesProvLista() {
     const tipo = document.getElementById('variantes-prov-tipo').value;
     const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-variante`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, tipo, lista: window._variantesProvLista }),
+        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, categoria, productId, tipo, lista: window._variantesProvLista }),
     });
     if (!res || !res.ok) toast((res && res.error) ? res.error : 'No se pudo guardar', false);
 }
@@ -2841,6 +2847,11 @@ function _mostrarGateLoginOficial() {
     document.getElementById('main').classList.remove('show');
 }
 
+window._gateLoginTurnstileToken = null;
+function onGateLoginTurnstileOk(token) { window._gateLoginTurnstileToken = token; }
+function onGateLoginTurnstileExpired() { window._gateLoginTurnstileToken = null; }
+function onGateLoginTurnstileError() { window._gateLoginTurnstileToken = null; }
+
 async function _enviarGateLoginOficial() {
     const emailEl = document.getElementById('gate-login-email');
     const passEl = document.getElementById('gate-login-password');
@@ -2850,11 +2861,12 @@ async function _enviarGateLoginOficial() {
     const password = passEl.value;
     errEl.textContent = '';
     if (!email || !password) { errEl.textContent = 'Completá correo y contraseña'; return; }
+    if (!window._gateLoginTurnstileToken) { errEl.textContent = 'Completá la verificación de seguridad'; return; }
     btnEl.disabled = true;
     try {
         const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-login`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, identificador: email, password })
+            body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, identificador: email, password, turnstileToken: window._gateLoginTurnstileToken })
         });
         if (!res || !res.ok) {
             errEl.textContent = (res && res.error) || 'Correo o contraseña incorrectos';
@@ -2867,6 +2879,8 @@ async function _enviarGateLoginOficial() {
     } catch (_) {
         errEl.textContent = 'No se pudo conectar — probá de nuevo en un momento';
     } finally {
+        window._gateLoginTurnstileToken = null;
+        try { if (window.turnstile) window.turnstile.reset('#gate-login-turnstile-widget'); } catch (_) {}
         btnEl.disabled = false;
     }
 }
