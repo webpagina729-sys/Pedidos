@@ -3445,7 +3445,7 @@ async function _sincronizarPreviewProveedores() {
 
     // Borra las vistas previas que ya no corresponden (el pedido pasó de
     // "aprobado" a "confirmado", se envió al proveedor, se eliminó, etc.).
-    const existentes = await fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+    const existentes = await fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor-preview`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
     if (!existentes || !Array.isArray(existentes.previews)) return;
     for (const pv of existentes.previews) {
         if (grupos[`${pv.codigoVendedor}_${pv.categoria}_${pv.estadoPedido}`]) continue;
@@ -4884,7 +4884,7 @@ function _guardarProveedoresConfigLocal() {
 // fuente de verdad y siempre pisa lo que haya en caché.
 async function _cargarProveedoresConfigServidor() {
     try {
-        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-config?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+        const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-config`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
         if (res && res.ok && Array.isArray(res.proveedores)) {
             PROVEEDORES_CONFIG = res.proveedores.map(p => ({ id: p.id, nombre: p.nombre || '', numero: p.numero || '', categorias: Array.isArray(p.categorias) ? p.categorias : [] }));
             _guardarProveedoresConfigLocal();
@@ -5651,8 +5651,8 @@ let enviosPaginas = {}; // key `${estadoTab}|${proveedorKey}|${categoria}` -> ca
 // a la vista "Envíos" por primera vez.
 async function cargarEnvios() {
     const [enCaminoRes, entregadoRes] = await Promise.all([
-        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?estado=en_camino&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
-        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?estado=entregado&adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`),
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?estado=en_camino`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
+        fetchJson(`${WORKER_PROVEEDORES}/api/pedidos-proveedor?estado=entregado`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
     ]);
     ENVIOS_EN_CAMINO = (enCaminoRes && enCaminoRes.ok && Array.isArray(enCaminoRes.pedidos)) ? enCaminoRes.pedidos : [];
     ENVIOS_ENTREGADOS = (entregadoRes && entregadoRes.ok && Array.isArray(entregadoRes.pedidos)) ? entregadoRes.pedidos : [];
@@ -5871,7 +5871,7 @@ let PROVEEDORES_REGISTRADOS = [];
 async function cargarProveedoresRegistrados() {
     const wrap = document.getElementById('proveedores-reg-wrap');
     if (wrap) wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando proveedores...</p></div>';
-    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-registrados?adminKey=${encodeURIComponent(PANEL_ADMIN_KEY)}`);
+    const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-registrados`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
     PROVEEDORES_REGISTRADOS = (res && res.ok && Array.isArray(res.proveedores)) ? res.proveedores : [];
     // 🆕 Necesita PROVEEDORES_CONFIG (categorías/número/stock de cada
     // proveedorId) para "Delegar categoría" y para la auto-delegación por
@@ -7136,7 +7136,7 @@ async function renderStockView() {
         // hace 5+ días" vía "Seleccionar productos para notificar" en su
         // panel — nunca se borran solos, se muestran acá con un texto
         // rojo para que decidas qué hacer (ver _filaProductoHtml).
-        fetchJson(WORKER_PROVEEDORES + '/api/stock-notificados?adminKey=' + encodeURIComponent(PANEL_ADMIN_KEY)),
+        fetchJson(WORKER_PROVEEDORES + '/api/stock-notificados', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
     ]);
     STOCK_NOTIFICADOS_DATA = (resNotificados && resNotificados.ok && resNotificados.notificados) || {};
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
