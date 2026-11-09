@@ -9132,7 +9132,13 @@ window.addEventListener('load', init);
     // Estadísticas del programa de afiliados (aparte de las de los revendedores).
     function bloqueLiquidaciones(q) {
         if (!q || !q.ok) return '<div class="af-empty">No se pudieron cargar las estadísticas de liquidaciones.</div>';
-        var h = '<div class="af-grp">Estadísticas de Afiliados</div>' +
+        // 🆕 Aviso no bloqueante: si alguna colección puntual falló al leer,
+        // los totales de abajo son reales pero pueden estar incompletos —
+        // se avisa en vez de mostrarlos como si todo hubiera cargado bien.
+        var avisoFallos = (q.avisos && q.avisos.length)
+            ? '<div class="af-empty" style="color:var(--amarillo,#a66a00);background:var(--amarillo-pale,#fff6e0);border:1px solid var(--amarillo,#a66a00)">⚠️ No se pudieron leer algunos datos (' + q.avisos.map(esc).join(', ') + '). Los totales de abajo pueden estar incompletos — probá recargar en un momento.</div>'
+            : '';
+        var h = avisoFallos + '<div class="af-grp">Estadísticas de Afiliados</div>' +
             rib('Liquidaciones', q.cantidadLiquidaciones + ' liquidacion' + (q.cantidadLiquidaciones !== 1 ? 'es' : ''), money(q.totalLiquidado),
                 ln('Total liquidado', '<span style="color:var(--green)">' + money(q.totalLiquidado) + '</span>') + ln('Pagado con saldo en Stock', money(q.liquidadoStock)) + ln('Cobrado (transferencia / crédito)', money(q.liquidadoCobros)) +
                 ln('Afiliadores liquidados', q.afiliadosLiquidados) +
@@ -9163,6 +9169,12 @@ window.addEventListener('load', init);
         var html = '<div style="margin-bottom:12px">' +
             ln('Revendedores en el programa', d.afiliadores.length) + ln('Total a Liquidar (confirmado)', money(totalLiq)) + '</div>';
         html += bloqueLiquidaciones(lq);
+        // 🆕 Aviso no bloqueante si la lectura de retiros falló parcialmente
+        // (antes "Pedidos de cobro"/"Pagos realizados" se mostraban vacíos
+        // sin avisar que en realidad falló la lectura, no que no había datos).
+        if (rt && rt.avisos && rt.avisos.length) {
+            html += '<div class="af-empty" style="color:var(--amarillo,#a66a00);background:var(--amarillo-pale,#fff6e0);border:1px solid var(--amarillo,#a66a00)">⚠️ No se pudieron leer los retiros (' + rt.avisos.map(esc).join(', ') + '). "Pedidos de cobro" y "Pagos realizados" pueden estar incompletos.</div>';
+        }
         var retiros = (rt && rt.retiros) || [];
         _retiros = retiros;
         var pend = retiros.filter(function (r) { return r.estado === 'solicitado'; });
