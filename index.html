@@ -1095,6 +1095,15 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
             </div>
             <div id="aviso-imagen-actual" style="font-size:12px;color:var(--text2);margin-bottom:16px"></div>
 
+            <!-- 🆕 Selector de destino: index.html/index(1).html siguen
+                 mostrando el aviso automáticamente (no depende de este
+                 checkbox). Afiliados.html es la única excepción — ahí NO se
+                 muestra automáticamente, solo cuando se tilda esta opción. -->
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);margin-bottom:16px;cursor:pointer">
+                <input type="checkbox" id="aviso-mostrar-afiliados" style="width:16px;height:16px;cursor:pointer">
+                También mostrarlo en Afiliados.html
+            </label>
+
             <div id="aviso-actual-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
 
             <button class="btn-head btn-rvndr" style="width:100%;justify-content:center" onclick="publicarAviso()">Publicar aviso</button>
@@ -5341,11 +5350,13 @@ async function abrirPanelAvisos() {
         document.getElementById('aviso-enlace').value = aviso.enlace || '';
         document.getElementById('aviso-boton').value = aviso.textoBoton || '';
         avisoImagenActual = aviso.imagen || '';
+        document.getElementById('aviso-mostrar-afiliados').checked = !!aviso.mostrarEnAfiliados;
         _renderAvisoImagenActual();
         info.textContent = aviso.publicado
             ? `Hay un aviso publicado (${ba(aviso.timestamp)}). Al publicar de nuevo, se reemplaza y vuelve a mostrarse a todos.`
             : `Último aviso guardado sin publicar (${ba(aviso.timestamp)}).`;
     } else {
+        document.getElementById('aviso-mostrar-afiliados').checked = false;
         info.textContent = 'Todavía no hay ningún aviso guardado.';
     }
 }
@@ -5400,11 +5411,12 @@ async function publicarAviso() {
     const texto = document.getElementById('aviso-texto').value.trim();
     const enlace = document.getElementById('aviso-enlace').value.trim();
     const textoBoton = document.getElementById('aviso-boton').value.trim();
+    const mostrarEnAfiliados = document.getElementById('aviso-mostrar-afiliados').checked;
 
     const res = await fetchJson(WORKER_ESTADOS + '/api/aviso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-        body: JSON.stringify({ titulo, subtitulo, texto, enlace, textoBoton, imagen: avisoImagenActual, publicado: true })
+        body: JSON.stringify({ titulo, subtitulo, texto, enlace, textoBoton, imagen: avisoImagenActual, publicado: true, mostrarEnAfiliados })
     });
     if (res && res.ok) {
         toast('Aviso publicado — ya se va a mostrar a los revendedores', true);
