@@ -9479,7 +9479,20 @@ window.addEventListener('load', init);
         '.af-race-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:14px 10px 6px;overflow-x:auto}' +
         '.af-race-svg{display:block;width:100%;min-width:560px}' +
         '.af-race-nombre{font-size:9px;font-weight:500;font-family:inherit}' +
-        '.af-race-fecha{font-size:8.5px;fill:var(--text3)}';
+        '.af-race-fecha{font-size:8.5px;fill:var(--text3)}' +
+        // 🆕 NUEVO: tira de fechas arriba del gráfico (antes iba adentro del
+        // SVG, abajo) + 2 listas de barras (Frecuencia y Cantidad de
+        // pedidos), todo DENTRO del mismo cuadro .af-race-wrap que ya existía.
+        '.af-race-fechas-top{display:flex;justify-content:space-between;gap:4px;padding:0 4px 8px;font-size:8.5px;color:var(--text3);min-width:560px;overflow-x:auto}' +
+        '.af-race-extra{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}' +
+        '.af-race-col{flex:1;min-width:220px}' +
+        '.af-race-col h4{font-size:11px;font-weight:700;color:var(--text2);margin:0 0 8px}' +
+        '.af-race-bar-row{display:flex;align-items:center;gap:7px;margin-bottom:6px}' +
+        '.af-race-bar-nombre{font-size:10px;color:var(--text2);width:84px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+        '.af-race-bar-track{flex:1;height:7px;background:var(--surface);border-radius:4px;overflow:hidden}' +
+        '.af-race-bar-fill{display:block;height:100%;background:linear-gradient(90deg,#00c96e,#00e07c);border-radius:4px}' +
+        '.af-race-bar-val{font-size:10px;font-weight:700;color:var(--text);width:46px;flex:none;text-align:right}' +
+        '.af-race-vacio-mini{font-size:10.5px;color:var(--text3)}';
     document.head.appendChild(raceCss);
 
     var RACE_PERIODOS = {
@@ -9561,14 +9574,15 @@ window.addEventListener('load', init);
         var n = buckets.length;
         function x(i) { return padL + (n === 1 ? 0 : (i * (W - padL - padR) / (n - 1))); }
         function y(v) { return padT + (H - padT - padB) * (1 - v / max); }
+        // 🔧 FIX: la tira de fechas se arma aparte (HTML, no SVG) y va ARRIBA
+        // del gráfico — antes se dibujaba como <text> adentro del SVG, abajo.
+        var fechasTop = '<div class="af-race-fechas-top">' + buckets.map(function (b) {
+            return '<span>' + esc(_fmtBucket(b)) + '</span>';
+        }).join('') + '</div>';
         var svg = '<svg class="af-race-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
             '<defs><filter id="af-race-glow" x="-60%" y="-60%" width="220%" height="220%">' +
             '<feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>' +
             '</filter></defs>';
-        // fechas en el eje inferior
-        buckets.forEach(function (b, i) {
-            svg += '<text class="af-race-fecha" x="' + x(i) + '" y="' + (H - 4) + '" text-anchor="middle">' + _fmtBucket(b) + '</text>';
-        });
         var COL_OF = '#00c96e', COL_PEND = '#ffd43b';
         // de atrás hacia adelante: el puesto #1 se dibuja último (encima, con brillo).
         for (var p = series.length - 1; p >= 0; p--) {
@@ -9589,7 +9603,37 @@ window.addEventListener('load', init);
             svg += '<text class="af-race-nombre" x="' + lx + '" y="' + Math.max(10, Math.min(lyOf, lyTotal) - 7) + '" text-anchor="' + anchor + '" style="fill:var(--text)">' + esc(s.nombre) + '</text>';
         }
         svg += '</svg>';
-        box.innerHTML = svg;
+        // 🆕 NUEVO: "Frecuencia de pedidos" (pedidos ÷ días del rango
+        // mostrado, expresado como pedidos/semana — gana quien entrega MÁS
+        // SEGUIDO, sin importar el tamaño de cada pedido) y "Cantidad de
+        // pedidos" (el total crudo en el mismo rango) — ambas dentro de
+        // este mismo cuadro, reusando _raceRaw ya cargado y el período
+        // elegido arriba (semana/quincena/mes/año).
+        var rangoIni = buckets[0].inicio, rangoFin = buckets[buckets.length - 1].fin;
+        var diasRango = Math.max(1, (rangoFin - rangoIni) / 86400000);
+        function contarEnRango(eventos) {
+            return (eventos || []).filter(function (e) { return e[0] >= rangoIni && e[0] < rangoFin; }).length;
+        }
+        var stats = _raceRaw.map(function (a) {
+            var cantidad = contarEnRango(a.eventos) + contarEnRango(a.eventosPendientes);
+            return { nombre: a.nombre, cantidad: cantidad, frecuencia: cantidad / diasRango * 7 };
+        });
+        function listaBarras(key, fmt) {
+            var top5 = stats.filter(function (x) { return x[key] > 0; }).sort(function (a, b) { return b[key] - a[key]; }).slice(0, 5);
+            if (!top5.length) return '<div class="af-race-vacio-mini">Sin datos en este período.</div>';
+            var max = Math.max.apply(null, top5.map(function (x) { return x[key]; }));
+            return top5.map(function (x) {
+                var pct = Math.max(4, Math.round(x[key] / max * 100));
+                return '<div class="af-race-bar-row"><span class="af-race-bar-nombre" title="' + esc(x.nombre) + '">' + esc(x.nombre) + '</span>' +
+                    '<span class="af-race-bar-track"><span class="af-race-bar-fill" style="width:' + pct + '%"></span></span>' +
+                    '<span class="af-race-bar-val">' + fmt(x[key]) + '</span></div>';
+            }).join('');
+        }
+        var extra = '<div class="af-race-extra">' +
+            '<div class="af-race-col"><h4>Frecuencia de pedidos</h4>' + listaBarras('frecuencia', function (v) { return v.toFixed(v < 1 ? 2 : 1) + '/sem'; }) + '</div>' +
+            '<div class="af-race-col"><h4>Cantidad de pedidos</h4>' + listaBarras('cantidad', function (v) { return String(v) + ' ped.'; }) + '</div>' +
+            '</div>';
+        box.innerHTML = fechasTop + svg + extra;
     }
 
     var _rsv = (typeof renderStatsView === 'function') ? renderStatsView : null;
