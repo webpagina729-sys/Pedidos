@@ -8214,8 +8214,10 @@ async function eliminarProductoDefinitivo(subcat, productId) {
     const producto = (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === productId);
     if (!producto) return;
     if (!confirm('¿Eliminar DEFINITIVAMENTE "' + producto.nombre + '"?\n\nDesaparece de todas las tiendas y paneles y no se puede deshacer.')) return;
-    const ok = await _ejecutarEliminarProductoDefinitivo(subcat, productId, producto);
-    if (ok) toast('Producto eliminado definitivamente', true);
+    const estado = await _ejecutarEliminarProductoDefinitivo(subcat, productId, producto);
+    if (estado === 'ok') toast('Producto eliminado definitivamente', true);
+    else if (estado === 'parcial') toast('Se eliminó "' + producto.nombre + '" del catálogo, pero no se pudo quitar su costo real en restoprecios. Reintentá en unos minutos o avisá si sigue fallando.', 'err');
+    // estado === 'error': ya se avisó adentro de _ejecutarEliminarProductoDefinitivo, no se eliminó nada.
 }
 
 // 🆕 Lógica real del borrado, separada del confirm() de arriba para poder
@@ -8226,9 +8228,12 @@ async function eliminarProductoDefinitivo(subcat, productId) {
 // que ya hace el botón "Quitar de stock") para que dispare el MISMO
 // aviso "Productos quitados del stock hasta nuevo ingreso" que ya ven
 // los revendedores en index.html/index(1).html cuando se quita stock.
+// Devuelve 'ok' (se borró de los dos workers), 'parcial' (se borró del
+// catálogo principal pero NO se pudo confirmar el borrado en restoprecios)
+// o 'error' (no se borró nada).
 async function _ejecutarEliminarProductoDefinitivo(subcat, productId, productoParam) {
     const producto = productoParam || (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === productId);
-    if (!producto) return false;
+    if (!producto) return 'error';
     if (!STOCK_GLOBAL_DATA[subcat]) STOCK_GLOBAL_DATA[subcat] = {};
     STOCK_GLOBAL_DATA[subcat][productId] = false;
     await _guardarStockGlobalUnaCategoria(subcat, productId, false, producto);
@@ -8239,25 +8244,7 @@ async function _ejecutarEliminarProductoDefinitivo(subcat, productId, productoPa
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
         body: JSON.stringify({ categoria: clave, id: productId })
     });
-    if (res && res.ok) {
-        CATALOGOS_CENTRALES[clave] = CATALOGOS_CENTRALES[clave].filter(id => id !== productId);
-        Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
-            CATALOGO_PRODUCTOS_GLOBAL[sc] = CATALOGO_PRODUCTOS_GLOBAL[sc].filter(p => p.id !== productId);
-        });
-        renderStockLista();
-        // También se quita del Worker restoprecios (por nombre).
-        fetchJson(RESTOPRECIOS_WORKER + 'api/restoprecio/eliminar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
-            body: JSON.stringify({ nombre: producto.nombre })
-        }).then(r => {
-            if (r && r.ok) {
-                delete CATALOGO_PRECIOS_WORKER[String(producto.nombre).trim().toUpperCase()];
-                try { localStorage.removeItem('_catalogoPreciosWorkerCache'); } catch (_) {}
-            }
-        }).catch(() => {});
-        return true;
-    } else {
+    if (!(res && res.ok)) {
         // 🔧 FIX: antes solo mostraba el código HTTP ("código 409"/"código
         // 404") sin decir el motivo real — el Worker SÍ manda un mensaje
         // claro (ej. "El catálogo todavía no fue cargado" o "Producto no
@@ -8267,8 +8254,46 @@ async function _ejecutarEliminarProductoDefinitivo(subcat, productId, productoPa
         let motivo = '';
         try { motivo = JSON.parse(window._lastFetchError?.detalle || '').error || ''; } catch (_) {}
         toast('No se pudo eliminar "' + producto.nombre + '"' + (motivo ? ': ' + motivo : (window._lastFetchError?.status ? ` (código ${window._lastFetchError.status})` : '')), 'err');
-        return false;
+        return 'error';
     }
+
+    CATALOGOS_CENTRALES[clave] = CATALOGOS_CENTRALES[clave].filter(id => id !== productId);
+    Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
+        CATALOGO_PRODUCTOS_GLOBAL[sc] = CATALOGO_PRODUCTOS_GLOBAL[sc].filter(p => p.id !== productId);
+    });
+    renderStockLista();
+
+    // 🔧 FIX: esto era "fire and forget" — no se esperaba la respuesta ni
+    // se verificaba, así que si restoprecios fallaba (red, Worker caído un
+    // instante, clave vencida) el producto quedaba igual ahí con su costo
+    // real, pero el usuario veía "Producto eliminado definitivamente" como
+    // si todo hubiera salido bien. Ahora se espera de verdad, se reintenta
+    // una vez ante un fallo transitorio, y si realmente no se pudo, se
+    // avisa en vez de quedar en silencio (ver 'parcial' más arriba).
+    const okResto = await _eliminarDeRestoprecios(producto.nombre);
+    if (okResto) {
+        delete CATALOGO_PRECIOS_WORKER[String(producto.nombre).trim().toUpperCase()];
+        try { localStorage.removeItem('_catalogoPreciosWorkerCache'); } catch (_) {}
+        return 'ok';
+    }
+    return 'parcial';
+}
+
+// 🆕 Borra un producto del Worker restoprecios por nombre. Reintenta una
+// vez ante un fallo (de red o del Worker) antes de darse por vencido, y
+// solo devuelve true cuando el Worker confirmó el borrado (res.ok).
+async function _eliminarDeRestoprecios(nombre) {
+    for (let intento = 0; intento < 2; intento++) {
+        try {
+            const r = await fetchJson(RESTOPRECIOS_WORKER + 'api/restoprecio/eliminar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({ nombre: nombre })
+            });
+            if (r && r.ok) return true;
+        } catch (_) { /* reintenta abajo */ }
+    }
+    return false;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -8330,11 +8355,18 @@ async function eliminarTodosLista() {
     if (!_stockListaNombresEncontrados.length) return;
     const n = _stockListaNombresEncontrados.length;
     if (!confirm('¿ELIMINAR DEFINITIVAMENTE estos ' + n + ' productos?\n\nDesaparecen de todas las tiendas y paneles y no se puede deshacer.')) return;
-    let ok = 0;
+    let ok = 0, parcial = 0;
     for (const p of _stockListaNombresEncontrados.slice()) {
-        if (await _ejecutarEliminarProductoDefinitivo(p._subcat, p.id, p)) ok++;
+        const estado = await _ejecutarEliminarProductoDefinitivo(p._subcat, p.id, p);
+        if (estado === 'ok') ok++;
+        else if (estado === 'parcial') parcial++;
     }
-    toast(ok + ' de ' + n + ' productos eliminados definitivamente', ok === n);
+    // 🔧 FIX: un "parcial" (se borró del catálogo pero no se confirmó en
+    // restoprecios) antes se contaba como eliminado sin más — ahora se
+    // informa aparte en el mismo mensaje, en vez de quedar oculto.
+    let msg = (ok + parcial) + ' de ' + n + ' productos eliminados definitivamente';
+    if (parcial) msg += ' (' + parcial + ' sin poder confirmar el borrado en restoprecios — revisalos)';
+    toast(msg, (ok + parcial) === n && !parcial);
     const ta = document.getElementById('stockListaNombresTexto');
     if (ta) ta.value = '';
     const cont = document.getElementById('stockListaNombresResultado');
