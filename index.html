@@ -2322,7 +2322,21 @@ function itemEconomiaReal(it, categoria) {
     // está en restoprecios no hay costo real: no se inventa ninguno (la
     // ganancia de ese producto queda en 0 y se avisa abajo). Única
     // excepción: calzados, que tienen costo fijo (adulto/niño).
-    let miCostoUnit = precioMayoristaRealPorNombre(it.nombre);
+    // 🆕 Si el pedido ya tiene el costo real CONGELADO (se guarda desde que
+    // se crea el pedido, en datosderevendedor_worker_COMPLETO.js), se usa
+    // ESE valor siempre, sin volver a consultar restoprecios — así la
+    // ganancia de un pedido ya hecho no cambia después aunque el precio en
+    // restoprecios cambie, ni si el producto se termina borrando de ahí.
+    // Si el pedido es viejo y no tiene este campo, se recalcula en vivo
+    // contra restoprecios como se hacía hasta ahora (mismo comportamiento
+    // de siempre para lo ya existente).
+    let miCostoUnit;
+    if (Object.prototype.hasOwnProperty.call(it, 'costoRestopreciosCongelado')) {
+        const c = it.costoRestopreciosCongelado;
+        miCostoUnit = (c === null || c === '' || c === undefined) ? null : Number(c);
+    } else {
+        miCostoUnit = precioMayoristaRealPorNombre(it.nombre);
+    }
     if (miCostoUnit == null) {
         PRODUCTOS_SIN_RESTOPRECIOS.add(`${it.nombre || '—'} (${categoria || '—'})`);
         miCostoUnit = categoria === 'calzados' ? calcCalzadoOriginal(it).costoOriginal : precioMayoristaMio;
@@ -7184,6 +7198,20 @@ async function renderStockView() {
             <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="procesarListaNombresStock()">Buscar y organizar</button>
             <div id="stockListaNombresResultado" style="margin-top:10px"></div>
         </div>
+        <!-- 🆕 Migración única: congela el costo real (restoprecios) en los
+             pedidos ya existentes que todavía no lo tienen, para que su
+             ganancia real quede fija para siempre, sin depender de que el
+             producto siga existiendo en restoprecios más adelante. Los
+             pedidos nuevos ya lo congelan solos al crearse; esto es solo
+             para "ponerse al día" con lo que ya estaba cargado antes. Es
+             seguro tocarlo varias veces: lo que ya está congelado no se
+             vuelve a tocar. -->
+        <div style="margin-bottom:14px;padding:10px;border:1px dashed var(--border2);border-radius:9px">
+            <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Congelar costo real (restoprecios) en pedidos antiguos — una sola vez</label>
+            <p class="section-sub" style="margin:0 0 8px">A partir de ahora, cada pedido nuevo congela solo tu costo real al crearse. Esto es para ponerse al día con los pedidos de ANTES de este cambio: protege su ganancia real para siempre, aunque después cambies un precio o borres el producto de restoprecios.</p>
+            <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="congelarCostosRestopreciosHistorico()">Congelar pedidos antiguos</button>
+            <div id="congelarCostosResultado" style="margin-top:10px"></div>
+        </div>
         <div id="stock-pausa-bar" style="margin-bottom:14px"></div>
         ${Object.keys(CATALOGO_PRODUCTOS_GLOBAL).every(sc => CATALOGOS_CENTRALES[_claveCatalogoCentral(sc)]) ? '' : `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
             <span style="font-size:12.5px;color:#c05621;">Hay categorías cuyo catálogo central todavía no fue cargado en el Worker.</span>
@@ -8372,6 +8400,42 @@ async function eliminarTodosLista() {
     const cont = document.getElementById('stockListaNombresResultado');
     if (cont) cont.innerHTML = '';
     _stockListaNombresEncontrados = [];
+}
+
+// 🆕 Dispara la migración única que congela "costoRestopreciosCongelado"
+// en los pedidos de panelGestion que ya existían antes de este cambio.
+// Llama al Worker en lotes de 100 hasta que no queden más, mostrando el
+// progreso acá mismo. Segura de tocar de más: lo ya congelado no se vuelve
+// a tocar, así que si se corta a la mitad alcanza con volver a apretar.
+async function congelarCostosRestopreciosHistorico() {
+    const cont = document.getElementById('congelarCostosResultado');
+    if (cont) cont.innerHTML = '<span style="color:var(--text2)">Procesando…</span>';
+    let desde = '', totalRevisados = 0, totalActualizados = 0, vueltas = 0;
+    try {
+        while (true) {
+            vueltas++;
+            const res = await fetchJson(WORKER_RECLAMOS + '/api/admin/congelar-costos-restoprecios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+                body: JSON.stringify({ desde })
+            });
+            if (!(res && res.ok)) {
+                toast('No se pudo congelar: ' + (window._lastFetchError?.status ? `código ${window._lastFetchError.status}` : 'sin conexión con el Worker'), 'err');
+                if (cont) cont.innerHTML = '<span style="color:var(--danger)">Se cortó en el pedido ' + (totalRevisados) + '. Volvé a apretar el botón para seguir desde ahí.</span>';
+                return;
+            }
+            totalRevisados += res.revisados || 0;
+            totalActualizados += res.actualizados || 0;
+            if (cont) cont.innerHTML = 'Revisados: ' + totalRevisados + ' · Congelados ahora: ' + totalActualizados + (res.quedan ? ' · Siguiendo…' : '');
+            if (!res.quedan || vueltas > 500) break; // 500 lotes ⇒ hasta 50.000 pedidos, de sobra
+            desde = res.siguienteDesde || desde;
+        }
+        if (cont) cont.innerHTML = 'Listo. Pedidos revisados: ' + totalRevisados + ' · Congelados en esta pasada: ' + totalActualizados + ' (el resto ya los tenía congelados).';
+        toast('Costos históricos congelados: ' + totalActualizados + ' pedido' + (totalActualizados === 1 ? '' : 's') + ' actualizado' + (totalActualizados === 1 ? '' : 's'), true);
+    } catch (e) {
+        toast('No se pudo congelar: ' + (e && e.message || 'error de red'), 'err');
+        if (cont) cont.innerHTML = '<span style="color:var(--danger)">Se cortó en el pedido ' + totalRevisados + '. Volvé a apretar el botón para seguir desde ahí.</span>';
+    }
 }
 
 async function toggleStockGlobal(catalogo, productId, nuevoEnStock) {
