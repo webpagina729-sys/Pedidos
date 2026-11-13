@@ -9516,9 +9516,12 @@ window.addEventListener('load', init);
         if (!top.length) { box.innerHTML = '<div class="af-empty">Todavía no hay afiliados para graficar.</div>'; _raceCargando = false; return; }
         Promise.all(top.map(function (a) {
             return api('/api/admin/afiliador?codigo=' + encodeURIComponent(a.codigo)).catch(function () { return null; }).then(function (d) {
-                var eventos = [], eventosPendientes = [];
+                var eventos = [], eventosPendientes = [], altas = [];
                 if (d && d.ok && Array.isArray(d.referidos)) {
                     d.referidos.forEach(function (r) {
+                        // 🆕 NUEVO: fecha de alta de cada referido (para "Frecuencia
+                        // de afiliados" — cada cuántos días se suma uno nuevo).
+                        if (r.fechaVinculo) altas.push(Number(r.fechaVinculo) || 0);
                         (r.ventas || []).forEach(function (v) {
                             if (!v.fecha) return;
                             var e = [Number(v.fecha) || 0, Number(v.comision) || 0];
@@ -9527,7 +9530,7 @@ window.addEventListener('load', init);
                         });
                     });
                 }
-                return { codigo: a.codigo, nombre: (a.nombre + ' ' + a.apellido).trim() || a.codigo, eventos: eventos, eventosPendientes: eventosPendientes };
+                return { codigo: a.codigo, nombre: (a.nombre + ' ' + a.apellido).trim() || a.codigo, eventos: eventos, eventosPendientes: eventosPendientes, altas: altas, totalAfiliados: a.totalAfiliados || 0 };
             });
         })).then(function (datos) {
             _raceRaw = datos; _raceCargando = false; _dibujarCarrera();
@@ -9618,20 +9621,35 @@ window.addEventListener('load', init);
             var cantidad = contarEnRango(a.eventos) + contarEnRango(a.eventosPendientes);
             return { nombre: a.nombre, cantidad: cantidad, frecuencia: cantidad / diasRango * 7 };
         });
-        function listaBarras(key, fmt) {
-            var top5 = stats.filter(function (x) { return x[key] > 0; }).sort(function (a, b) { return b[key] - a[key]; }).slice(0, 5);
+        // 🆕 NUEVO: "Cantidad de afiliados" (igual que el Ranking de arriba,
+        // totalAfiliados — no depende del período) y "Frecuencia de
+        // afiliados" (cuántos referidos nuevos se sumaron en el rango
+        // elegido, y cada cuántos días en promedio).
+        var statsAfiliados = _raceRaw.map(function (a) {
+            var altasEnRango = (a.altas || []).filter(function (f) { return f >= rangoIni && f < rangoFin; }).length;
+            return {
+                nombre: a.nombre,
+                totalAfiliados: a.totalAfiliados || 0,
+                altasEnRango: altasEnRango,
+                diasPorAlta: altasEnRango > 0 ? diasRango / altasEnRango : 0,
+            };
+        });
+        function listaBarras(arr, key, fmt) {
+            var top5 = arr.filter(function (x) { return x[key] > 0; }).sort(function (a, b) { return b[key] - a[key]; }).slice(0, 5);
             if (!top5.length) return '<div class="af-race-vacio-mini">Sin datos en este período.</div>';
             var max = Math.max.apply(null, top5.map(function (x) { return x[key]; }));
             return top5.map(function (x) {
                 var pct = Math.max(4, Math.round(x[key] / max * 100));
                 return '<div class="af-race-bar-row"><span class="af-race-bar-nombre" title="' + esc(x.nombre) + '">' + esc(x.nombre) + '</span>' +
                     '<span class="af-race-bar-track"><span class="af-race-bar-fill" style="width:' + pct + '%"></span></span>' +
-                    '<span class="af-race-bar-val">' + fmt(x[key]) + '</span></div>';
+                    '<span class="af-race-bar-val">' + fmt(x[key], x) + '</span></div>';
             }).join('');
         }
         var extra = '<div class="af-race-extra">' +
-            '<div class="af-race-col"><h4>Frecuencia de pedidos</h4>' + listaBarras('frecuencia', function (v) { return v.toFixed(v < 1 ? 2 : 1) + '/sem'; }) + '</div>' +
-            '<div class="af-race-col"><h4>Cantidad de pedidos</h4>' + listaBarras('cantidad', function (v) { return String(v) + ' ped.'; }) + '</div>' +
+            '<div class="af-race-col"><h4>Frecuencia de pedidos</h4>' + listaBarras(stats, 'frecuencia', function (v) { return v.toFixed(v < 1 ? 2 : 1) + '/sem'; }) + '</div>' +
+            '<div class="af-race-col"><h4>Cantidad de pedidos</h4>' + listaBarras(stats, 'cantidad', function (v) { return String(v) + ' ped.'; }) + '</div>' +
+            '<div class="af-race-col"><h4>Cantidad de afiliados</h4>' + listaBarras(statsAfiliados, 'totalAfiliados', function (v) { return String(v) + ' afl.'; }) + '</div>' +
+            '<div class="af-race-col"><h4>Frecuencia de afiliados</h4>' + listaBarras(statsAfiliados, 'altasEnRango', function (v, x) { return 'c/' + x.diasPorAlta.toFixed(x.diasPorAlta < 1 ? 2 : 1) + 'd'; }) + '</div>' +
             '</div>';
         box.innerHTML = fechasTop + svg + extra;
     }
