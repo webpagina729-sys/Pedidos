@@ -7205,12 +7205,21 @@ async function renderStockView() {
              pedidos nuevos ya lo congelan solos al crearse; esto es solo
              para "ponerse al día" con lo que ya estaba cargado antes. Es
              seguro tocarlo varias veces: lo que ya está congelado no se
-             vuelve a tocar. -->
-        <div style="margin-bottom:14px;padding:10px;border:1px dashed var(--border2);border-radius:9px">
-            <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:6px">Congelar costo real (restoprecios) en pedidos antiguos — una sola vez</label>
-            <p class="section-sub" style="margin:0 0 8px">A partir de ahora, cada pedido nuevo congela solo tu costo real al crearse. Esto es para ponerse al día con los pedidos de ANTES de este cambio: protege su ganancia real para siempre, aunque después cambies un precio o borres el producto de restoprecios.</p>
-            <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="congelarCostosRestopreciosHistorico()">Congelar pedidos antiguos</button>
-            <div id="congelarCostosResultado" style="margin-top:10px"></div>
+             vuelve a tocar. Escondida en una cinta colapsable (mismo
+             componente .estado-ribbon de las otras cintas del panel) para
+             no ocupar lugar a la vista una vez que ya se usó. -->
+        <div class="estado-ribbon" id="congelar-costos-ribbon" style="margin-bottom:14px">
+            <div class="estado-head" onclick="toggleEstadoRibbon('congelar-costos-ribbon')">
+                <div class="estado-head-left">
+                    <span class="estado-title">Congelar costo real (restoprecios) en pedidos antiguos — una sola vez</span>
+                </div>
+                <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="estado-body"><div class="estado-inner">
+                <p class="section-sub" style="margin:0 0 8px">A partir de ahora, cada pedido nuevo congela solo tu costo real al crearse. Esto es para ponerse al día con los pedidos de ANTES de este cambio: protege su ganancia real para siempre, aunque después cambies un precio o borres el producto de restoprecios.</p>
+                <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="congelarCostosRestopreciosHistorico()">Congelar pedidos antiguos</button>
+                <div id="congelarCostosResultado" style="margin-top:10px"></div>
+            </div></div>
         </div>
         <div id="stock-pausa-bar" style="margin-bottom:14px"></div>
         ${Object.keys(CATALOGO_PRODUCTOS_GLOBAL).every(sc => CATALOGOS_CENTRALES[_claveCatalogoCentral(sc)]) ? '' : `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
