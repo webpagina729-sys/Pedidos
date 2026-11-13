@@ -5904,7 +5904,29 @@ async function cargarProveedoresRegistrados() {
     // coincidencia de teléfono de más abajo.
     if (!PROVEEDORES_CONFIG.length) await _cargarProveedoresConfigServidor();
     await _autoDelegarPorTelefonoCoincidente();
+    // 🔧 FIX: estado real de "oficializado" de cada proveedor (mismo check
+    // que ya usa _enlacePanelProveedor para elegir el archivo correcto),
+    // para mostrarlo como badge en la tarjeta sin tener que generar un
+    // enlace para enterarse.
+    await _cargarOficializadoPorProveedor();
     renderProveedoresRegView();
+}
+
+// 🔧 FIX: consulta /api/proveedor-oficial-estado para cada proveedor con
+// proveedorId (en paralelo) y guarda el resultado en
+// window._oficializadoPorProveedor, por proveedorId. Si una consulta
+// falla, ese proveedor queda sin dato (no se le muestra badge) — nunca
+// bloquea el resto de la carga.
+async function _cargarOficializadoPorProveedor() {
+    const mapa = {};
+    const ids = [...new Set(PROVEEDORES_REGISTRADOS.map(p => p.proveedorId).filter(Boolean))];
+    await Promise.all(ids.map(async id => {
+        try {
+            const r = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-oficial-estado?proveedorId=${encodeURIComponent(id)}`);
+            if (r && r.ok) mapa[id] = !!r.oficializado;
+        } catch (_) {}
+    }));
+    window._oficializadoPorProveedor = mapa;
 }
 
 // 🆕 Si el WhatsApp de un registro nuevo (sin categoría todavía) coincide
@@ -5946,6 +5968,9 @@ function renderProveedoresRegView() {
                     <div class="vendor-avatar" style="width:28px;height:28px;font-size:11px;margin:0;flex-shrink:0">${initials(p.empresa)}</div>
                     <strong>Responsable: ${esc(p.responsable || '—')}</strong>
                     ${p.aprobado ? `<span style="display:inline-flex;align-items:center;gap:3px;color:#00c96e;font-size:11px;font-weight:700;white-space:nowrap"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>Aprobado</span>` : ''}
+                    ${p.proveedorId && window._oficializadoPorProveedor && Object.prototype.hasOwnProperty.call(window._oficializadoPorProveedor, p.proveedorId) ? (window._oficializadoPorProveedor[p.proveedorId]
+                        ? `<span style="display:inline-flex;align-items:center;gap:3px;color:#00c96e;font-size:11px;font-weight:700;white-space:nowrap"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>Oficializado</span>`
+                        : `<span style="display:inline-flex;align-items:center;gap:3px;color:#f59e0b;font-size:11px;font-weight:700;white-space:nowrap">Pendiente de oficializar</span>`) : ''}
                     <button type="button" class="provreg-vermas" onclick="toggleProvRegCard('${cardId}')">Ver más <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
