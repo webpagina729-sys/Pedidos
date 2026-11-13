@@ -7211,12 +7211,12 @@ async function renderStockView() {
         <div class="estado-ribbon" id="congelar-costos-ribbon" style="margin-bottom:14px">
             <div class="estado-head" onclick="toggleEstadoRibbon('congelar-costos-ribbon')">
                 <div class="estado-head-left">
-                    <span class="estado-title">Congelar costo real (restoprecios) en pedidos antiguos — una sola vez</span>
+                    <span class="estado-title">Congelar costo real</span>
                 </div>
                 <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <div class="estado-body"><div class="estado-inner">
-                <p class="section-sub" style="margin:0 0 8px">A partir de ahora, cada pedido nuevo congela solo tu costo real al crearse. Esto es para ponerse al día con los pedidos de ANTES de este cambio: protege su ganancia real para siempre, aunque después cambies un precio o borres el producto de restoprecios.</p>
+                <p class="section-sub" style="margin:0 0 8px">A partir de ahora, cada pedido nuevo congela solo tu costo real al crearse. Protege su estadística real para siempre, aunque después se cambie un precio o se borre un producto.</p>
                 <button type="button" class="btn-head" style="width:100%;justify-content:center" onclick="congelarCostosRestopreciosHistorico()">Congelar pedidos antiguos</button>
                 <div id="congelarCostosResultado" style="margin-top:10px"></div>
             </div></div>
