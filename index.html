@@ -10153,7 +10153,17 @@ window.addEventListener('load', init);
     }, true);
     window.open = function (u) {
         var args = arguments;
-        var m = typeof u === 'string' && u.match(/^(https:\/\/wa\.me\/\d{10,15}\?text=)([\s\S]*)$/);
+        // 🔧 FIX: este interceptor solo reconocía URLs con formato
+        // "https://wa.me/<numero>?text=...", pero TODOS los botones de
+        // pedidos.html (incluido "Enviar Factura") abren WhatsApp con
+        // "https://api.whatsapp.com/send/?phone=<numero>&text=...". Como
+        // nunca coincidía, el interceptor jamás se activaba: la factura
+        // nunca se subía ni se agregaba al mensaje, en ningún caso. Ahora
+        // reconoce los dos formatos.
+        var m = typeof u === 'string' && (
+            u.match(/^(https:\/\/wa\.me\/\d{10,15}\?text=)([\s\S]*)$/) ||
+            u.match(/^(https:\/\/api\.whatsapp\.com\/send\/?\?phone=\d{10,15}&text=)([\s\S]*)$/)
+        );
         var edad = cap ? Date.now() - cap.t : Infinity;
         if (!m || !cap || !(edad < 20000 || (Date.now() - btnT < 3000 && edad < 1800000))) return origOpen.apply(window, args);
         var c = cap, body; cap = null;
