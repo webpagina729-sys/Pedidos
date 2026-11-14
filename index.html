@@ -4943,6 +4943,26 @@ async function _cargarProveedoresConfigServidor() {
         const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedores-config`, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
         if (res && res.ok && Array.isArray(res.proveedores)) {
             PROVEEDORES_CONFIG = res.proveedores.map(p => ({ id: p.id, nombre: p.nombre || '', numero: p.numero || '', categorias: Array.isArray(p.categorias) ? p.categorias : [] }));
+            // 🔧 FIX: "proveedoresConfig" (nombre/número/categorías) no incluye
+            // el campo "stockDelegado" — vive en otra colección aparte
+            // (proveedoresStockDelegado, ver toggleStockDelegado / "Gestionar
+            // mi Stock" del propio proveedor). Antes de este fix, cada vez que
+            // se abría "⚙️ WhatsApp de proveedores" el botón ON/OFF volvía a
+            // mostrarse en OFF para TODOS los proveedores, aunque el servidor
+            // tuviera "activo:true" guardado (lo delegó el dueño antes, o el
+            // propio proveedor lo activó solo desde su panel) — mentía sobre
+            // el estado real sin afectar el dato real. Se trae acá, en
+            // paralelo, el estado real de cada proveedor y se mezcla.
+            await Promise.all(PROVEEDORES_CONFIG.map(async p => {
+                try {
+                    const r = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-delegado?proveedorId=${encodeURIComponent(p.id)}`);
+                    p.stockDelegado = !!(r && r.ok && r.activo);
+                } catch (_) {
+                    // si falla la consulta de este proveedor puntual, no se
+                    // toca nada más — sigue como venía (undefined = OFF en
+                    // pantalla), igual que antes de este fix.
+                }
+            }));
             _guardarProveedoresConfigLocal();
         }
     } catch (_) {
