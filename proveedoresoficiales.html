@@ -448,6 +448,18 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
             </div>
         </div>
 
+        <!-- 🔧 FIX: aviso compacto cuando el panel está pausado (ver "⏸
+             Pausar panel" en pedidos.html) — ya NO bloquea todo el panel,
+             solo avisa que el sector de Pedidos queda restringido
+             mientras dure la pausa. Se puede cerrar o ir directo a Stock. -->
+        <div id="banner-panel-pausado" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fff7ed;border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px">
+            <div style="font-size:12.5px;color:#92400e;font-weight:600;flex:1;min-width:200px">Panel pausado hasta nuevos movimientos. Solo podés actualizar el Stock en este momento.</div>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+                <button type="button" class="btn-head" style="padding:6px 12px;font-size:12px" onclick="_cerrarBannerPanelPausado()">Aceptar</button>
+                <button type="button" class="modal-confirm-btn" style="padding:6px 12px;font-size:12px" onclick="_irAStockDesdeBanner()">Actualizar Stock</button>
+            </div>
+        </div>
+
         <div class="menu-nav">
             <button class="menu-btn active" id="tab-btn-nuevos" onclick="cambiarTab('nuevos')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Pedidos</button>
             <button class="menu-btn" id="tab-btn-despacho" onclick="cambiarTab('despacho')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Listos para despachar</button>
@@ -506,6 +518,18 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 <div class="toast" id="toast"></div>
 
 <!-- ── Modal: Registro de Proveedor Oficial ── -->
+<!-- 🔧 FIX: aviso al intentar entrar a Pedidos/Despacho/Enviados mientras
+     el panel está pausado — único botón, lleva directo a Stock. -->
+<div class="modal-backdrop" id="aviso-panel-pausado-pedidos-backdrop">
+    <div class="modal-box">
+        <div class="modal-title">Panel pausado hasta nuevo movimiento</div>
+        <div class="modal-sub">Mientras dure la pausa, solo podés gestionar tu Stock.</div>
+        <div style="display:flex;gap:8px">
+            <button class="modal-confirm-btn" style="flex:1" onclick="_aceptarAvisoPanelPausadoPedidos()">Aceptar</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-backdrop" id="modal-oficializar-backdrop">
     <div class="modal-box">
         <div class="modal-title">Registro de Proveedor Oficial</div>
@@ -883,12 +907,15 @@ function _esProveedorNoEncontrado(pedidosRes) {
 // se reactiva, el proveedor vuelve a ver todo tal cual quedó, en vivo.
 async function entrarConProveedorId(id) {
     const pausadoRes = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-pausado?proveedorId=${encodeURIComponent(id)}`);
-    if (pausadoRes && pausadoRes.ok && pausadoRes.pausado) {
-        document.getElementById('login-wrap-msg').textContent = 'Este panel fue pausado temporalmente por Revende Ways. Volvé a intentarlo más tarde o consultales por WhatsApp.';
-        document.getElementById('login-wrap').style.display = 'flex';
-        document.getElementById('main').classList.remove('show');
-        return;
-    }
+    // 🔧 FIX: antes "pausado" bloqueaba la entrada a TODO el panel. Ahora
+    // el proveedor pausado entra igual y puede seguir usando Stock/
+    // Gestión de Stock/Estadísticas con normalidad — solo se le
+    // restringe el sector de Pedidos (pendientes/despacho/enviados, ver
+    // cambiarTab() y el aviso compacto de arriba). El dueño sigue
+    // pausando/reanudando igual que antes desde "⏸ Pausar panel" en
+    // pedidos.html; al reanudar, el proveedor recupera Pedidos tal cual
+    // quedó, en vivo.
+    window._panelPausado = !!(pausadoRes && pausadoRes.ok && pausadoRes.pausado);
     PROVEEDOR_ID_ACTUAL = id;
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('main').classList.add('show');
@@ -899,7 +926,13 @@ async function entrarConProveedorId(id) {
     // criterio que proveedor-pausado) e independiente de cargarDatos(): no
     // necesita esperar a que termine de cargar pedidos para saber si debe
     // mostrar la pestaña "Stock".
-    _chequearStockDelegado(id).then(() => _avisarSiStockDelegadoRecienActivado(id));
+    const _promesaStockDelegado = _chequearStockDelegado(id);
+    if (window._panelPausado) {
+        _mostrarBannerPanelPausado();
+        _promesaStockDelegado.then(() => cambiarTab('stock'));
+    } else {
+        _promesaStockDelegado.then(() => _avisarSiStockDelegadoRecienActivado(id));
+    }
     // 🆕 LOGIN OFICIAL: decide qué botón del header mostrar (Oficializar /
     // Iniciar sesión Oficial / Mis Datos) — independiente de cargarDatos(),
     // mismo criterio que _chequearStockDelegado de arriba.
@@ -982,7 +1015,14 @@ function cerrarModalSolicitudRecibida() {
     document.getElementById('modal-solicitud-recibida-backdrop').classList.remove('show');
 }
 
+// 🔧 FIX: pestañas del sector "Pedidos" — restringidas mientras el panel
+// esté pausado (ver entrarConProveedorId() y window._panelPausado).
+const TABS_PEDIDOS_BLOQUEADAS_SI_PAUSADO = ['nuevos', 'despacho', 'enviados'];
 function cambiarTab(tab) {
+    if (window._panelPausado && TABS_PEDIDOS_BLOQUEADAS_SI_PAUSADO.includes(tab)) {
+        _mostrarAvisoPanelPausadoPedidos();
+        return;
+    }
     document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-btn-' + tab).classList.add('active');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('show'));
@@ -993,6 +1033,32 @@ function cambiarTab(tab) {
     if (tab === 'stock' && !window._stockCargado) cargarStockProveedor();
     // 🆕 LOGIN OFICIAL
     if (tab === 'gestion-stock') cargarGestionStockProveedor();
+}
+
+// 🔧 FIX: aviso compacto (no bloqueante) de panel pausado — se puede
+// cerrar o ir directo a Stock.
+function _mostrarBannerPanelPausado() {
+    const el = document.getElementById('banner-panel-pausado');
+    if (el) el.style.display = 'flex';
+}
+function _cerrarBannerPanelPausado() {
+    const el = document.getElementById('banner-panel-pausado');
+    if (el) el.style.display = 'none';
+}
+function _irAStockDesdeBanner() {
+    _cerrarBannerPanelPausado();
+    cambiarTab('stock');
+}
+// 🔧 FIX: aviso al intentar entrar a Pedidos/Despacho/Enviados mientras
+// el panel está pausado — único botón, lleva directo a Stock.
+function _mostrarAvisoPanelPausadoPedidos() {
+    const el = document.getElementById('aviso-panel-pausado-pedidos-backdrop');
+    if (el) el.classList.add('show');
+}
+function _aceptarAvisoPanelPausadoPedidos() {
+    const el = document.getElementById('aviso-panel-pausado-pedidos-backdrop');
+    if (el) el.classList.remove('show');
+    cambiarTab('stock');
 }
 
 // ── Sub-pestañas de "Todos los pedidos enviados" ──
@@ -2315,6 +2381,12 @@ function _authTokenStorageKey() { return 'rw_prov_authToken_' + PROVEEDOR_ID_ACT
 function _guardarAuthToken(t) {
     window._authToken = t;
     try { sessionStorage.setItem(_authTokenStorageKey(), t || ''); } catch (_) {}
+    // 🔧 FIX: persiste siempre en localStorage también, sin esperar
+    // confirmación — antes, si el proveedor no tocaba "¿Guardar la
+    // sesión?", la sesión solo vivía en sessionStorage y se perdía al
+    // abrir un link nuevo (ej. desde WhatsApp), apareciendo como si no
+    // hubiese iniciado sesión.
+    try { localStorage.setItem(_authTokenStorageKey(), t || ''); } catch (_) {}
 }
 function _restaurarAuthToken() {
     try {
@@ -2332,10 +2404,9 @@ function _restaurarAuthToken() {
 // guarda en localStorage para que la próxima visita entre directo.
 let _authTokenPendienteGuardar = null;
 function _preguntarGuardarSesion(token) {
+    // 🔧 FIX: _guardarAuthToken ya persiste siempre (sessionStorage +
+    // localStorage) — ya no hace falta preguntar "¿Guardar la sesión?".
     _guardarAuthToken(token);
-    _authTokenPendienteGuardar = token;
-    const el = document.getElementById('modal-guardar-sesion-backdrop');
-    if (el) el.classList.add('show');
 }
 function _responderGuardarSesion(guardar) {
     const el = document.getElementById('modal-guardar-sesion-backdrop');
@@ -2574,7 +2645,7 @@ function _renderGestionStock() {
 }
 
 function _gestionStockFilaHTML(p) {
-    const img = resolverImagenProducto(p.categoria, p.nombre);
+    const img = resolverImagenProducto(p.categoria, p.nombre, p.imagen);
     return `<div class="stock-fila" id="gestion-stock-fila-${p.categoria}-${p.id}">
         ${img ? `<img src="${esc(img)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:5px;margin-right:8px;cursor:pointer;flex-shrink:0" onclick="window.open('${esc(img)}','_blank')">` : ''}
         <span class="stock-nombre">${esc(p.nombre)}</span>
@@ -2628,7 +2699,7 @@ function _revisarAvisoSinStock() {
     if (!contEl) return;
     const candidatos = (window._stockProductos || [])
         .filter(p => !p.enStock && _diasSinStock(p.categoria, p.id) >= 5)
-        .map(p => ({ categoria: p.categoria, productId: p.id, nombre: p.nombre, dias: _diasSinStock(p.categoria, p.id) }));
+        .map(p => ({ categoria: p.categoria, productId: p.id, nombre: p.nombre, dias: _diasSinStock(p.categoria, p.id), imagen: p.imagen }));
     window._productosSinStock5mas = candidatos;
     if (!candidatos.length) { contEl.innerHTML = ''; return; }
     const maxDias = Math.max(...candidatos.map(c => c.dias));
@@ -2656,7 +2727,7 @@ function abrirModalSeleccionarNotificar() {
     document.getElementById('seleccionar-notificar-lista').innerHTML = candidatos
         .slice().sort((a, b) => a.nombre.localeCompare(b.nombre))
         .map(c => {
-            const img = resolverImagenProducto(c.categoria, c.nombre);
+            const img = resolverImagenProducto(c.categoria, c.nombre, c.imagen);
             return `<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)">
                 <input type="checkbox" class="notificar-check" data-categoria="${esc(c.categoria)}" data-id="${c.productId}" data-nombre="${esc(c.nombre)}">
                 ${img ? `<img src="${esc(img)}" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:4px">` : ''}
@@ -2768,7 +2839,13 @@ function _basesImgPara(categoria) {
     }
     return bases;
 }
-function resolverImagenProducto(categoria, nombre) {
+function resolverImagenProducto(categoria, nombre, imagenDirecta) {
+    // 🔧 FIX: si ya viene la imagen resuelta desde el servidor (ver
+    // /api/proveedor-stock), se usa directo — sin depender de la tabla
+    // estática, que no conoce productos de repositorios agregados
+    // después de copiarla. Solo se cae a la tabla/mapa de abajo para
+    // productos muy viejos que todavía no mandan este campo.
+    if (typeof imagenDirecta === 'string' && imagenDirecta) return imagenDirecta;
     const key = String(categoria) + '|' + _normNombreImg(nombre);
     if (window._agregadosImg && window._agregadosImg[key]) return window._agregadosImg[key];
     if (!window.IM_PROVEEDOR) return '';
