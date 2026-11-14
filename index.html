@@ -318,6 +318,12 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .foot-gain { font-size: 11.5px; font-weight: 700; color: var(--green); margin-top: 3px; }
 .foot-meta { font-size: 11.5px; color: var(--text3); }
 .foot-meta strong { color: var(--text); }
+.foot-gain-dueno { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+.gan-dueno-amt { font-size: 10px; font-weight: 700; color: var(--green); filter: blur(4px); transition: filter .15s; user-select: none; }
+.gan-dueno-amt.gan-visible { filter: none; user-select: text; }
+.gan-eye-btn { background: none; border: none; padding: 1px; margin: 0; cursor: pointer; color: var(--green); display: inline-flex; align-items: center; opacity: .8; flex-shrink: 0; }
+.gan-eye-btn:hover { opacity: 1; }
+.foot-gain-emprendedor { font-size: 10px; color: var(--text3); font-weight: 600; margin-top: 2px; }
 .actions { display: flex; gap: 7px; flex-wrap: wrap; }
 .btn-act { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: none; font-family: var(--font); transition: all .18s; }
 .btn-retirar { background: var(--purple-pale); color: var(--purple); border: 1px solid rgba(139,92,246,.25); }
@@ -2206,15 +2212,17 @@ const PRECIOS_MAYORISTAS_LISTOS = (function cargarPreciosMayoristasRevendedor() 
 })();
 
 let CATALOGO_PRECIOS_WORKER = {};
-const CATALOGO_PRECIOS_LISTOS = (function cargarCatalogoPreciosWorker() {
-    try {
-        const cache = JSON.parse(localStorage.getItem('_catalogoPreciosWorkerCache') || 'null');
-        if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
-            CATALOGO_PRECIOS_WORKER = cache.data;
-        }
-    } catch(_) {}
+// 🔧 NUEVO: antes un solo fallo de red/CORS al pedir el Worker restoprecios
+// dejaba CATALOGO_PRECIOS_WORKER vacío para siempre en esa sesión del panel,
+// y ahí itemEconomiaReal() no tenía con qué restar el costo real → "mi
+// ganancia" (la del dueño) aparecía en $0 en TODOS los pedidos, sin ningún
+// error visible. Ahora, si falla, reintenta varias veces con espera
+// creciente y, apenas logra cargar, vuelve a renderizar con los datos ya
+// correctos — sin bloquear la carga inicial del panel.
+function _intentarCargarCatalogoPreciosWorker(intento) {
+    intento = intento || 1;
     return fetch(RESTOPRECIOS_WORKER)
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
             const mapa = {};
             (data.productos || []).forEach(p => {
@@ -2226,7 +2234,20 @@ const CATALOGO_PRECIOS_LISTOS = (function cargarCatalogoPreciosWorker() {
             try { localStorage.setItem('_catalogoPreciosWorkerCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
             if (typeof pedidos !== 'undefined' && pedidos.length && typeof renderPedidosView === 'function') renderPedidosView();
         })
-        .catch(() => {});
+        .catch(() => {
+            if (intento < 6) {
+                setTimeout(() => _intentarCargarCatalogoPreciosWorker(intento + 1), Math.min(intento * 5000, 20000));
+            }
+        });
+}
+const CATALOGO_PRECIOS_LISTOS = (function cargarCatalogoPreciosWorker() {
+    try {
+        const cache = JSON.parse(localStorage.getItem('_catalogoPreciosWorkerCache') || 'null');
+        if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
+            CATALOGO_PRECIOS_WORKER = cache.data;
+        }
+    } catch(_) {}
+    return _intentarCargarCatalogoPreciosWorker(1);
 })();
 
 // Un producto "no coincide" (fue quitado del catálogo) cuando no existe ni en
@@ -3604,6 +3625,8 @@ const ICO_CHECK_OK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none
 const ICO_CHECK_NO = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;display:inline-block;color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
 const ICO_REGALO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
 const ICO_GRUPO = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+// Ícono de ojito (ver/ocultar mi ganancia real de dueño — siempre oculta por defecto).
+const ICO_OJO = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 
 // 🔧 NUEVO: footer de factura/compartir UNIFICADO por grupo (revendedor +
 // categoría + estado). Antes cada pedido individual del cliente tenía su
@@ -3634,6 +3657,10 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     if (estado !== 'aprobado' && estado !== 'confirmado') return '';
     let totalMayoristaGrupo = 0;
     let totalGananciaGrupo = 0;
+    // 🔧 NUEVO: ganancia REAL del dueño (misma cuenta que panelGestionContenido:
+    // precio mayorista de entrada menos el costo real de restoprecios), en
+    // paralelo a totalGananciaGrupo que es la ganancia del EMPRENDEDOR.
+    let totalGananciaDuenoGrupo = 0;
     let totalUnidGrupo = 0;
     const pagadoFoot = estado === 'confirmado';
     gsCat.forEach(g => {
@@ -3647,6 +3674,7 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
             const qty = Number(it.cantidad || 1) || 1;
             const eco = itemEconomiaReal(it, g.categoria);
             totalMayoristaGrupo += eco.precioCliente;
+            totalGananciaDuenoGrupo += eco.ganancia;
             totalUnidGrupo += qty;
             if (!pagadoFoot) {
                 totalGananciaGrupo += Number(it.subtotalGanancia ?? (
@@ -3676,7 +3704,11 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
             <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
-            <div class="foot-gain">+${money(totalGananciaGrupo)} de ganancia</div>
+            <div class="foot-gain-dueno">
+                <span class="gan-dueno-amt">+${money(totalGananciaDuenoGrupo)}</span>
+                <button class="gan-eye-btn" title="Mostrar/ocultar mi ganancia" onclick="${stop}this.previousElementSibling.classList.toggle('gan-visible')">${ICO_OJO}</button>
+            </div>
+            <div class="foot-gain-emprendedor">Ganancia de emprendedor en este pedido: ${money(totalGananciaGrupo)}</div>
         </div>
         <div class="actions">
             <button class="btn-act btn-pdf" onclick="${stop}descargarFacturaProveedorGrupo('${codigo}','${cat}','${estado}')">${etiquetaFactura}</button>
@@ -3742,7 +3774,10 @@ function panelGestionContenido(g) {
         <div class="order-foot">
             <div>
                 <div class="foot-meta"><strong>${(g.items||[]).length}</strong> prod. · <strong>${totalU}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaReal)}</strong></div>
-                <div class="foot-gain">+${money(totalGananciaReal)} de ganancia</div>
+                <div class="foot-gain-dueno">
+                    <span class="gan-dueno-amt">+${money(totalGananciaReal)}</span>
+                    <button class="gan-eye-btn" title="Mostrar/ocultar mi ganancia" onclick="${stop}this.previousElementSibling.classList.toggle('gan-visible')">${ICO_OJO}</button>
+                </div>
             </div>
             <div class="actions">
                 ${g.estadoReal === 'confirmado' ? (yaEnLista ? `<span class="status-chip s-lista">Ya en la lista de preparación</span>
