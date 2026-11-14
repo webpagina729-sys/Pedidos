@@ -10126,6 +10126,22 @@ window.addEventListener('load', init);
         return W;
     }
     if (J && !J.__pe) { var W = envolver(J); W.__pe = true; window.jspdf.jsPDF = W; }
+    // 🔧 NUEVO: reintento con espera si falla la subida de la factura (red,
+    // o el Worker de afiliados con algún problema puntual) — antes, al
+    // primer fallo, se abría WhatsApp con el mensaje solo, sin la factura
+    // adjunta y sin avisar nada. Ahora reintenta hasta 3 veces en total
+    // antes de resignarse a ese mismo comportamiento de siempre.
+    function _esperar(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+    function subirPdfConReintento(h, body, intentosRestantes) {
+        intentosRestantes = intentosRestantes == null ? 3 : intentosRestantes;
+        return fetch(WK + '/api/pdf-subir', { method: 'POST', headers: h, body: body })
+            .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function (j) { if (!j || !j.ok || !j.url) throw new Error('fallo'); return j; })
+            .catch(function (err) {
+                if (intentosRestantes > 1) return _esperar(1200).then(function () { return subirPdfConReintento(h, body, intentosRestantes - 1); });
+                throw err;
+            });
+    }
     function b64(c) {
         var u = new Uint8Array(c.out.call(c.doc, 'arraybuffer')), s = '', i;
         for (i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
@@ -10153,9 +10169,8 @@ window.addEventListener('load', init);
         Promise.resolve().then(auth).then(function (h) {
             if (!h) throw new Error('sin auth');
             h['Content-Type'] = 'application/json';
-            return fetch(WK + '/api/pdf-subir', { method: 'POST', headers: h, body: body });
-        }).then(function (r) { return r.json(); }).then(function (j) {
-            if (!j || !j.ok || !j.url) throw new Error('fallo');
+            return subirPdfConReintento(h, body);
+        }).then(function (j) {
             // 🔧 FIX: el link directo al PDF (?raw=1) NO arma vista previa en
             // WhatsApp — WhatsApp solo arma tarjeta de vista previa para una
             // página HTML con metadatos Open Graph (og:image incluido; ver
