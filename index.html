@@ -2355,6 +2355,13 @@ function itemEconomiaReal(it, categoria) {
     if (Object.prototype.hasOwnProperty.call(it, 'costoRestopreciosCongelado')) {
         const c = it.costoRestopreciosCongelado;
         miCostoUnit = (c === null || c === '' || c === undefined) ? null : Number(c);
+        // 🔧 FIX: si quedó congelado SIN dato (null) porque en el momento de
+        // crear el pedido el producto todavía no estaba en restoprecios, no
+        // hay que resignarse a ganancia $0 para siempre — se reintenta la
+        // búsqueda en vivo, por si el producto ya fue cargado después. Un
+        // valor congelado REAL (no null, ya sea 0 o cualquier número) sigue
+        // protegido tal cual estaba, sin tocarlo.
+        if (miCostoUnit == null) miCostoUnit = precioMayoristaRealPorNombre(it.nombre);
     } else {
         miCostoUnit = precioMayoristaRealPorNombre(it.nombre);
     }
@@ -3657,10 +3664,6 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     if (estado !== 'aprobado' && estado !== 'confirmado') return '';
     let totalMayoristaGrupo = 0;
     let totalGananciaGrupo = 0;
-    // 🔧 NUEVO: ganancia REAL del dueño (misma cuenta que panelGestionContenido:
-    // precio mayorista de entrada menos el costo real de restoprecios), en
-    // paralelo a totalGananciaGrupo que es la ganancia del EMPRENDEDOR.
-    let totalGananciaDuenoGrupo = 0;
     let totalUnidGrupo = 0;
     const pagadoFoot = estado === 'confirmado';
     gsCat.forEach(g => {
@@ -3674,7 +3677,6 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
             const qty = Number(it.cantidad || 1) || 1;
             const eco = itemEconomiaReal(it, g.categoria);
             totalMayoristaGrupo += eco.precioCliente;
-            totalGananciaDuenoGrupo += eco.ganancia;
             totalUnidGrupo += qty;
             if (!pagadoFoot) {
                 totalGananciaGrupo += Number(it.subtotalGanancia ?? (
@@ -3704,10 +3706,6 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
     return `<div class="order-foot" style="margin-top:4px;padding-top:10px;border-top:2px solid var(--border)">
         <div>
             <div class="foot-meta"><strong>${gsCat.length}</strong> ped. · <strong>${totalUnidGrupo}</strong> unid. · Total mayorista: <strong>${money(totalMayoristaGrupo)}</strong></div>
-            <div class="foot-gain-dueno">
-                <span class="gan-dueno-amt">+${money(totalGananciaDuenoGrupo)}</span>
-                <button class="gan-eye-btn" title="Mostrar/ocultar mi ganancia" onclick="${stop}this.previousElementSibling.classList.toggle('gan-visible')">${ICO_OJO}</button>
-            </div>
             <div class="foot-gain-emprendedor">Ganancia de emprendedor en este pedido: ${money(totalGananciaGrupo)}</div>
         </div>
         <div class="actions">
