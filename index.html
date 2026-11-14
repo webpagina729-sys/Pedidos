@@ -5135,6 +5135,15 @@ async function guardarProveedor() {
         toast((huboError || errorServidorFicha) ? 'Proveedor guardado (algunos datos no se sincronizaron con el servidor)' : 'Proveedor guardado', !(huboError || errorServidorFicha));
         cerrarFormProveedor();
         _renderProveedoresConfigBody();
+        // 🔧 NUEVO: al guardar (alta o edición) con una categoría recién
+        // delegada, los pedidos que YA estaban en "aprobado"/"confirmado"
+        // en esa categoría no tenían vista previa (o la tenían con el
+        // proveedor viejo) hasta el próximo refresco automático de
+        // pedidos.html (hasta 5 min, o recién al recargar el panel) — eso
+        // hacía que el proveedor no viera nada recién delegado hasta ese
+        // refresco. Se sincroniza ahora mismo, en el momento de guardar,
+        // sin esperar. No cambia nada más del cálculo/estado de pedidos.
+        _sincronizarPreviewProveedores();
         // 🔧 NUEVO: al guardar (alta o edición), genera el enlace
         // compartible de proveedores.html para este proveedor y lo
         // muestra (mismo patrón que "Compartir producto" en index.html —
@@ -5219,6 +5228,11 @@ async function eliminarProveedor(id) {
     _guardarProveedoresConfigLocal();
     _renderProveedoresConfigBody();
     toast(errorServidor ? 'Proveedor eliminado localmente (no se pudo confirmar con el servidor)' : 'Proveedor eliminado', !errorServidor);
+    // 🔧 NUEVO: mismo motivo que en guardarProveedor() — al quitar la
+    // categoría de este proveedor (eliminado), las vistas previas viejas
+    // de esa categoría quedaban con el proveedor borrado hasta el próximo
+    // refresco automático. Se limpia/reasigna ahora mismo.
+    _sincronizarPreviewProveedores();
 }
 
 // 🔧 NUEVO: "Enviar Panel" — manda directo al chat de WhatsApp del
