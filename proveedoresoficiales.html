@@ -1112,9 +1112,16 @@ function _renderStockProveedor() {
     `).join('');
 }
 
+// 🔧 FIX: esta es la pestaña "Stock" (Delegar Stock) — una vista
+// SEPARADA de "Gestión de Stock" (_gestionStockFilaHTML más abajo, que ya
+// tenía la miniatura). Era la única que faltaba: nunca tuvo ningún código
+// de imagen, por eso solo se veía el nombre y el botón. Usa el mismo
+// helper (resolverImagenProducto) con "p.imagen" (ya resuelto por el
+// servidor, ver /api/proveedor-stock) como prioridad.
 function _stockFilaHTML(p) {
+    const img = resolverImagenProducto(p.categoria, p.nombre, p.imagen);
     return `<div class="stock-fila" id="stock-fila-${p.categoria}-${p.id}">
-        <span class="stock-nombre">${esc(p.nombre)}</span>
+        <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">${img ? `<img src="${esc(img)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;flex-shrink:0;cursor:pointer" onclick="window.open('${esc(img)}','_blank')">` : ''}<span class="stock-nombre">${esc(p.nombre)}</span></span>
         <button class="stock-toggle-btn ${p.enStock ? 'on' : ''}" onclick="toggleStockProveedor('${esc(p.categoria)}', ${p.id})">${p.enStock ? '✅ En stock' : '⛔ Sin stock'}</button>
     </div>`;
 }
