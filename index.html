@@ -1278,6 +1278,22 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
     </div>
 </div>
 
+<!-- 🆕 "🔗 Conectar imagen" — para productos del catálogo base cuyo nombre
+     de archivo no se parece en nada al nombre del producto y la búsqueda
+     automática (ver preciosmayoristasrevendedores.js) nunca los va a
+     poder adivinar sola. Lista TODOS los archivos de los repositorios de
+     la categoría actual (los mismos que ya usa esa búsqueda automática),
+     filtrables por texto, y conecta el elegido a mano — queda guardado
+     para siempre, sin depender de que el nombre coincida. -->
+<div class="modal-overlay" id="conectarImagenModal">
+    <div class="modal-box" style="max-width:420px;text-align:left;max-height:85vh;overflow-y:auto">
+        <h3 style="display:flex;align-items:center;gap:8px"><span>🔗 Conectar imagen</span><button type="button" class="cp-cerrar" onclick="cerrarConectarImagen()">Cerrar</button></h3>
+        <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px" id="conectarImagenProducto"></div>
+        <input type="text" class="rvndr-search" id="conectarImagenBuscar" placeholder="Buscar archivo..." oninput="_renderConectarImagenLista()" style="margin-bottom:10px">
+        <div id="conectarImagenLista" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+</div>
+
 <!-- 🆕 "Agregar Categoría": crea una categoría nueva de cero (nombre,
      descripción, objetivo, repositorio e imágenes de carrusel) y, con el
      mismo flujo de "Cargar productos", carga sus primeros productos sin
@@ -7387,6 +7403,9 @@ function _filaProductoHtml(p) {
         ${tieneVariantes ? `<button class="btn-act" title="Variantes" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirVariantesModal('${p._agregado ? _claveCatalogoCentral(p._subcat) : p._subcat}',${p.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
         </button>` : ''}
+        <button class="btn-act" title="Conectar imagen a mano (para cuando la búsqueda automática en los repositorios no la encuentra)" style="flex-shrink:0;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="abrirConectarImagen(stockCatActual,'${esc(p.nombre).replace(/'/g,"\\'")}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </button>
         <button class="btn-act ${enStock ? 'btn-domicilio' : 'btn-del'}" style="flex-shrink:0" onclick="toggleStockGlobal('${p._subcat}',${p.id},${!enStock})">
             ${enStock ? '✓ En stock' : '✕ Sin stock'}
         </button>
@@ -7585,6 +7604,50 @@ async function actualizarImagenesCategoria() {
     });
     if (res && res.ok) toast(`Imágenes de "${etiqueta}" actualizadas (${res.archivos} encontradas en sus repositorios).`, true);
     else toast((res && res.error) ? res.error : 'No se pudieron actualizar las imágenes', false);
+}
+
+// 🆕 "🔗 Conectar imagen" — ver comentario del modal en el HTML. Trae TODOS
+// los archivos ya resueltos de la categoría (mismos que usa la búsqueda
+// automática — endpoint público, no hace falta clave acá) y deja elegir
+// cuál corresponde a este producto puntual, filtrando por texto.
+let _conectarImagenCtx = null;
+async function abrirConectarImagen(categoria, nombre) {
+    _conectarImagenCtx = { categoria, nombre, archivos: [] };
+    document.getElementById('conectarImagenProducto').textContent = nombre;
+    document.getElementById('conectarImagenBuscar').value = '';
+    document.getElementById('conectarImagenLista').innerHTML = '<div class="empty-state">Cargando archivos de los repositorios...</div>';
+    document.getElementById('conectarImagenModal').classList.add('show');
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/imagenes?categoria=' + encodeURIComponent(categoria));
+    if (!_conectarImagenCtx || _conectarImagenCtx.nombre !== nombre) return; // se cerró/cambió mientras cargaba
+    _conectarImagenCtx.archivos = (res && res.ok && Array.isArray(res.archivos)) ? res.archivos : [];
+    _renderConectarImagenLista();
+}
+function cerrarConectarImagen() {
+    document.getElementById('conectarImagenModal').classList.remove('show');
+    _conectarImagenCtx = null;
+}
+function _renderConectarImagenLista() {
+    if (!_conectarImagenCtx) return;
+    const el = document.getElementById('conectarImagenLista');
+    const q = (document.getElementById('conectarImagenBuscar').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const lista = _conectarImagenCtx.archivos.filter(a => !q || (a.norm || '').includes(q));
+    if (!lista.length) { el.innerHTML = '<div class="empty-state">Sin resultados — probá buscar con otra palabra.</div>'; return; }
+    el.innerHTML = lista.slice(0, 200).map(a => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--border2);border-radius:7px;cursor:pointer" onclick="_elegirImagenManual('${esc(a.url).replace(/'/g,"\\'")}')">
+            <img src="${esc(a.url)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0">
+            <span style="font-size:11.5px;color:var(--text2);word-break:break-all">${esc(a.url.split('/').pop())}</span>
+        </div>
+    `).join('');
+}
+async function _elegirImagenManual(url) {
+    if (!_conectarImagenCtx) return;
+    const { categoria, nombre } = _conectarImagenCtx;
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/imagenes/manual', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria, nombre, url }),
+    });
+    if (res && res.ok) { toast('Imagen conectada a "' + nombre + '".', true); cerrarConectarImagen(); }
+    else toast((res && res.error) ? res.error : 'No se pudo conectar la imagen', false);
 }
 
 function abrirCargarProductos() {
