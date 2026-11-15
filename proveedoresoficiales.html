@@ -1419,9 +1419,17 @@ function _estadoCintaHTML(estadoKey, titulo, badgeHtml, descHtml, bodyHtml, titu
 }
 
 // Lista de productos de un pedido, en el mismo formato en toda la app.
+// 🆕 Miniatura al principio de cada producto — misma función
+// (resolverImagenProducto) que ya usa "Gestión de Stock" más abajo:
+// prioriza la imagen que ya viene resuelta desde el servidor (it.imagen,
+// ver /api/pedido-proveedor y /api/pedido-proveedor-preview) y solo si
+// no vino cae a la tabla estática vieja como último respaldo.
 function _listaProductosHTML(productos) {
     return `<ul class="cinta-items">
-        ${(Array.isArray(productos) && productos.length) ? productos.map(it => `<li><span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad) || 1}</b></li>`).join('') : '<li>Sin productos detallados</li>'}
+        ${(Array.isArray(productos) && productos.length) ? productos.map(it => {
+            const img = resolverImagenProducto(it.categoria, it.nombre, it.imagen);
+            return `<li>${img ? `<img src="${esc(img)}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:5px;margin-right:7px;cursor:pointer;flex-shrink:0;vertical-align:-6px" onclick="event.stopPropagation();window.open('${esc(img)}','_blank')">` : ''}<span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad) || 1}</b></li>`;
+        }).join('') : '<li>Sin productos detallados</li>'}
     </ul>`;
 }
 
@@ -1436,7 +1444,12 @@ function _agruparPreviewPorRevendedor(lista) {
     lista.forEach(p => {
         const key = (p.revendedorRef || p.nombreRevendedor || '').toUpperCase();
         if (!grupos[key]) { grupos[key] = { key, nombreRevendedor: p.nombreRevendedor || 'Revendedor', productos: [] }; orden.push(key); }
-        (Array.isArray(p.productos) ? p.productos : []).forEach(it => grupos[key].productos.push(it));
+        // 🔧 FIX: cada preview "p" es de UNA sola categoría (p.categoria) —
+        // antes se perdía acá al aplanar los productos de varios previews
+        // en una sola lista, y sin saber la categoría de cada producto era
+        // imposible resolverle la imagen correcta cuando el revendedor
+        // tiene pedidos en más de una categoría a la vez.
+        (Array.isArray(p.productos) ? p.productos : []).forEach(it => grupos[key].productos.push({ ...it, categoria: it.categoria || p.categoria || '' }));
     });
     return orden.map(k => grupos[k]);
 }
