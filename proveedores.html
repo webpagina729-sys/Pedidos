@@ -1435,7 +1435,15 @@ function _listaProductosHTML(productos) {
     return `<ul class="cinta-items">
         ${(Array.isArray(productos) && productos.length) ? productos.map(it => {
             const img = resolverImagenProducto(it.categoria, it.nombre, it.imagen);
-            return `<li>${img ? `<img src="${esc(img)}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:5px;margin-right:7px;cursor:pointer;flex-shrink:0;vertical-align:-6px" onclick="event.stopPropagation();window.open('${esc(img)}','_blank')">` : ''}<span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span><b>x${Number(it.cantidad) || 1}</b></li>`;
+            // 🔧 FIX: ".cinta-items li" es flex con justify-content:space-between
+            // esperando SOLO 2 hijos (nombre a la izquierda, cantidad a la
+            // derecha) — agregar el <img> como un 3er hijo suelto hacía que
+            // "space-between" repartiera el espacio entre los 3, dejando el
+            // nombre descentrado/flotando en el medio. Ahora la imagen y el
+            // nombre van juntos dentro de UN solo wrapper (vuelve a haber
+            // solo 2 hijos: el wrapper a la izquierda, la cantidad a la
+            // derecha), igual que estaba antes de agregar la miniatura.
+            return `<li><span style="display:flex;align-items:center;gap:7px;min-width:0"><img src="${esc(img || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7')}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:5px;flex-shrink:0;${img ? 'cursor:pointer' : 'visibility:hidden'}" ${img ? `onclick="event.stopPropagation();window.open('${esc(img)}','_blank')"` : ''}><span>${esc(it.nombre || '—')}${it.variante ? ' <span style="color:var(--text3)">(' + esc(it.variante) + ')</span>' : ''}</span></span><b>x${Number(it.cantidad) || 1}</b></li>`;
         }).join('') : '<li>Sin productos detallados</li>'}
     </ul>`;
 }
