@@ -3399,7 +3399,10 @@ async function enviarFacturaYClasificarPedidoStock(pedidoId) {
 
     const info = vendorCache[g.codigoVendedor] || {};
     const nombre = vendorLabel(g.codigoVendedor);
-    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: it.variante || '' }));
+    // 🆕 "categoria" por producto (siempre g.categoria acá — este pedido es
+    // de una sola categoría) — la necesita el Worker para resolver la
+    // imagen de cada producto contra los repos de su categoría correcta.
+    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: it.variante || '', categoria: g.categoria }));
     await _enviarPedidoAWorkerProveedores({
         pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
         productos, totalMayorista: g.totalMayorista, origen: 'stock_reposicion',
@@ -4863,14 +4866,20 @@ async function ejecutarPedido(codigo, categoriaOCsv) {
     // mismo producto pero con variantes distintas (ej. Talle S y Talle M)
     // se sumaban como si fueran lo mismo, y el proveedor perdía cuál
     // variante corresponde a cada cantidad.
+    // 🆕 "categoria" agregada a la clave de agrupación (no solo nombre +
+    // variante): este lote puede juntar varias categorías delegadas al
+    // mismo proveedor (ver categoriaOCsv), y sin esto dos productos de
+    // categorías distintas con el mismo nombre se mezclaban en una sola
+    // fila — además de impedir saber de qué categoría sacar la imagen de
+    // cada uno.
     const prods = {};
     gsCat.forEach(g => (g.items||[]).forEach(it => {
         const variante = _variantLabel(it);
-        const key = it.nombre.trim() + (variante ? ' | ' + variante : '');
-        if (!prods[key]) prods[key] = { nombre: it.nombre.trim(), variante, cantidad: 0 };
+        const key = it.nombre.trim() + (variante ? ' | ' + variante : '') + ' | ' + g.categoria;
+        if (!prods[key]) prods[key] = { nombre: it.nombre.trim(), variante, categoria: g.categoria, cantidad: 0 };
         prods[key].cantidad += Number(it.cantidad||1);
     }));
-    const productosLista = Object.values(prods).map(p => ({ nombre: p.nombre, cantidad: p.cantidad, variante: p.variante }));
+    const productosLista = Object.values(prods).map(p => ({ nombre: p.nombre, cantidad: p.cantidad, variante: p.variante, categoria: p.categoria }));
     let totalMayoristaLote = 0;
     gsCat.forEach(g => { totalMayoristaLote += totalMayoristaPedido(g); });
 
@@ -7435,6 +7444,7 @@ function renderStockPausaBar() {
     if (!cont) return;
     const info = _infoPausaCategoria(stockCatActual);
     const btnCargar = `<button class="btn-head" style="gap:6px" onclick="abrirCargarProductos()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cargar Productos</button>
+        <button class="btn-head" style="gap:6px" onclick="actualizarImagenesCategoria()" title="Vuelve a buscar las imágenes de esta categoría en sus repositorios ahora mismo, sin esperar a que se actualicen solas"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Actualizar imágenes</button>
         <button class="btn-head" style="gap:6px" onclick="abrirAgregarCategoria()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg> Agregar Categoría</button>
         <button class="btn-head" style="gap:6px" onclick="abrirOcultarCategorias()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Ocultar Categorías</button>`;
     if (info) {
@@ -7560,6 +7570,21 @@ function _sumarProductosLocales(clave, productos) {
     });
     CATALOGOS_CENTRALES[clave] = CATALOGOS_CENTRALES[clave] || [];
     productos.forEach(n => { if (!CATALOGOS_CENTRALES[clave].includes(n.id)) CATALOGOS_CENTRALES[clave].push(n.id); });
+}
+
+// 🆕 Botón "Actualizar imágenes" (al lado de "Cargar Productos") — fuerza
+// al Worker de catálogo a volver a buscar, ya mismo, los archivos de
+// imagen de los repositorios de ESTA categoría (en vez de esperar las
+// 12hs de vigencia normal del cache). Usa "stockCatActual" — la misma
+// categoría canónica que ya usa "Cargar Productos" al lado.
+async function actualizarImagenesCategoria() {
+    const etiqueta = STOCK_CAT_LABELS[stockCatActual] || stockCatActual;
+    const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/imagenes/refrescar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ categoria: stockCatActual }),
+    });
+    if (res && res.ok) toast(`Imágenes de "${etiqueta}" actualizadas (${res.archivos} encontradas en sus repositorios).`, true);
+    else toast((res && res.error) ? res.error : 'No se pudieron actualizar las imágenes', false);
 }
 
 function abrirCargarProductos() {
