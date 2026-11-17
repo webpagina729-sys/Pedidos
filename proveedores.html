@@ -54,6 +54,14 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .login-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 32px 28px; width: 100%; max-width: 380px; box-shadow: var(--shadow-lg); }
 .login-box h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
 .login-box p { color: var(--text2); font-size: 12.5px; margin-bottom: 22px; line-height: 1.5; }
+/* 🆕 Bloqueo para proveedor ya oficializado que entra por el link viejo
+   (ver provOficialBlockOverlay / _irAPanelOficial en init()). */
+.prov-oficial-block-overlay {
+    position: fixed; inset: 0; z-index: 2100;
+    background: rgba(11,13,18,.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+#main.prov-blurred { filter: blur(6px); pointer-events: none; user-select: none; }
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; }
 .field select { width: 100%; padding: 11px 14px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 14px; font-family: var(--font); }
@@ -394,6 +402,19 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
     <div class="login-box">
         <h1>Panel de Proveedores</h1>
         <p id="login-wrap-msg">Cargando los pedidos de su categoría.</p>
+    </div>
+</div>
+
+<!-- 🆕 Proveedor ya oficializado que entra por el link VIEJO de
+     proveedores.html: este archivo ya no es su panel. Se bloquea con el
+     panel de fondo desenfocado (sin cargar pedidos, ver init()) y un
+     botón que lo manda a proveedoresoficiales.html, donde inicia sesión
+     con correo/contraseña. -->
+<div class="prov-oficial-block-overlay" id="provOficialBlockOverlay" style="display:none">
+    <div class="login-box" style="text-align:center;">
+        <h1>¡Ya estás oficializado! 🎉</h1>
+        <p>Tu panel de pedidos ahora es otro. Entrá con tu correo y contraseña para ver y gestionar todo desde ahí.</p>
+        <button type="button" class="modal-btn modal-btn-primary" style="width:100%" onclick="_irAPanelOficial()">Ir a mi panel de proveedor Oficial</button>
     </div>
 </div>
 
@@ -2973,14 +2994,22 @@ var IM_PROVEEDOR = {"bases":["https://raw.githubusercontent.com/webpagina729-sys
 // el enlace a proveedoresoficiales.html) solo se gana completando ese
 // registro completo por separado (botón del header, ver
 // _actualizarBotonHeaderOficial) — nunca con solo crear esta contraseña
-// de entrada. Si ya está oficializado, entra directo como siempre.
+// de entrada. 🔧 FIX: si ya está oficializado, este archivo YA NO es su
+// panel — en vez de entrar directo, se bloquea (ver
+// provOficialBlockOverlay/_irAPanelOficial) sin pedir sus pedidos al
+// servidor, y lo manda a proveedoresoficiales.html.
+function _irAPanelOficial() {
+    location.href = 'proveedoresoficiales.html?proveedor=' + encodeURIComponent(PROVEEDOR_ID_ACTUAL);
+}
 async function init() {
     const proveedorId = _leerProveedorIdDeUrl();
     if (!proveedorId) { _mostrarEnlaceInvalido(); return; }
     PROVEEDOR_ID_ACTUAL = proveedorId;
     const estado = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-oficial-estado?proveedorId=${encodeURIComponent(proveedorId)}`);
     if (estado && estado.ok && estado.oficializado) {
-        entrarConProveedorId(proveedorId);
+        document.getElementById('login-wrap').style.display = 'none';
+        document.getElementById('main').classList.add('show', 'prov-blurred');
+        document.getElementById('provOficialBlockOverlay').style.display = 'flex';
     } else {
         _exigirIngresoOficial(proveedorId);
     }
@@ -3004,19 +3033,16 @@ async function _exigirIngresoOficial(proveedorId) {
     window._accTurnstileToken = null;
     try { if (window.turnstile) window.turnstile.reset('#acc-turnstile-widget'); } catch (_) {}
     document.getElementById('modal-acceso-backdrop').classList.add('show');
-    // 🔧 FIX: si este proveedorId ya creó su acceso antes, completa solo
-    // el WhatsApp y la contraseña que usó esa vez (guardados en el
-    // servidor, ver /api/proveedor-acceso-guardado) — así no tiene que
-    // volver a escribirlos cada vez que entra a oficializarse o a su
-    // panel desde un link nuevo. Si todavía no existe, queda vacío igual
-    // que antes.
-    try {
-        const guardado = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-acceso-guardado?proveedorId=${encodeURIComponent(proveedorId)}`);
-        if (guardado && guardado.ok && guardado.existe) {
-            document.getElementById('acc-whatsapp').value = guardado.whatsapp || '';
-            document.getElementById('acc-password').value = guardado.password || '';
-        }
-    } catch (_) {}
+    // 🔒 FIX seguridad: antes esto completaba WhatsApp Y CONTRASEÑA solos
+    // pidiendo /api/proveedor-acceso-guardado — ese endpoint devolvía la
+    // contraseña real en texto plano a quien sea que tuviera el link
+    // (sin ningún login), así que cualquiera que abriera el enlace del
+    // proveedor ya lo veía todo completado, listo para entrar sin saber
+    // la contraseña. Se quita por completo: el campo de contraseña queda
+    // siempre vacío y el proveedor la escribe él mismo. En el MISMO
+    // dispositivo donde ya inició sesión antes, ni siquiera ve este
+    // modal — _restaurarAuthToken()/entrarConProveedorId() lo hace entrar
+    // directo (eso no se toca).
 }
 
 // ── 🔒 GATE ANTI-BOT (Cloudflare Turnstile) ──
