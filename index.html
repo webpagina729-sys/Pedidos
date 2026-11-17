@@ -7754,7 +7754,8 @@ function renderStockPausaBar() {
     const btnCargar = `<button class="btn-head" style="gap:6px" onclick="abrirCargarProductos()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cargar Productos</button>
         <button class="btn-head" style="gap:6px" onclick="actualizarImagenesCategoria()" title="Vuelve a buscar las imágenes de esta categoría en sus repositorios ahora mismo, sin esperar a que se actualicen solas"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Actualizar imágenes</button>
         <button class="btn-head" style="gap:6px" onclick="abrirAgregarCategoria()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg> Agregar Categoría</button>
-        <button class="btn-head" style="gap:6px" onclick="abrirOcultarCategorias()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Ocultar Categorías</button>`;
+        <button class="btn-head" style="gap:6px" onclick="abrirOcultarCategorias()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Ocultar Categorías</button>
+        <button class="btn-head" style="gap:6px" onclick="resetearAvisosNuevos()" title="Si un producto nuevo quedó marcado como &quot;ya visto&quot; para algún código sin haber llegado a mostrarse (por un bug ya corregido, por ejemplo), esto lo libera para que vuelva a aparecer"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Resetear avisos de nuevos</button>`;
     if (info) {
         const fecha = new Date(info.hasta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         cont.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:10px;">
@@ -7764,6 +7765,30 @@ function renderStockPausaBar() {
     } else {
         cont.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn-head" onclick="abrirPanelPausaCategoria()">⏸️ Parar Temporalmente esta categoría</button>${btnCargar}</div>`;
     }
+}
+
+// 🆕 "🔄 Resetear avisos de nuevos" — limpia la marca de "ya visto" de
+// todos los productos nuevos (agregado:true) de la categoría actual, para
+// todos los códigos de revendedor que ya la tuvieran guardada. Usa
+// STOCK_CAT_SUBCATS porque algunas categorías del panel (ej. "belleza")
+// agrupan más de una subcategoría real del catálogo — hay que resetear
+// cada una por separado, igual que ya hace el resto del panel.
+async function resetearAvisosNuevos() {
+    if (!confirm('¿Resetear el aviso de "nuevo producto" de ' + (STOCK_CAT_LABELS[stockCatActual] || stockCatActual) + '? Los productos nuevos que ya estaban marcados como "vistos" van a poder volver a aparecer y notificarse.')) return;
+    const subcats = STOCK_CAT_SUBCATS[stockCatActual] || [stockCatActual];
+    let productos = 0, codigos = 0, ok = true;
+    for (const sub of subcats) {
+        const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/agregados-vistos/resetear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+            body: JSON.stringify({ categoria: sub })
+        });
+        if (!res || !res.ok) { ok = false; continue; }
+        productos += res.productos || 0;
+        codigos = Math.max(codigos, res.codigosActualizados || 0);
+    }
+    if (!ok) { toast('No se pudo resetear el aviso', 'err'); return; }
+    toast(productos ? ('Reseteado: ' + productos + ' producto(s) nuevo(s), ' + codigos + ' código(s) actualizados') : 'No había productos nuevos para resetear', true);
 }
 
 function abrirPanelPausaCategoria() {
