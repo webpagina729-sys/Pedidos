@@ -7322,6 +7322,11 @@ let STOCK_GLOBAL_DATA = {};
 let AVISO_STOCK_ADMIN_VISTO_DATA = {};
 let AVISO_STOCK_ADMIN_CINTAS = [];
 let AVISO_STOCK_ADMIN_SHOWN = {}; // { [cintaKey]: cantidad de productos mostrados }
+// 🔧 FIX: registro de cambios de stock ({ [catalogo]: [{productId,timestamp,...}] },
+// mismo /api/cambios-stock que ya usa index (1).html para la Tarea 60) —
+// se usa para ordenar cada cinta por fecha real del cambio (más reciente
+// primero) en vez de por ID de producto (ver _ultimaFechaCambioStock).
+let AVISO_STOCK_ADMIN_CAMBIOS_DATA = {};
 let VARIANTES_GLOBAL_DATA = {};
 // 🆕 Precio propio por variante de productos del catálogo BASE (los que
 // vienen con talle/color de fábrica, no agregados desde "Cargar
@@ -7346,7 +7351,7 @@ let stockShown = 20;
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados, resAvisoVisto, resCategoriasExtra] = await Promise.all([
+    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados, resAvisoVisto, resCategoriasExtra, resCambiosStockAdmin] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
         fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
@@ -7372,12 +7377,19 @@ async function renderStockView() {
         // en preciosmayoristasrevendedores.js). Se repueblan acá, en cada
         // carga del panel, igual que ya hace catElegirPerfil() al crearlas.
         fetchJson(WORKER_PRECIOS + '/api/categorias/listar'),
+        // 🔧 FIX: registro con fecha real de cada cambio de stock (mismo
+        // endpoint que ya usa index (1).html para la Tarea 60) — se usa
+        // para ordenar las cintas del aviso de la Tarea 59 por fecha del
+        // cambio, de más reciente a más viejo, en vez de por ID de
+        // producto (ver _ultimaFechaCambioStock/_computarAvisoStockAdmin).
+        fetchJson(WORKER_ESTADOS + '/api/cambios-stock'),
     ]);
     STOCK_NOTIFICADOS_DATA = (resNotificados && resNotificados.ok && resNotificados.notificados) || {};
     (resCategoriasExtra && resCategoriasExtra.ok && Array.isArray(resCategoriasExtra.categorias) ? resCategoriasExtra.categorias : []).forEach(c => {
         if (!STOCK_CAT_LABELS[c.id]) STOCK_CAT_LABELS[c.id] = c.nombre;
         if (!STOCK_CAT_SUBCATS[c.id]) STOCK_CAT_SUBCATS[c.id] = [c.id];
     });
+    AVISO_STOCK_ADMIN_CAMBIOS_DATA = (resCambiosStockAdmin && resCambiosStockAdmin.ok && resCambiosStockAdmin.cambios && typeof resCambiosStockAdmin.cambios === 'object') ? resCambiosStockAdmin.cambios : {};
     AVISO_STOCK_ADMIN_VISTO_DATA = (resAvisoVisto && resAvisoVisto.ok && resAvisoVisto.visto) || {};
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
     REPOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.repos) || {};
@@ -7497,12 +7509,34 @@ function _computarAvisoStockAdmin() {
                         productos: [],
                     };
                 }
-                porCinta[key].productos.push({ subcat, producto, agregado: estaActual });
+                porCinta[key].productos.push({ subcat, producto, agregado: estaActual, fecha: _ultimaFechaCambioStock(subcat, id) });
             });
         });
     });
     AVISO_STOCK_ADMIN_CINTAS = Object.values(porCinta).filter(c => c.productos.length);
+    // 🔧 FIX: antes quedaban en el orden en que se recorrían las
+    // categorías/IDs (de menor a mayor ID de producto), así que un cambio
+    // nuevo podía insertarse en el medio de la lista en vez de aparecer
+    // ordenado por cuándo pasó. Ahora cada cinta se ordena por la fecha
+    // real del cambio (más reciente primero, usando el mismo registro con
+    // timestamp de /api/cambios-stock) — los productos sin fecha
+    // registrada (cambios de antes de que existiera ese registro) quedan
+    // al final, sin romper la paginación de 10 en 10 que ya tenía.
+    AVISO_STOCK_ADMIN_CINTAS.forEach(c => c.productos.sort((a, b) => (b.fecha || 0) - (a.fecha || 0)));
     AVISO_STOCK_ADMIN_CINTAS.forEach(c => { if (!(c.key in AVISO_STOCK_ADMIN_SHOWN)) AVISO_STOCK_ADMIN_SHOWN[c.key] = 10; });
+}
+// Última fecha (timestamp) registrada en /api/cambios-stock para un
+// producto puntual dentro de una subcategoría — 0 si nunca se registró
+// (ej. cambios de antes de la Tarea 60/59, o el log ya la recortó por el
+// tope de 20 cambios por categoría).
+function _ultimaFechaCambioStock(subcat, productId) {
+    const lista = AVISO_STOCK_ADMIN_CAMBIOS_DATA[subcat];
+    if (!Array.isArray(lista) || !lista.length) return 0;
+    let ultima = 0;
+    lista.forEach(c => {
+        if (c && c.tipo === 'producto' && Number(c.productId) === productId && (c.timestamp || 0) > ultima) ultima = c.timestamp || 0;
+    });
+    return ultima;
 }
 
 function _renderAvisoStockAdminHTML() {
