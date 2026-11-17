@@ -130,7 +130,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .stock-grupo-titulo:first-child { margin-top: 0; }
 .stock-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 11px 13px; margin-bottom: 8px; }
 .stock-nombre { font-size: 13px; color: var(--text); flex: 1; min-width: 0; overflow-wrap: break-word; }
-.stock-toggle-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--red-pale); color: var(--red); font-family: var(--font); transition: all .15s; }
+.stock-search-wrap { position: relative; display: flex; align-items: center; margin-bottom: 12px; }
+.stock-search-wrap svg { position: absolute; left: 11px; color: var(--text3); pointer-events: none; }
+.stock-search-wrap input { width: 100%; padding: 9px 12px 9px 34px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 9px; color: var(--text); font-size: 13px; font-family: var(--font); }
+.stock-search-wrap input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+.stock-toggle-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; padding: 6px 10px; border-radius: 16px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--red-pale); color: var(--red); font-family: var(--font); transition: all .15s; white-space: nowrap; }
 .stock-toggle-btn.on { background: var(--green-pale); color: var(--green); border-color: rgba(0,201,110,.3); }
 .stock-toggle-btn:disabled { opacity: .55; cursor: default; }
 
@@ -502,6 +506,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
         <div class="view" id="view-gestion-stock">
             <div class="section-sub">Marcá en/sin stock y agregá o quitá variantes (talle/color) de tus productos. Nunca podés cambiar precios ni eliminar productos del catálogo.</div>
             <div id="gestion-stock-aviso-sinstock"></div>
+            <div class="stock-search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="gestion-stock-search-input" placeholder="Buscar producto..." oninput="_filtrarGestionStock(this.value)">
+            </div>
             <div id="gestion-stock-content"><div class="loader"><div class="spin"></div><p>Cargando...</p></div></div>
         </div>
 
@@ -510,6 +518,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
              ni elimina nada del catálogo. -->
         <div class="view" id="view-stock">
             <div class="section-sub">Marcá "Sin stock" el producto que se te agotó — vuelve a aparecer disponible en todas las tiendas apenas lo marqués "En stock" otra vez.</div>
+            <div class="stock-search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="stock-search-input" placeholder="Buscar producto..." oninput="_filtrarStock(this.value)">
+            </div>
             <div id="stock-content"><div class="loader"><div class="spin"></div><p>Cargando stock...</p></div></div>
         </div>
     </div>
@@ -762,7 +774,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
     <div class="modal-box">
         <div class="modal-title">Variantes</div>
         <div class="modal-sub" id="variantes-prov-producto"></div>
-        <div class="modal-field">
+        <div class="modal-field" id="variantes-prov-tipo-field">
             <label>Tipo de variante</label>
             <select id="variantes-prov-tipo" onchange="_cargarVariantesProvDelTipo()">
                 <option value="talle">Talle</option>
@@ -845,6 +857,16 @@ function toast(msg, ok) {
     t.textContent = msg;
     t.className = 'toast show' + (ok ? '' : ' err');
     setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// 🆕 Contenido (ícono SVG + texto) del botón En stock/Sin stock — antes
+// usaba emojis (✅/⛔); ahora un ícono profesional consistente con el
+// resto del sitio. Un solo helper para los 4 lugares que lo usan
+// (_stockFilaHTML/_gestionStockFilaHTML y sus respectivos toggle).
+function _stockBtnHTML(enStock) {
+    return enStock
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg>En stock'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="9"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5"/></svg>Sin stock';
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1093,11 +1115,20 @@ async function cargarStockProveedor() {
     _renderStockProveedor();
 }
 
+// 🆕 Buscador en vivo de la pestaña "Stock" — filtra por nombre, sin
+// pedir nada de nuevo al servidor (ya está todo cargado en memoria).
+window._stockSearchTerm = '';
+function _filtrarStock(valor) {
+    window._stockSearchTerm = (valor || '').trim().toLowerCase();
+    _renderStockProveedor();
+}
+
 function _renderStockProveedor() {
     const el = document.getElementById('stock-content');
-    const productos = window._stockProductos || [];
+    const term = window._stockSearchTerm || '';
+    const productos = (window._stockProductos || []).filter(p => !term || String(p.nombre || '').toLowerCase().includes(term));
     if (!productos.length) {
-        el.innerHTML = `<div class="empty-state">Todavía no hay productos cargados en tu categoría.</div>`;
+        el.innerHTML = `<div class="empty-state">${term ? 'Ningún producto coincide con la búsqueda.' : 'Todavía no hay productos cargados en tu categoría.'}</div>`;
         return;
     }
     // Agrupado por subcategoría SOLO si hay más de una (ej. "Belleza" trae
@@ -1120,9 +1151,18 @@ function _renderStockProveedor() {
 // servidor, ver /api/proveedor-stock) como prioridad.
 function _stockFilaHTML(p) {
     const img = resolverImagenProducto(p.categoria, p.nombre, p.imagen);
+    // 🆕 Botón de variantes — SOLO si el producto realmente tiene algún
+    // tipo detectado (camposVariante, ver workerproveedores_worker.js);
+    // va entre el nombre y el botón de stock, que siempre queda afuera
+    // a la derecha (misma regla de layout que "Gestión de Stock").
+    const tieneVariantes = Array.isArray(p.camposVariante) && p.camposVariante.length > 0;
+    const btnVariantes = tieneVariantes ? `<button style="flex-shrink:0;width:30px;height:30px;padding:0;border:1px solid var(--border2);border-radius:7px;background:var(--bg2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text)" title="Variantes" onclick="abrirModalVariantesProv('${esc(p.categoria)}',${p.id},'${esc(p.nombre).replace(/'/g,"\\'")}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>` : '';
     return `<div class="stock-fila" id="stock-fila-${p.categoria}-${p.id}">
         <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">${img ? `<img src="${esc(img)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;flex-shrink:0;cursor:pointer" onclick="window.open('${esc(img)}','_blank')">` : ''}<span class="stock-nombre">${esc(p.nombre)}</span></span>
-        <button class="stock-toggle-btn ${p.enStock ? 'on' : ''}" onclick="toggleStockProveedor('${esc(p.categoria)}', ${p.id})">${p.enStock ? '✅ En stock' : '⛔ Sin stock'}</button>
+        ${btnVariantes}
+        <button class="stock-toggle-btn ${p.enStock ? 'on' : ''}" onclick="toggleStockProveedor('${esc(p.categoria)}', ${p.id})">${_stockBtnHTML(p.enStock)}</button>
     </div>`;
 }
 
@@ -1135,13 +1175,13 @@ async function toggleStockProveedor(categoria, productId) {
     if (btn) btn.disabled = true;
     const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-toggle`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock })
+        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock, productNombre: producto.nombre })
     });
     if (res && res.ok) {
         producto.enStock = nuevoEnStock;
         if (btn) {
             btn.className = 'stock-toggle-btn' + (nuevoEnStock ? ' on' : '');
-            btn.textContent = nuevoEnStock ? '✅ En stock' : '⛔ Sin stock';
+            btn.innerHTML = _stockBtnHTML(nuevoEnStock);
             btn.disabled = false;
         }
         toast(nuevoEnStock ? 'Producto marcado como en stock' : 'Producto marcado como sin stock', true);
@@ -2656,11 +2696,21 @@ async function cargarGestionStockProveedor() {
     _revisarAvisoSinStock();
 }
 
+// 🆕 Buscador en vivo de la pestaña "Gestión de Stock" — mismo criterio
+// que _filtrarStock, pero independiente (cada pestaña tiene su propio
+// término de búsqueda).
+window._gestionStockSearchTerm = '';
+function _filtrarGestionStock(valor) {
+    window._gestionStockSearchTerm = (valor || '').trim().toLowerCase();
+    _renderGestionStock();
+}
+
 function _renderGestionStock() {
     const el = document.getElementById('gestion-stock-content');
-    const productos = window._stockProductos || [];
+    const term = window._gestionStockSearchTerm || '';
+    const productos = (window._stockProductos || []).filter(p => !term || String(p.nombre || '').toLowerCase().includes(term));
     if (!productos.length) {
-        el.innerHTML = `<div class="empty-state">Todavía no hay productos cargados en tu categoría.</div>`;
+        el.innerHTML = `<div class="empty-state">${term ? 'Ningún producto coincide con la búsqueda.' : 'Todavía no hay productos cargados en tu categoría.'}</div>`;
         return;
     }
     const porCategoria = {};
@@ -2674,13 +2724,17 @@ function _renderGestionStock() {
 
 function _gestionStockFilaHTML(p) {
     const img = resolverImagenProducto(p.categoria, p.nombre, p.imagen);
+    // 🆕 Igual que en _stockFilaHTML: el botón de variantes solo aparece
+    // si el producto tiene algún tipo detectado en el catálogo base.
+    const tieneVariantes = Array.isArray(p.camposVariante) && p.camposVariante.length > 0;
+    const btnVariantes = tieneVariantes ? `<button style="flex-shrink:0;width:30px;height:30px;padding:0;border:1px solid var(--border2);border-radius:7px;background:var(--bg2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text)" title="Variantes" onclick="abrirModalVariantesProv('${esc(p.categoria)}',${p.id},'${esc(p.nombre).replace(/'/g,"\\'")}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>` : '';
     return `<div class="stock-fila" id="gestion-stock-fila-${p.categoria}-${p.id}">
         ${img ? `<img src="${esc(img)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:5px;margin-right:8px;cursor:pointer;flex-shrink:0" onclick="window.open('${esc(img)}','_blank')">` : ''}
         <span class="stock-nombre">${esc(p.nombre)}</span>
-        <button style="flex-shrink:0;width:30px;height:30px;padding:0;border:1px solid var(--border2);border-radius:7px;background:var(--bg2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text)" title="Variantes" onclick="abrirModalVariantesProv('${esc(p.categoria)}',${p.id},'${esc(p.nombre).replace(/'/g,"\\'")}')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-        </button>
-        <button class="stock-toggle-btn ${p.enStock ? 'on' : ''}" onclick="_toggleStockGestion('${esc(p.categoria)}', ${p.id})">${p.enStock ? '✅ En stock' : '⛔ Sin stock'}</button>
+        ${btnVariantes}
+        <button class="stock-toggle-btn ${p.enStock ? 'on' : ''}" onclick="_toggleStockGestion('${esc(p.categoria)}', ${p.id})">${_stockBtnHTML(p.enStock)}</button>
     </div>`;
 }
 
@@ -2696,13 +2750,13 @@ async function _toggleStockGestion(categoria, productId) {
     if (btn) btn.disabled = true;
     const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-toggle`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock })
+        body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, sessionToken: window._sessionToken, categoria, productId, enStock: nuevoEnStock, productNombre: producto.nombre })
     });
     if (res && res.ok) {
         producto.enStock = nuevoEnStock;
         if (btn) {
             btn.className = 'stock-toggle-btn' + (nuevoEnStock ? ' on' : '');
-            btn.textContent = nuevoEnStock ? '✅ En stock' : '⛔ Sin stock';
+            btn.innerHTML = _stockBtnHTML(nuevoEnStock);
             btn.disabled = false;
         }
         fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-stock-fecha`, {
@@ -2792,11 +2846,32 @@ async function confirmarNotificarProductos() {
 }
 
 // ── Modal: Variantes (sin precio, sin borrado) ──
+// 🆕 Auto-detección del tipo de variante — mismo criterio que
+// _camposVarianteDe() de pedidos.html (ver _camposVarianteDeProveedor en
+// workerproveedores_worker.js, que ya manda "camposVariante" por
+// producto en /api/proveedor-stock): si el producto solo tiene UN tipo,
+// el selector se oculta (no hay nada que elegir); si tiene más de uno
+// (ej. lencería con colores + talles), el selector solo ofrece esos;
+// si el catálogo base no define ninguno (caso raro / producto viejo) se
+// deja el selector completo de siempre, sin romper nada.
+const ETIQUETA_TIPO_VARIANTE_PROV = { talle: 'Talle', variantes: 'Variante', colores: 'Color', talles: 'Talle (lencería)' };
 let variantesProvActual = null;
 function abrirModalVariantesProv(categoria, productId, nombre) {
-    variantesProvActual = { categoria, productId };
+    const producto = (window._stockProductos || []).find(x => x.categoria === categoria && x.id === productId);
+    const campos = (producto && producto.camposVariante) || [];
+    variantesProvActual = { categoria, productId, campos };
     document.getElementById('variantes-prov-producto').textContent = nombre;
-    document.getElementById('variantes-prov-tipo').value = 'talle';
+    const selectEl = document.getElementById('variantes-prov-tipo');
+    const campoWrap = document.getElementById('variantes-prov-tipo-field');
+    if (campos.length) {
+        selectEl.innerHTML = campos.map(c => `<option value="${c}">${ETIQUETA_TIPO_VARIANTE_PROV[c] || c}</option>`).join('');
+        selectEl.value = campos[0];
+        campoWrap.style.display = campos.length > 1 ? '' : 'none';
+    } else {
+        selectEl.innerHTML = Object.keys(ETIQUETA_TIPO_VARIANTE_PROV).map(c => `<option value="${c}">${ETIQUETA_TIPO_VARIANTE_PROV[c]}</option>`).join('');
+        selectEl.value = 'talle';
+        campoWrap.style.display = '';
+    }
     document.getElementById('variantes-prov-nueva').value = '';
     document.getElementById('modal-variantes-prov-backdrop').classList.add('show');
     _cargarVariantesProvDelTipo();
