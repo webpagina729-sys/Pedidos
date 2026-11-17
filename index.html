@@ -2143,16 +2143,88 @@ function _basesImgPara(categoria) {
 function resolverImagenProducto(categoria, nombre) {
     const key = String(categoria) + '|' + _normNombreImg(nombre);
     if (window._agregadosImg && window._agregadosImg[key]) return window._agregadosImg[key];
-    if (!window.IM_PEDIDOS) return '';
-    const n = _normNombreImg(nombre);
-    let e = window.IM_PEDIDOS.m[n];
-    if (!e) {
-        const l = n.replace(/\s*\((T|TALLE|VAR|VARIANTE|COLOR)[^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
-        e = window.IM_PEDIDOS.m[l];
+    let imagen = '';
+    if (window.IM_PEDIDOS) {
+        const n = _normNombreImg(nombre);
+        let e = window.IM_PEDIDOS.m[n];
+        if (!e) {
+            const l = n.replace(/\s*\((T|TALLE|VAR|VARIANTE|COLOR)[^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+            e = window.IM_PEDIDOS.m[l];
+        }
+        if (e) {
+            const bases = _basesImgPara(categoria);
+            imagen = bases[e[0]] ? bases[e[0]] + e[1] : '';
+        }
     }
-    if (!e) return '';
-    const bases = _basesImgPara(categoria);
-    return bases[e[0]] ? bases[e[0]] + e[1] : '';
+    if (imagen) return imagen;
+    // 🔧 FIX: ni "agregados" ni la tabla estática IM_PEDIDOS (congelada al
+    // momento de generarla) cubren productos del catálogo BASE cuyo
+    // repositorio se conectó/actualizó después — ver
+    // _asegurarImagenesLiveCategoria más abajo para el detalle. Se intenta
+    // acá, sin romper nada de lo anterior (que sigue revisándose primero,
+    // sin cambios).
+    const catLive = _canonDeSubcatStock(categoria);
+    if (window._imgLiveCache && window._imgLiveCache[catLive]) {
+        const viva = _matchImagenEnListaLive(window._imgLiveCache[catLive], nombre);
+        if (viva) return viva;
+    } else if (typeof _asegurarImagenesLiveCategoria === 'function') {
+        _asegurarImagenesLiveCategoria(catLive);
+    }
+    return '';
+}
+// 🆕 Convierte una subcategoría real (ej. "belleza_maquillaje",
+// "jugueteria_peluches", "electronicos") a su categoría canónica de Stock
+// (ej. "belleza", "jugueteria", "multishop") recorriendo STOCK_CAT_SUBCATS
+// — necesario porque _basesImgPara/_filaProductoHtml a veces pasan la
+// subcategoría real en vez de la canónica, y el endpoint en vivo de
+// imágenes (/api/catalogo/imagenes) solo entiende categorías canónicas
+// (CATEGORIAS_REPO del Worker). Si ya es canónica (o no se encuentra),
+// se devuelve tal cual.
+function _canonDeSubcatStock(valor) {
+    if (STOCK_CAT_SUBCATS[valor]) return valor;
+    return Object.keys(STOCK_CAT_SUBCATS).find(k => STOCK_CAT_SUBCATS[k].includes(valor)) || valor;
+}
+// Mismo criterio de "_buscarImagenEnLista" del Worker (preciosmayoristasrevendedores.js):
+// coincidencia exacta de nombre normalizado primero y, si no hay, contención
+// en cualquiera de los dos sentidos.
+function _normProductoImgLive(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function _matchImagenEnListaLive(archivos, nombreProducto) {
+    const n = _normProductoImgLive(nombreProducto);
+    if (!n || !Array.isArray(archivos) || !archivos.length) return '';
+    const exacto = archivos.find(a => a.norm === n);
+    if (exacto) return exacto.url;
+    const porContencion = archivos.find(a => a.norm && (n.includes(a.norm) || a.norm.includes(n)));
+    return porContencion ? porContencion.url : '';
+}
+// 🆕 FIX: hay categorías (ej. "indumentaria"/"Remeras Premium brn") cuyo
+// repositorio está conectado y cargado, pero cuyos productos del catálogo
+// BASE no tienen imagen en la lista de Stock porque su nombre no está en
+// la tabla estática IM_PEDIDOS (una foto congelada de hace tiempo) ni en
+// "agregados" (que solo cubre productos sumados con "Cargar Productos").
+// En vez de inventar otro mecanismo, se reutiliza el mismo endpoint
+// público que ya usa "🔗 Conectar imagen" (abrirConectarImagen) — busca en
+// vivo los archivos reales de los repositorios de la categoría — pero acá
+// se aplica automáticamente a toda la categoría (una sola vez, cacheada)
+// en vez de uno por uno a mano. Idempotente por categoría canónica: si ya
+// se cargó o ya se está cargando, no vuelve a pedir nada.
+window._imgLiveCache = window._imgLiveCache || {};
+window._imgLiveEnCurso = window._imgLiveEnCurso || {};
+async function _asegurarImagenesLiveCategoria(categoria) {
+    if (window._imgLiveCache[categoria] || window._imgLiveEnCurso[categoria]) return;
+    window._imgLiveEnCurso[categoria] = true;
+    let archivos = [];
+    try {
+        const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/imagenes?categoria=' + encodeURIComponent(categoria));
+        archivos = (res && res.ok && Array.isArray(res.archivos)) ? res.archivos : [];
+    } catch (_) { /* sin conexión: queda vacío, no rompe nada */ }
+    window._imgLiveCache[categoria] = archivos;
+    delete window._imgLiveEnCurso[categoria];
+    // Si encontró archivos y la categoría sigue siendo la que se está
+    // mirando en Stock, se vuelve a dibujar la lista para que aparezcan
+    // las imágenes recién resueltas (mismo patrón que _cargarAgregadosImg).
+    if (archivos.length && stockCatActual === categoria && typeof renderStockLista === 'function') {
+        renderStockLista();
+    }
 }
 async function _cargarAgregadosImg() {
     if (window._agregadosImg) return;
@@ -7274,7 +7346,7 @@ let stockShown = 20;
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados, resAvisoVisto] = await Promise.all([
+    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados, resAvisoVisto, resCategoriasExtra] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
         fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
@@ -7289,8 +7361,23 @@ async function renderStockView() {
         // comparada contra el stock actual arma el aviso acumulado por
         // proveedor (ver _computarAvisoStockAdmin).
         fetchJson(WORKER_ESTADOS + '/api/aviso-stock-admin-visto'),
+        // 🔧 FIX: categorías creadas con "Agregar Categoría" solo quedaban
+        // registradas en STOCK_CAT_LABELS/STOCK_CAT_SUBCATS durante la
+        // misma sesión en que se las creaba (ver catElegirPerfil) — al
+        // recargar el panel desaparecían del selector de Stock, de la
+        // búsqueda, de las variantes y de las cintas de aviso de la Tarea
+        // 59, aunque sus productos y su repositorio siguieran intactos en
+        // el servidor (que SÍ las trata igual que a cualquier categoría
+        // clásica, ver categoriasCatalogoDinamicas/categoriasRepoDinamicas
+        // en preciosmayoristasrevendedores.js). Se repueblan acá, en cada
+        // carga del panel, igual que ya hace catElegirPerfil() al crearlas.
+        fetchJson(WORKER_PRECIOS + '/api/categorias/listar'),
     ]);
     STOCK_NOTIFICADOS_DATA = (resNotificados && resNotificados.ok && resNotificados.notificados) || {};
+    (resCategoriasExtra && resCategoriasExtra.ok && Array.isArray(resCategoriasExtra.categorias) ? resCategoriasExtra.categorias : []).forEach(c => {
+        if (!STOCK_CAT_LABELS[c.id]) STOCK_CAT_LABELS[c.id] = c.nombre;
+        if (!STOCK_CAT_SUBCATS[c.id]) STOCK_CAT_SUBCATS[c.id] = [c.id];
+    });
     AVISO_STOCK_ADMIN_VISTO_DATA = (resAvisoVisto && resAvisoVisto.ok && resAvisoVisto.visto) || {};
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
     REPOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.repos) || {};
