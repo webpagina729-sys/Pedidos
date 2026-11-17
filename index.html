@@ -7245,6 +7245,11 @@ const STOCK_CAT_SUBCATS = {
     multishop: ['electronicos'],
 };
 let STOCK_GLOBAL_DATA = {};
+// 🆕 TAREA 59 — Aviso admin acumulado de cambios de stock por proveedor
+// (ver _computarAvisoStockAdmin más abajo, junto a renderStockView).
+let AVISO_STOCK_ADMIN_VISTO_DATA = {};
+let AVISO_STOCK_ADMIN_CINTAS = [];
+let AVISO_STOCK_ADMIN_SHOWN = {}; // { [cintaKey]: cantidad de productos mostrados }
 let VARIANTES_GLOBAL_DATA = {};
 // 🆕 Precio propio por variante de productos del catálogo BASE (los que
 // vienen con talle/color de fábrica, no agregados desde "Cargar
@@ -7269,7 +7274,7 @@ let stockShown = 20;
 async function renderStockView() {
     const el = document.getElementById('stock-content');
     el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando stock global...</p></div>`;
-    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados] = await Promise.all([
+    const [res, resVar, resFrenadas, resCatalogo, resPreciosVar, resNotificados, resAvisoVisto] = await Promise.all([
         fetchJson(WORKER_ESTADOS + '/api/stock-global'),
         fetchJson(WORKER_ESTADOS + '/api/variantes-global'),
         fetchJson(WORKER_ESTADOS + '/api/categorias-frenadas'),
@@ -7280,8 +7285,13 @@ async function renderStockView() {
         // panel — nunca se borran solos, se muestran acá con un texto
         // rojo para que decidas qué hacer (ver _filaProductoHtml).
         fetchJson(WORKER_PROVEEDORES + '/api/stock-notificados', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }),
+        // 🆕 TAREA 59: última "foto" de stock global que el admin revisó —
+        // comparada contra el stock actual arma el aviso acumulado por
+        // proveedor (ver _computarAvisoStockAdmin).
+        fetchJson(WORKER_ESTADOS + '/api/aviso-stock-admin-visto'),
     ]);
     STOCK_NOTIFICADOS_DATA = (resNotificados && resNotificados.ok && resNotificados.notificados) || {};
+    AVISO_STOCK_ADMIN_VISTO_DATA = (resAvisoVisto && resAvisoVisto.ok && resAvisoVisto.visto) || {};
     CATALOGOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.catalogos) || {};
     REPOS_CENTRALES = (resCatalogo && resCatalogo.ok && resCatalogo.repos) || {};
     // El catálogo central manda: lo que ya no está en él se quita de las listas locales.
@@ -7296,9 +7306,13 @@ async function renderStockView() {
     VARIANTES_GLOBAL_DATA = (resVar && resVar.ok && resVar.variantes) || {};
     PRECIOS_VARIANTES_GLOBAL_DATA = (resPreciosVar && resPreciosVar.ok && resPreciosVar.precios) || {};
     CATEGORIAS_FRENADAS_DATA = (resFrenadas && resFrenadas.ok && resFrenadas.frenadas) || {};
+    // 🆕 TAREA 59: ya con STOCK_GLOBAL_DATA/CATALOGO_PRODUCTOS_GLOBAL al día,
+    // se arma el aviso acumulado de cambios por proveedor.
+    _computarAvisoStockAdmin();
 
     let html = `<h2 class="section-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Stock global de la plataforma</h2>
         <p class="section-sub">Lo que se quita acá desaparece del catálogo de TODOS los revendedores, en index.html y mas-categorias.html. Es independiente del stock individual que cada revendedor gestiona para su propia tienda.</p>
+        ${_renderAvisoStockAdminHTML()}
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
             <select id="stock-cat-select" class="rvndr-search" style="max-width:260px;margin-bottom:0" onchange="stockCatActual=this.value;stockShown=20;renderStockPausaBar();renderStockLista()">
                 ${Object.entries(STOCK_CAT_LABELS).map(([k,l]) => `<option value="${k}" ${k===stockCatActual?'selected':''}>${l}</option>`).join('')}
@@ -7353,6 +7367,160 @@ async function renderStockView() {
     });
     renderStockPausaBar();
     renderStockLista();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🆕 TAREA 59 — Aviso admin acumulado de cambios de stock por proveedor.
+// Compara el stock global ACTUAL (STOCK_GLOBAL_DATA) contra la última
+// "foto" que el admin revisó (AVISO_STOCK_ADMIN_VISTO_DATA, guardada en
+// /api/aviso-stock-admin-visto) y arma una "cinta" por cada
+// proveedor+categoría con productos que cambiaron desde esa foto. Mismo
+// criterio de diff que ya usa index.html (chequearCambiosStockGlobal):
+// compara el booleano efectivo (!== false) de cada id que aparece como
+// clave explícita en cualquiera de las dos fotos — nunca un registro de
+// eventos, así que si el proveedor quita y agrega varias veces entre dos
+// visitas del admin, lo que queda es el cambio NETO acumulado, y se
+// actualiza solo con el paso del tiempo (sin tocar los endpoints de
+// toggle existentes, ni en workerproveedores_worker.js ni acá).
+// Solo se avisa de categorías con un proveedor delegado (ver
+// proveedorDeCategoria) — los cambios que el propio admin hace acá en
+// "Stock global" sobre una categoría SIN proveedor nunca generan aviso.
+function _computarAvisoStockAdmin() {
+    const porCinta = {};
+    Object.keys(STOCK_CAT_SUBCATS).forEach(catCanon => {
+        const prov = proveedorDeCategoria(catCanon);
+        if (!prov) return; // sin proveedor delegado = no corresponde avisar acá
+        const subcats = STOCK_CAT_SUBCATS[catCanon];
+        subcats.forEach(subcat => {
+            const actual = STOCK_GLOBAL_DATA[subcat] || {};
+            const visto = AVISO_STOCK_ADMIN_VISTO_DATA[subcat] || {};
+            const ids = new Set([...Object.keys(actual), ...Object.keys(visto)]);
+            ids.forEach(idStr => {
+                const estaActual = actual[idStr] !== false;
+                const estaVisto = visto[idStr] !== false;
+                if (estaActual === estaVisto) return;
+                const id = Number(idStr);
+                const producto = (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === id);
+                if (!producto) return; // ya no existe en el catálogo (ej. se eliminó definitivamente)
+                const key = catCanon + '|' + prov.id;
+                if (!porCinta[key]) {
+                    porCinta[key] = {
+                        key, proveedorNombre: prov.nombre || prov.numero || 'Proveedor',
+                        categoriaCanon: catCanon, categoriaLabel: STOCK_CAT_LABELS[catCanon] || catCanon,
+                        productos: [],
+                    };
+                }
+                porCinta[key].productos.push({ subcat, producto, agregado: estaActual });
+            });
+        });
+    });
+    AVISO_STOCK_ADMIN_CINTAS = Object.values(porCinta).filter(c => c.productos.length);
+    AVISO_STOCK_ADMIN_CINTAS.forEach(c => { if (!(c.key in AVISO_STOCK_ADMIN_SHOWN)) AVISO_STOCK_ADMIN_SHOWN[c.key] = 10; });
+}
+
+function _renderAvisoStockAdminHTML() {
+    if (!AVISO_STOCK_ADMIN_CINTAS.length) return `<div id="aviso-stock-admin-wrap"></div>`;
+    const totalProductos = AVISO_STOCK_ADMIN_CINTAS.reduce((s, c) => s + c.productos.length, 0);
+    return `<div id="aviso-stock-admin-wrap" style="margin-bottom:14px;padding:12px 14px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b7791f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <strong style="font-size:13.5px;color:#92650a">Cambios de stock de tus proveedores (${totalProductos})</strong>
+            </div>
+            <button type="button" class="btn-act" style="flex-shrink:0;font-size:11.5px" onclick="_marcarTodoAvisoStockAdminRevisado()">Marcar todo como revisado</button>
+        </div>
+        ${AVISO_STOCK_ADMIN_CINTAS.map(c => `
+            <div class="estado-ribbon" id="aviso-stock-admin-ribbon-${esc(c.key)}" style="margin-bottom:8px">
+                <div class="estado-head" onclick="toggleEstadoRibbon('aviso-stock-admin-ribbon-${esc(c.key)}')">
+                    <div class="estado-head-left">
+                        <span class="estado-title">${esc(c.proveedorNombre)} — ${esc(c.categoriaLabel)}</span>
+                        <span style="font-size:11px;color:var(--text2);margin-left:6px">${c.productos.length} producto${c.productos.length === 1 ? '' : 's'}</span>
+                    </div>
+                    <svg class="estado-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="estado-body"><div class="estado-inner" id="aviso-stock-admin-contenido-${esc(c.key)}">${_renderAvisoStockAdminCintaContenidoHTML(c.key)}</div></div>
+            </div>
+        `).join('')}
+    </div>`;
+}
+
+// Fila de un producto dentro de una cinta del aviso: igual que
+// _filaProductoHtml (misma miniatura), con una etiqueta de "Sin
+// stock"/"Repuesto" en vez del botón de stock (acá no se togglea, solo se
+// informa) y el mismo botón "Eliminar definitivamente" que ya existe en
+// la lista principal de "Gestión de Stock" — reutilizando tal cual
+// eliminarProductoDefinitivo, sin duplicar su lógica.
+function _renderAvisoStockAdminCintaContenidoHTML(key) {
+    const cinta = AVISO_STOCK_ADMIN_CINTAS.find(c => c.key === key);
+    if (!cinta) return '';
+    const shown = AVISO_STOCK_ADMIN_SHOWN[key] || 10;
+    const visibles = cinta.productos.slice(0, shown);
+    let html = visibles.map(item => `
+        <div class="cat-item" style="padding:9px 4px;border-bottom:1px solid var(--border)">
+            ${_miniaturaProducto(item.producto._agregado ? _claveCatalogoCentral(item.subcat) : item.subcat, item.producto.nombre)}
+            <strong style="flex:1;min-width:0">${esc(item.producto.nombre)}</strong>
+            <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;${item.agregado ? 'background:#e6f4ea;color:#1e7e34' : 'background:#fdecea;color:#c0392b'}">${item.agregado ? 'Repuesto' : 'Sin stock'}</span>
+            <button class="btn-act btn-del" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="_eliminarDesdeAvisoStockAdmin('${item.subcat}',${item.producto.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Eliminar definitivamente
+            </button>
+        </div>
+    `).join('');
+    if (cinta.productos.length > shown) {
+        html += `<button class="btn-head" style="width:100%;justify-content:center;margin-top:8px" onclick="AVISO_STOCK_ADMIN_SHOWN['${key}']=(AVISO_STOCK_ADMIN_SHOWN['${key}']||10)+10;document.getElementById('aviso-stock-admin-contenido-${key}').innerHTML=_renderAvisoStockAdminCintaContenidoHTML('${key}')">Ver más (${cinta.productos.length - shown} más)</button>`;
+    }
+    html += `<button type="button" class="btn-act" style="width:100%;justify-content:center;margin-top:8px;font-size:11.5px" onclick="_marcarCintaAvisoStockRevisada('${key}')">Marcar esta cinta como revisada</button>`;
+    return html;
+}
+
+// Elimina un producto definitivamente DESDE el aviso (misma función que
+// ya usa "Gestión de Stock" — eliminarProductoDefinitivo, sin
+// duplicarla) y después recalcula/vuelve a pintar el aviso completo: el
+// producto eliminado ya no existe en CATALOGO_PRODUCTOS_GLOBAL, así que
+// _computarAvisoStockAdmin lo descarta solo en la próxima pasada.
+async function _eliminarDesdeAvisoStockAdmin(subcat, productId) {
+    await eliminarProductoDefinitivo(subcat, productId);
+    _computarAvisoStockAdmin();
+    const wrap = document.getElementById('aviso-stock-admin-wrap');
+    if (wrap) wrap.outerHTML = _renderAvisoStockAdminHTML();
+}
+
+// Guarda, como nueva "foto revisada", el estado ACTUAL de stock global de
+// las subcategorías de UNA cinta puntual (proveedor+categoría) — las
+// demás cintas no se tocan, así revisar una no hace desaparecer las
+// otras que todavía no se revisaron.
+async function _marcarCintaAvisoStockRevisada(key) {
+    const cinta = AVISO_STOCK_ADMIN_CINTAS.find(c => c.key === key);
+    if (!cinta) return;
+    const subcats = STOCK_CAT_SUBCATS[cinta.categoriaCanon] || [cinta.categoriaCanon];
+    subcats.forEach(sc => { AVISO_STOCK_ADMIN_VISTO_DATA[sc] = Object.assign({}, STOCK_GLOBAL_DATA[sc] || {}); });
+    const res = await fetchJson(WORKER_ESTADOS + '/api/aviso-stock-admin-visto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ visto: AVISO_STOCK_ADMIN_VISTO_DATA })
+    });
+    if (!(res && res.ok)) { toast('No se pudo guardar como revisado', 'err'); return; }
+    _computarAvisoStockAdmin();
+    const wrap = document.getElementById('aviso-stock-admin-wrap');
+    if (wrap) wrap.outerHTML = _renderAvisoStockAdminHTML();
+    toast('Cinta marcada como revisada', true);
+}
+
+// Igual que _marcarCintaAvisoStockRevisada pero para TODAS las cintas
+// visibles del aviso de una sola vez.
+async function _marcarTodoAvisoStockAdminRevisado() {
+    if (!AVISO_STOCK_ADMIN_CINTAS.length) return;
+    AVISO_STOCK_ADMIN_CINTAS.forEach(cinta => {
+        const subcats = STOCK_CAT_SUBCATS[cinta.categoriaCanon] || [cinta.categoriaCanon];
+        subcats.forEach(sc => { AVISO_STOCK_ADMIN_VISTO_DATA[sc] = Object.assign({}, STOCK_GLOBAL_DATA[sc] || {}); });
+    });
+    const res = await fetchJson(WORKER_ESTADOS + '/api/aviso-stock-admin-visto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ visto: AVISO_STOCK_ADMIN_VISTO_DATA })
+    });
+    if (!(res && res.ok)) { toast('No se pudo guardar como revisado', 'err'); return; }
+    _computarAvisoStockAdmin();
+    const wrap = document.getElementById('aviso-stock-admin-wrap');
+    if (wrap) wrap.outerHTML = _renderAvisoStockAdminHTML();
+    toast('Aviso marcado como revisado', true);
 }
 
 function _camposVarianteDe(p) {
