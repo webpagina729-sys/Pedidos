@@ -853,6 +853,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 Afiliados
             </button>
+            <button class="menu-btn" data-view="sociedades" onclick="switchView('sociedades')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.9 7.6 10.3 16.3"/><path d="M16.1 7.6 13.7 16.3"/><path d="M8.3 6h7.4"/></svg>
+                Sociedades
+            </button>
         </div>
 
         <!-- VIEW: PEDIDOS NUEVOS -->
@@ -911,6 +915,17 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <div class="view" id="view-afiliados">
             <div class="section-sub">Revendedores del programa de afiliados. Tocá un revendedor para ver los pedidos pagados de sus afiliados y confirmar su 5%.</div>
             <div id="afiliados-wrap"><div class="loader"><div class="spin"></div><p>Cargando afiliados...</p></div></div>
+        </div>
+
+        <!-- VIEW: SOCIEDADES (pedidos hechos entre revendedores para juntar el
+             mínimo mayorista — Worker sociedadesworker.tuweb.workers.dev). El
+             pedido en sí ya viaja por la MISMA lógica de siempre (workerpagos.js
+             → proveedores.html/proveedoresoficiales.html, sin tocar ninguno de
+             los dos); esta vista es solo el estado agrupado y el reparto por
+             integrante que esa lógica no muestra en ningún otro lado. -->
+        <div class="view" id="view-sociedades">
+            <div class="section-sub">Pedidos hechos en sociedad entre revendedores para juntar el mínimo mayorista. El pedido pooled viaja por el mismo circuito de siempre (Pedidos de Stock → proveedor); acá se ve el estado agrupado y cómo se reparten estadísticas y ganancias entre los integrantes.</div>
+            <div id="sociedades-wrap"><div class="loader"><div class="spin"></div><p>Cargando sociedades...</p></div></div>
         </div>
 
     </div>
@@ -10409,6 +10424,131 @@ window.addEventListener('load', init);
         };
     }
     setTimeout(cargarResumen, 6000);
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SOCIEDADES (pedidos entre revendedores para juntar el mínimo mayorista
+     — Worker sociedadesworker.tuweb.workers.dev). Módulo additivo: solo
+     nav button + view div (ya agregados arriba) + este script. NO toca
+     switchView directamente (lo envuelve, como afiliados-modulo), NO toca
+     workerpagos.js/proveedores.html/proveedoresoficiales.html/
+     workerproveedores_worker.js, y NO depende de panelGestion ni de
+     ejecutarPedido: el pedido pooled de la sociedad ya es un pedido real
+     con codigoVendedor = el creador, así que viaja solo por el circuito de
+     siempre ("Pedidos de Stock" → Enviar a proveedor). Esta vista es pura
+     lectura: agrupa por sociedad y muestra el reparto por integrante que
+     esa lógica no expone en ningún otro lado. -->
+<script id="sociedades-modulo">
+(function () {
+    'use strict';
+    var W = 'https://sociedadesworker.tuweb.workers.dev';
+    var css = document.createElement('style');
+    css.textContent =
+        '.soc-rib{background:var(--surface2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;overflow:hidden}' +
+        '.soc-rib>button.soc-h{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;background:none;border:0;color:var(--text);text-align:left;cursor:pointer;font-family:inherit}' +
+        '.soc-rib .soc-l{flex:1;min-width:0}.soc-rib .soc-n{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+        '.soc-rib .soc-s{font-size:11px;color:var(--text2);margin-top:1px}.soc-rib .soc-v{font-weight:800;font-size:13px;white-space:nowrap}' +
+        '.soc-rib .soc-c{transition:transform .2s;color:var(--text3);flex-shrink:0}.soc-rib.open>button.soc-h .soc-c{transform:rotate(180deg)}' +
+        '.soc-rib>.soc-b{display:none;padding:4px 12px 12px;border-top:1px solid var(--border)}.soc-rib.open>.soc-b{display:block}' +
+        '.soc-ln{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:12px;border-bottom:1px dashed var(--border)}.soc-ln:last-child{border-bottom:0}.soc-ln b{font-weight:700;text-align:right}' +
+        '.soc-grp{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);margin:14px 0 2px}' +
+        '.soc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px}' +
+        '.soc-stat{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:10px 12px}' +
+        '.soc-stat .soc-sv{font-size:17px;font-weight:800}.soc-stat .soc-sl{font-size:11px;color:var(--text2);margin-top:1px}' +
+        '.soc-pill{font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap}' +
+        '.soc-pill.g{background:var(--green-pale);color:var(--green)}.soc-pill.a{background:var(--amber-pale);color:var(--amber)}.soc-pill.r{background:rgba(244,63,94,.12);color:#f43f5e}' +
+        '.soc-member{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:12px;border-bottom:1px dashed var(--border)}.soc-member:last-child{border-bottom:0}' +
+        '.soc-member .soc-mn{font-weight:700}.soc-member .soc-mm{font-size:10.5px;color:var(--text2)}' +
+        '.soc-empty{padding:26px 10px;text-align:center;color:var(--text2);font-size:12.5px}';
+    document.head.appendChild(css);
+
+    var CHEV = '<svg class="soc-c" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>';
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'); }
+    function fdh(ms) { if (!ms) return '—'; var d = new Date(ms); return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); }
+    function ln(a, b) { return '<div class="soc-ln"><span>' + a + '</span><b>' + b + '</b></div>'; }
+    function rib(titulo, sub, valor, cuerpo, id) {
+        return '<div class="soc-rib"' + (id ? ' id="' + id + '"' : '') + '><button class="soc-h" onclick="SOC.tog(this)">' +
+            '<span class="soc-l"><div class="soc-n">' + titulo + '</div>' + (sub ? '<div class="soc-s">' + sub + '</div>' : '') + '</span>' +
+            (valor != null ? '<span class="soc-v">' + valor + '</span>' : '') + CHEV + '</button><div class="soc-b">' + (cuerpo || '') + '</div></div>';
+    }
+    function estadoPill(s) {
+        if (s.estadoPago === 'APROBADO') return '<span class="soc-pill g">Pagada</span>';
+        if (s.estadoPago === 'EN_PROCESO') return '<span class="soc-pill a">Pago en proceso</span>';
+        return '<span class="soc-pill r">' + esc(s.estado || s.estadoPago || '—') + '</span>';
+    }
+    async function api(path) {
+        var r = await fetch(W + path, { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } });
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok && !d.error) d.error = 'Error ' + r.status;
+        return d;
+    }
+    var SOC = window.SOC = {};
+    SOC.tog = function (btn) { btn.parentNode.classList.toggle('open'); };
+
+    function bloqueMiembros(s) {
+        var miembros = Array.isArray(s.repartoPorMiembro) ? s.repartoPorMiembro : [];
+        if (!miembros.length) return '<div class="soc-empty">Sin reparto todavía.</div>';
+        return miembros.map(function (m) {
+            return '<div class="soc-member"><span><span class="soc-mn">' + esc(m.nombre || m.codigo) + '</span>' +
+                '<br><span class="soc-mm">' + esc(m.codigo) + ' · ' + (m.cantidadPedidos || 0) + ' pedido' + (m.cantidadPedidos === 1 ? '' : 's') + '</span></span>' +
+                '<b>' + money(m.totalMayorista) + '</b></div>';
+        }).join('');
+    }
+    function tarjetaSociedad(s) {
+        var sub = esc(s.categoriaLabel || s.categoria) + (s.ciudad ? ' · ' + esc(s.ciudad) : '') + ' · Paga y recibe: ' + esc(s.creadorNombre || s.creadorCodigo);
+        var totalGrupo = (s.repartoPorMiembro || []).reduce(function (t, m) { return t + Number(m.totalMayorista || 0); }, 0);
+        var cuerpo = estadoPill(s) +
+            '<div style="margin-top:8px">' +
+            ln('Pedido pooled', esc(s.pedidoId)) +
+            ln('Creada', fdh(s.creadoEn)) +
+            (s.pagadoEn ? ln('Pagada', fdh(s.pagadoEn)) : '') +
+            '</div>' +
+            '<div class="soc-grp">Reparto por integrante</div>' +
+            bloqueMiembros(s);
+        return rib(esc(s.creadorNombre || s.creadorCodigo), sub, money(totalGrupo), cuerpo);
+    }
+
+    async function renderSociedades() {
+        var wrap = document.getElementById('sociedades-wrap'); if (!wrap) return;
+        wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando sociedades...</p></div>';
+        var d = await api('/admin/pedidos-sociedad').catch(function () { return { error: 'Sin conexión con el Worker de sociedades' }; });
+        if (!d || !d.ok) {
+            wrap.innerHTML = '<div class="soc-empty">No se pudieron cargar las sociedades' + (d && d.error ? ' (' + esc(d.error) + ')' : '') + '.</div>';
+            return;
+        }
+        var pedidos = Array.isArray(d.pedidos) ? d.pedidos : [];
+        if (!pedidos.length) {
+            wrap.innerHTML = '<div class="soc-empty">Todavía no hay ninguna sociedad con un pedido hecho.</div>';
+            return;
+        }
+        var pagadas = pedidos.filter(function (s) { return s.estadoPago === 'APROBADO'; });
+        var enProceso = pedidos.filter(function (s) { return s.estadoPago !== 'APROBADO'; });
+        var totalMayoristaPagado = pagadas.reduce(function (t, s) { return t + (s.repartoPorMiembro || []).reduce(function (tt, m) { return tt + Number(m.totalMayorista || 0); }, 0); }, 0);
+        var totalIntegrantes = pagadas.reduce(function (t, s) { return t + (s.repartoPorMiembro || []).length; }, 0);
+        var stats = '<div class="soc-stats">' +
+            '<div class="soc-stat"><div class="soc-sv">' + pedidos.length + '</div><div class="soc-sl">Sociedades con pedido</div></div>' +
+            '<div class="soc-stat"><div class="soc-sv">' + pagadas.length + '</div><div class="soc-sl">Pagadas</div></div>' +
+            '<div class="soc-stat"><div class="soc-sv">' + enProceso.length + '</div><div class="soc-sl">Pago en proceso</div></div>' +
+            '<div class="soc-stat"><div class="soc-sv">' + money(totalMayoristaPagado) + '</div><div class="soc-sl">Total mayorista pagado</div></div>' +
+            '<div class="soc-stat"><div class="soc-sv">' + totalIntegrantes + '</div><div class="soc-sl">Integrantes en sociedades pagadas</div></div>' +
+            '</div>';
+        var h = stats;
+        if (enProceso.length) h += '<div class="soc-grp">Pago en proceso</div>' + enProceso.map(tarjetaSociedad).join('');
+        if (pagadas.length) h += '<div class="soc-grp">Pagadas</div>' + pagadas.map(tarjetaSociedad).join('');
+        wrap.innerHTML = h;
+    }
+
+    // ───────── Navegación: vista "Sociedades" ─────────
+    var _svs = (typeof switchView === 'function') ? switchView : null;
+    if (_svs) {
+        switchView = function (v) {
+            var r = _svs.apply(this, arguments);
+            if (v === 'sociedades') renderSociedades();
+            return r;
+        };
+    }
 })();
 </script>
 
