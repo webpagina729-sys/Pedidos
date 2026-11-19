@@ -1675,6 +1675,10 @@ const WORKER_RECLAMOS = 'https://datosderevendedor.tuweb.workers.dev';
 // el servidor solo si la contraseña de ingreso es correcta (ver doLogin()).
 let PANEL_ADMIN_KEY = sessionStorage.getItem('rw_admin_key_v1') || '';
 const WORKER_CLIENTE = 'https://workerwebcliente.tuweb.workers.dev';
+// 🔧 NUEVO: pedidos hechos en sociedad entre revendedores — el estado real
+// (pendiente/confirmado) de cada uno sale de acá, no de panelgestionestados
+// (ver la pestaña "Sociedades" y el cruce en loadData()/renderPedidosView()).
+const WORKER_SOCIEDADES = 'https://sociedadesworker.tuweb.workers.dev';
 // 🔧 NUEVO: guarda en Firestore TODO lo que se le manda al proveedor real
 // (producto + cantidad + datos del revendedor) — antes ese envío solo
 // abría WhatsApp con el mensaje armado y no quedaba ningún registro.
@@ -2057,6 +2061,7 @@ let activeRvndrCode = null;
 let ESTADOS_CONFIRMADOS = {};
 let ESTADOS_PAGADOS = {};
 let ESTADOS_ELIMINADOS = {};   // pedidoId -> true, si se eliminó/no se aprobó en index(1).html
+let SOCIEDADES_POR_PEDIDO_ID = {}; // 🆕 pedidoId -> datos de la sociedad (ver loadData())
 let _autoRefreshPedidosTimer = null; // 🔧 NUEVO: ver loadData() — refresco automático cada 20min
 let CLIENTES_TODOS = [];   // clientes de TODOS los revendedores (workerwebcliente /clientes)
 let REVENDEDORES_TODOS = []; // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan pedidos o no
@@ -2688,7 +2693,7 @@ async function loadData() {
     const enviosWrap = document.getElementById('envios-wrap');
     if (enviosWrap) enviosWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando envíos...</p></div>';
 
-    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes, carritosStockRes] = await Promise.all([
+    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes, carritosStockRes, sociedadesRes] = await Promise.all([
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
@@ -2718,6 +2723,13 @@ async function loadData() {
         // separada de "pedidosStock" (pedidos ya pagados) — se mezcla solo
         // en el RENDER de "Pedidos de Stock" (ver calcularGruposCarritoStockEnVivo).
         fetchJson(WORKER_PAGOS + '/api/carritos-stock'),
+        // 🆕 NUEVO: pedidos hechos en sociedad entre revendedores (lote
+        // pooled, mismo pedido real que ya viaja por panelGestion/
+        // proveedores) — se usa solo para saber cuáles de los registros de
+        // panelGestion son de una sociedad y en qué estado real está cada
+        // una (ver el cruce más abajo). No bloqueante: si este Worker no
+        // responde, el resto del panel igual carga normalmente.
+        fetchJson(WORKER_SOCIEDADES + '/admin/pedidos-sociedad', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }).catch(() => null),
         // Los dos catálogos de precios (preciosmayoristasrevendedores y
         // restoprecios) deben estar cargados ANTES de calcular nada: con
         // ellos se quitan los productos que ya no existen en el catálogo.
@@ -2731,6 +2743,15 @@ async function loadData() {
     ESTADOS_CONFIRMADOS = (estadosRes && estadosRes.ok && estadosRes.confirmados) || {};
     ESTADOS_PAGADOS     = (estadosRes && estadosRes.ok && estadosRes.pagados) || {};
     ESTADOS_ELIMINADOS  = (estadosRes && estadosRes.ok && estadosRes.eliminados) || {};
+    // 🆕 NUEVO: pedidoId → datos de la sociedad, para que renderPedidosView()
+    // sepa cuáles registros de panelGestion son de una sociedad (etiqueta
+    // "(Sociedad)") y cuál es su estado real (pago en proceso/aprobado),
+    // en vez de ESTADOS_CONFIRMADOS/ESTADOS_PAGADOS (que nunca tienen nada
+    // para sociedades — no pasan por pedidoListaConfirmados/gananciasOficiales).
+    SOCIEDADES_POR_PEDIDO_ID = {};
+    if (sociedadesRes && sociedadesRes.ok && Array.isArray(sociedadesRes.pedidos)) {
+        sociedadesRes.pedidos.forEach(s => { if (s.pedidoId) SOCIEDADES_POR_PEDIDO_ID[s.pedidoId] = s; });
+    }
     CLIENTES_TODOS      = (clientesRes && clientesRes.ok && Array.isArray(clientesRes.clientes)) ? clientesRes.clientes : [];
     REVENDEDORES_TODOS  = (revendedoresRes && revendedoresRes.ok && Array.isArray(revendedoresRes.revendedores)) ? revendedoresRes.revendedores : [];
     // 🔧 NUEVO: workerpagos (usado por resolveVendor/vendorCache) nunca
@@ -2806,11 +2827,22 @@ async function loadData() {
             const itemsG = _sinProductosQuitados(itemsTodosG);
             if (itemsTodosG.length && !itemsG.length) return null; // todo el pedido eran productos quitados
             const quitadosG = itemsTodosG.length - itemsG.length;
+            // 🆕 NUEVO: pedido hecho en sociedad — el estado real sale del
+            // propio sociedadesworker.js (pago en proceso/aprobado), nunca
+            // de ESTADOS_PAGADOS/ESTADOS_CONFIRMADOS (que jamás van a tener
+            // nada para estos pedidos, ver loadData()). No pasa por el
+            // estado intermedio "aprobado" — una sociedad no tiene paso
+            // manual de aprobación, va directo de Pendiente a Confirmado
+            // cuando Mercado Pago confirma el pago.
+            const sociedadDe = SOCIEDADES_POR_PEDIDO_ID[g.pedidoId] || null;
             let estadoReal = 'pendiente';
-            if (ESTADOS_PAGADOS[g.pedidoId]) estadoReal = 'confirmado';
+            if (sociedadDe) {
+                estadoReal = sociedadDe.estadoPago === 'APROBADO' ? 'confirmado' : 'pendiente';
+            } else if (ESTADOS_PAGADOS[g.pedidoId]) estadoReal = 'confirmado';
             else if (ESTADOS_CONFIRMADOS[g.pedidoId]) estadoReal = 'aprobado';
             const pagoInfo = ESTADOS_PAGADOS[g.pedidoId] || null;
             return {
+                esSociedad: !!sociedadDe,
                 docId: g.docId,
                 pedidoId: g.pedidoId,
                 numeroPedido: g.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al registrar el pedido en panelGestion
@@ -2828,7 +2860,9 @@ async function loadData() {
                 // momento de crear este pedido (ya verificado server-side ahí;
                 // acá solo se muestra, nunca se recalcula ni se confía para nada).
                 descuentoNivelPct: Number(g.descuentoNivelPct || 0),
-                fechaPago: (() => { const m = pagoInfo && pagoInfo.fechaPago ? _msFecha(pagoInfo.fechaPago) : NaN; return Number.isFinite(m) ? m : null; })(),
+                fechaPago: sociedadDe
+                    ? (sociedadDe.pagadoEn || null)
+                    : (() => { const m = pagoInfo && pagoInfo.fechaPago ? _msFecha(pagoInfo.fechaPago) : NaN; return Number.isFinite(m) ? m : null; })(),
                 // 🔧 NUEVO: identidad y elección de entrega del CLIENTE del
                 // revendedor (no confundir con cómo el revendedor recibe SU
                 // propio pedido mayorista, que es otro concepto aparte).
@@ -3867,6 +3901,7 @@ function panelGestionContenido(g) {
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="r-name">Pedido #${String(g.pedidoId).slice(-8).toUpperCase()}</span>
                 ${g.numeroPedido ? `<span style="background:var(--blue);color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;line-height:1.5">Nº ${esc(String(g.numeroPedido))}</span>` : ''}
+                ${g.esSociedad ? `<span style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;line-height:1.5;letter-spacing:.02em">(Sociedad)</span>` : ''}
                 ${estadoBadge}
             </div>
             <span class="r-date">${fecha}</span>
