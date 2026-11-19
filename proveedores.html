@@ -1097,14 +1097,14 @@ function cerrarModalAgregarStock() {
 async function enviarSolicitudStock() {
     const mensaje = document.getElementById('agregar-stock-mensaje').value.trim().slice(0, 150);
     const enlace = document.getElementById('agregar-stock-enlace').value.trim();
-    if (!enlace) { alert('Pegá el enlace de tu catálogo.'); return; }
+    if (!enlace) { toast('Pegá el enlace de tu catálogo.', false); return; }
     _restaurarAuthToken();
-    if (!window._authToken) { alert('Iniciá sesión de nuevo para poder enviar esto.'); return; }
+    if (!window._authToken) { toast('Iniciá sesión de nuevo para poder enviar esto.', false); return; }
     const res = await fetchJson(`${WORKER_PROVEEDORES}/api/proveedor-solicitud-stock`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proveedorId: PROVEEDOR_ID_ACTUAL, authToken: window._authToken, mensaje, enlace })
     });
-    if (!res || !res.ok) { alert('No se pudo enviar' + (res && res.error ? ': ' + res.error : '') + '. Probá de nuevo.'); return; }
+    if (!res || !res.ok) { toast('No se pudo enviar' + (res && res.error ? ': ' + res.error : '') + '. Probá de nuevo.', false); return; }
     cerrarModalAgregarStock();
     // 🆕 nueva solicitud → se puede volver a avisar cuando el dueño la
     // pase a "revision", aunque ya se haya visto un aviso anterior.
