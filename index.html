@@ -1929,9 +1929,12 @@ async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje)
     if (doc) {
         const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
         _pdfParaEnvio(doc, filename, estado);
+        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
+        const imagen = _generarFacturaImagenGrupo(codigo, categoria, estado);
+        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Proveedor_${codigo}_${categoria}.png`);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
         window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-        toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
+        toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
         return;
     }
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -3494,9 +3497,12 @@ async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, men
     if (doc) {
         const filename = `Factura_Stock_${codigo}_${categoria}.pdf`;
         _pdfParaEnvio(doc, filename, estado);
+        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
+        const imagen = _generarFacturaImagenGrupoStock(codigo, categoria, estado);
+        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Stock_${codigo}_${categoria}.png`);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
         window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-        toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
+        toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
         return;
     }
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -3583,11 +3589,23 @@ function _generarFacturaProveedorPDFStock(pedidoId) {
     if (!g || !window.jspdf) return null;
     return _facturaRevendedorStock([g], g.estadoReal);
 }
+// 🆕 Misma factura, como imagen (ver _dibujarFacturaRevendedorImagen) — solo para WhatsApp.
+function _generarFacturaImagenStock(pedidoId) {
+    const g = pedidosStockGrupos.find(x => x.pedidoId === pedidoId);
+    if (!g) return null;
+    return _dibujarFacturaRevendedorImagen(_cfgFacturaStock([g], g.estadoReal));
+}
 
 function _generarFacturaProveedorPDFGrupoStock(codigo, categoria, estado) {
     const gs = pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
     if (!gs.length || !window.jspdf) return null;
     return _facturaRevendedorStock(gs, estado);
+}
+// 🆕 Misma factura, como imagen (ver _dibujarFacturaRevendedorImagen) — solo para WhatsApp.
+function _generarFacturaImagenGrupoStock(codigo, categoria, estado) {
+    const gs = pedidosStockGrupos.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+    if (!gs.length) return null;
+    return _dibujarFacturaRevendedorImagen(_cfgFacturaStock(gs, estado));
 }
 
 function descargarFacturaProveedorGrupoStock(codigo, categoria, estado) {
@@ -3605,9 +3623,12 @@ async function compartirFacturaWhatsAppGrupoStock(codigo, categoria, estado) {
     const mensaje = estado === 'confirmado' ? 'Te comparto la factura de tu reposición de stock ya pagada.' : 'Te comparto la factura de tu reposición de stock pendiente de pago.';
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
     _pdfParaEnvio(doc, filename, estado);
+    // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
+    const imagen = _generarFacturaImagenGrupoStock(codigo, categoria, estado);
+    if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Stock_${codigo}_${categoria}.png`);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-    toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
+    toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
 }
 
 // "Pago Verificado" (stock) — mismo mecanismo que pagoYaVerificado/
@@ -3661,6 +3682,9 @@ A seguir así con tu emprendimiento. 🚀
     if (doc) {
         const filename = `Factura_Stock_${String(pedidoId).slice(-8)}.pdf`;
         doc.save(filename);
+        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
+        const imagen = _generarFacturaImagenStock(pedidoId);
+        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Stock_${String(pedidoId).slice(-8)}.png`);
     }
     if (wa) {
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
@@ -3669,7 +3693,7 @@ A seguir así con tu emprendimiento. 🚀
         toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
     }
 
-    toast('Pedido de stock enviado, clasificado y factura descargada', true);
+    toast('Pedido de stock enviado, clasificado, factura e imagen descargadas', true);
     renderPedidosStockView();
     _sincronizarPreviewProveedores();
 }
@@ -4211,7 +4235,182 @@ function _dibujarFacturaRevendedorPDF(cfg) {
     return doc;
 }
 
-function _facturaRevendedorNormal(gs, estado) {
+// 🆕 Versión en IMAGEN (PNG) de la MISMA factura (mismos datos, mismos
+// colores/recuadros/tabla que _dibujarFacturaRevendedorPDF arriba), pero
+// dibujada en un <canvas> de alto DINÁMICO, sin paginar: entran TODOS los
+// productos del pedido en una sola factura larga, sea cual sea su
+// cantidad. Se usa solo para el envío por WhatsApp — un PDF adjuntado a
+// mano a veces llega con un ícono genérico de archivo en vez de mostrar
+// la factura real; una imagen SIEMPRE se ve completa, con su estética,
+// como burbuja de imagen en el chat. No reemplaza al PDF (que sigue
+// intacto, para descargar/archivar) — es un archivo aparte.
+function _dibujarFacturaRevendedorImagen(cfg) {
+    const SCALE = 4; // 1mm de "factura" = 4px de imagen
+    const mm = n => Math.round(n * SCALE);
+    const ANCHO = 210; // mismo ancho que la hoja A4 del PDF
+    const W = mm(ANCHO);
+    const GREEN = '#1b7f3d', GREEN_L = '#e8f6ee', BLUE = '#0a47de', BLUE_L = '#e2eafc';
+    const DARK = '#191e32', GRAY = '#6e7887', ZEBRA = '#f5f8fd';
+    const _m = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+
+    // ── Alto total (mm), SIN paginar: se suma todo el contenido real ──
+    let altoMm = 100; // banner + recuadros REVENDEDOR / DATOS DEL PEDIDO
+    (cfg.bloques || []).forEach(b => {
+        altoMm += 10 + 7; // título del bloque + cabecera de columnas
+        (b.subs || []).forEach(sb => { altoMm += 6.5 + (sb.items || []).length * 6.5 + 2; });
+        altoMm += (b.items || []).length * 6.5;
+        altoMm += 5;
+    });
+    const filas = cfg.totales || [];
+    altoMm += filas.length * 8 + 4 + 24 + 30; // totales + fecha + pie + margen
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = mm(altoMm);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const rr = (x, y, w, h, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    };
+    const font = (size, bold) => { ctx.font = `${bold ? '700' : '400'} ${mm(size)}px Helvetica, Arial, sans-serif`; };
+    const text = (t, x, y, opts) => {
+        ctx.textAlign = (opts && opts.align) || 'left';
+        ctx.fillText(String(t), mm(x), mm(y));
+    };
+
+    // ── Banner ──
+    ctx.fillStyle = GREEN; ctx.fillRect(0, 0, W, mm(36));
+    ctx.fillStyle = BLUE; ctx.fillRect(0, mm(36), W, mm(5));
+    ctx.fillStyle = '#ffffff';
+    font(26, true); text('RW · Revende Ways', 14, 17);
+    font(7, false); text('Factura no fiscal', 14, 22);
+    font(10.5, false); text(cfg.titulo || '', 14, 28.5);
+    font(8, false); text(cfg.subtitulo || '', 14, 33.5);
+    ctx.fillStyle = '#ffffff'; rr(mm(ANCHO - 70), mm(7), mm(56), mm(24), mm(2)); ctx.fill();
+    ctx.fillStyle = GREEN; font(8.5, true); text('FACTURA Nº', ANCHO - 66, 13);
+    font(13, false); text('#' + cfg.facturaNro, ANCHO - 66, 20.5);
+    ctx.fillStyle = GRAY; font(7.5, false); text(String(cfg.fechaTxt || ''), ANCHO - 66, 27);
+
+    // ── Recuadros REVENDEDOR / DATOS DEL PEDIDO ──
+    let y = 50;
+    const caja = (x, w, titulo, lineas, color) => {
+        ctx.fillStyle = ZEBRA; rr(mm(x), mm(y), mm(w), mm(40), mm(2)); ctx.fill();
+        ctx.fillStyle = color; ctx.fillRect(mm(x), mm(y), mm(w), mm(6));
+        ctx.fillStyle = '#ffffff'; font(8, true); text(titulo, x + 3, y + 4.2);
+        let ly = y + 12;
+        (lineas || []).filter(Boolean).slice(0, 6).forEach((l, i) => {
+            ctx.fillStyle = DARK; font(i === 0 ? 10 : 8.8, i === 0);
+            text(String(l).slice(0, 58), x + 3, ly);
+            ly += i === 0 ? 5.6 : 4.8;
+        });
+    };
+    caja(14, 88, 'REVENDEDOR', cfg.revendedor, GREEN);
+    caja(ANCHO - 14 - 88, 88, 'DATOS DEL PEDIDO', cfg.datos, BLUE);
+    y += 50;
+
+    // ── Productos (sin paginar: todo en una sola factura larga) ──
+    const colCant = ANCHO - 82, colUnit = ANCHO - 50, colSub = ANCHO - 16;
+    const cabeceraCols = () => {
+        ctx.fillStyle = GREEN; ctx.fillRect(mm(14), mm(y - 5), mm(ANCHO - 28), mm(7.5));
+        ctx.fillStyle = '#ffffff'; font(8.5, true);
+        text('PRODUCTO', 17, y); text('CANT.', colCant, y, { align: 'center' });
+        text('P. MAYORISTA', colUnit, y, { align: 'right' }); text('SUBTOTAL', colSub, y, { align: 'right' });
+        y += 7;
+    };
+    const pintarItems = items => (items || []).forEach((it, i) => {
+        if (i % 2 === 0) { ctx.fillStyle = ZEBRA; ctx.fillRect(mm(14), mm(y - 4.5), mm(ANCHO - 28), mm(6.5)); }
+        ctx.fillStyle = DARK; font(9, false);
+        text(String(it.nombre || '—').slice(0, 52), 17, y);
+        text(String(it.cant || 1), colCant, y, { align: 'center' });
+        text(_m(it.unit), colUnit, y, { align: 'right' });
+        font(9, true); text(_m(it.sub), colSub, y, { align: 'right' });
+        y += 6.5;
+    });
+    (cfg.bloques || []).forEach(b => {
+        ctx.fillStyle = GREEN_L; ctx.strokeStyle = GREEN; ctx.lineWidth = mm(0.3);
+        rr(mm(14), mm(y - 5), mm(ANCHO - 28), mm(9), mm(1.5)); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = GREEN; font(9.5, true); text(String(b.titulo || ''), 17, y + 0.9);
+        if (b.derecha) { ctx.fillStyle = DARK; text(String(b.derecha), ANCHO - 17, y + 0.9, { align: 'right' }); }
+        y += 10; cabeceraCols();
+        (b.subs || []).forEach(sb => {
+            ctx.fillStyle = BLUE_L; ctx.fillRect(mm(14), mm(y - 4.5), mm(ANCHO - 28), mm(7));
+            ctx.fillStyle = BLUE; font(8.8, true); text(String(sb.titulo || '').slice(0, 70), 17, y);
+            if (sb.derecha) { ctx.fillStyle = GREEN; text(String(sb.derecha), ANCHO - 17, y, { align: 'right' }); }
+            y += 6.5; pintarItems(sb.items); y += 2;
+        });
+        pintarItems(b.items);
+        y += 5;
+    });
+
+    // ── Totales ──
+    y += 2;
+    const bw = 96, bx = ANCHO - 14 - bw, rh = 8;
+    ctx.strokeStyle = BLUE; ctx.lineWidth = mm(0.6);
+    rr(mm(bx), mm(y), mm(bw), mm(rh * filas.length + 4), mm(2)); ctx.stroke();
+    filas.forEach((f, i) => {
+        const ry = y + 2 + i * rh + 5.5;
+        ctx.fillStyle = GRAY; font(9, false); text(f.label, bx + 3, ry);
+        font(f.tipo === 'normal' ? 10 : 12, f.tipo !== 'normal');
+        ctx.fillStyle = (f.tipo === 'ganancia') ? GREEN : DARK;
+        text(_m(f.valor), bx + bw - 3, ry, { align: 'right' });
+    });
+    y += rh * filas.length + 4;
+
+    // ── Fecha del/los pedido(s) — mismo texto que _fechaPedidoFacturaPie ──
+    const fch = (cfg.fechas || []).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+    if (fch.length) {
+        const txt = (fch[0] === fch[fch.length - 1])
+            ? 'Pedido realizado: ' + ba(fch[0]) + ' hs'
+            : 'Pedidos realizados: desde ' + ba(fch[0]) + ' hasta ' + ba(fch[fch.length - 1]) + ' hs';
+        ctx.fillStyle = GRAY; font(7.5, false);
+        text(txt, ANCHO - 14, y + 16, { align: 'right' });
+    }
+    y += 24;
+
+    // ── Pie ──
+    ctx.strokeStyle = '#dce0e8'; ctx.lineWidth = mm(0.3);
+    ctx.beginPath(); ctx.moveTo(mm(14), mm(y)); ctx.lineTo(mm(ANCHO - 14), mm(y)); ctx.stroke();
+    ctx.fillStyle = GRAY; font(7.5, false);
+    text('RW · Revende Ways — Documento interno · No constituye factura fiscal (AFIP)', 14, y + 5);
+
+    // ── Marca de agua (mismo criterio que _agregarMarcaAguaFactura) ──
+    if (cfg.marca) {
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        const rgb = cfg.marcaColor || [200, 200, 200];
+        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        ctx.font = `700 ${mm(cfg.marca.length > 12 ? 34 : 48)}px Helvetica, Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(-35 * Math.PI / 180);
+        ctx.fillText(cfg.marca, 0, 0);
+        ctx.restore();
+    }
+    return canvas;
+}
+
+// Descarga un <canvas> como imagen PNG — mismo criterio que doc.save()
+// para el PDF, pero para el archivo que se adjunta en WhatsApp y SÍ
+// muestra una vista previa fiel al diseño real de la factura.
+function _descargarCanvasComoImagen(canvas, filename) {
+    if (!canvas) return;
+    canvas.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }, 'image/png');
+}
+
+function _cfgFacturaNormal(gs, estado) {
     const g0 = gs[0], codigo = g0.codigoVendedor, categoria = g0.categoria || 'multishop';
     const pagado = estado === 'confirmado';
     const info = vendorCache[codigo] || {};
@@ -4266,21 +4465,24 @@ function _facturaRevendedorNormal(gs, estado) {
     if (totVenta > 0) totales.push({ label: 'Total venta a clientes', valor: totVenta, tipo: 'normal' });
     totales.push({ label: 'Total a pagar (mayorista)', valor: totMay, tipo: 'total' });
     totales.push({ label: 'Tu ganancia en este pedido', valor: totGan, tipo: 'ganancia' });
-    return _dibujarFacturaRevendedorPDF({
+    return {
         titulo: pagado ? 'Comprobante de compra mayorista — PAGADA' : 'Comprobante de compra mayorista — PENDIENTE DE PAGO',
         subtitulo: `${gs.length} pedido${gs.length !== 1 ? 's' : ''} de clientes · ${CAT_LABELS[categoria] || categoria}`,
         facturaNro: _nfDigitos(loteId || g0.pedidoId),
         fechaTxt: fechas.length ? 'Fecha: ' + ba(Math.max(...fechas)) : '',
-        revendedor: [nombre, 'Código: ' + codigo, (info.whatsappRevendedor || info.telefono) ? 'Tel: ' + (info.whatsappRevendedor || info.telefono) : '', info.email ? 'Email: ' + info.email : '', ubic,
+        revendedor: [nombre, (info.whatsappRevendedor || info.telefono) ? 'Tel: ' + (info.whatsappRevendedor || info.telefono) : '', info.email ? 'Email: ' + info.email : '', ubic,
             lotes.length === 1 ? 'Pedido del revendedor: #' + lotes[0] : lotes.length > 1 ? 'Pedidos del revendedor: ' + lotes.map(x => '#' + x).join(', ') : 'Pedido del revendedor: sin enviar a pago'],
         datos: ['Resumen del pedido', 'Estado: ' + (pagado ? 'PAGADA' : 'PENDIENTE DE PAGO'), 'Categoría: ' + (CAT_LABELS[categoria] || categoria),
             'Pedidos de clientes: ' + gs.length, 'Pedido del revendedor: ' + (lotes.length ? lotes.map(x => '#' + x).join(', ') : '—')],
         bloques, totales, fechas,
         marca: pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', marcaColor: pagado ? [10,138,82] : [230,60,60],
-    });
+    };
+}
+function _facturaRevendedorNormal(gs, estado) {
+    return _dibujarFacturaRevendedorPDF(_cfgFacturaNormal(gs, estado));
 }
 
-function _facturaRevendedorStock(gs, estado) {
+function _cfgFacturaStock(gs, estado) {
     const g0 = gs[0], codigo = g0.codigoVendedor, categoria = g0.categoria || 'multishop';
     const pagado = estado === 'confirmado';
     const info = vendorCache[codigo] || {};
@@ -4296,22 +4498,31 @@ function _facturaRevendedorStock(gs, estado) {
     });
     const fechas = gs.map(g => g.fecha).filter(Boolean);
     const ubic = [info.ciudad, info.provincia].filter(Boolean).join(', ');
-    return _dibujarFacturaRevendedorPDF({
+    return {
         titulo: pagado ? 'Comprobante de stock / reinversión — PAGADA' : 'Comprobante de stock / reinversión — PENDIENTE DE PAGO',
         subtitulo: `${gs.length} pedido${gs.length !== 1 ? 's' : ''} de stock · ${CAT_LABELS[categoria] || categoria}`,
         facturaNro: _nfDigitos(g0.pedidoId),
         fechaTxt: fechas.length ? 'Fecha: ' + ba(Math.max(...fechas)) : '',
-        revendedor: [vendorLabel(codigo), 'Código: ' + codigo, (info.whatsappRevendedor || info.telefono) ? 'Tel: ' + (info.whatsappRevendedor || info.telefono) : '', info.email ? 'Email: ' + info.email : '', ubic],
+        revendedor: [vendorLabel(codigo), (info.whatsappRevendedor || info.telefono) ? 'Tel: ' + (info.whatsappRevendedor || info.telefono) : '', info.email ? 'Email: ' + info.email : '', ubic],
         datos: ['Resumen del pedido', 'Estado: ' + (pagado ? 'PAGADA' : 'PENDIENTE DE PAGO'), 'Categoría: ' + (CAT_LABELS[categoria] || categoria), 'Pedidos de stock: ' + gs.length],
         bloques, totales: [{ label: 'Total a pagar (mayorista)', valor: total, tipo: 'total' }], fechas,
         marca: pagado ? 'PAGADO' : 'PENDIENTE DE PAGO', marcaColor: pagado ? [10,138,82] : [230,60,60],
-    });
+    };
+}
+function _facturaRevendedorStock(gs, estado) {
+    return _dibujarFacturaRevendedorPDF(_cfgFacturaStock(gs, estado));
 }
 
 function _generarFacturaProveedorPDF(pedidoId) {
     const g = panelGestion.find(x => x.pedidoId === pedidoId);
     if (!g || !window.jspdf) return null;
     return _facturaRevendedorNormal([g], g.estadoReal);
+}
+// 🆕 Misma factura, como imagen (ver _dibujarFacturaRevendedorImagen) — solo para WhatsApp.
+function _generarFacturaImagenPDF(pedidoId) {
+    const g = panelGestion.find(x => x.pedidoId === pedidoId);
+    if (!g) return null;
+    return _dibujarFacturaRevendedorImagen(_cfgFacturaNormal([g], g.estadoReal));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4325,6 +4536,12 @@ function _generarFacturaProveedorPDFGrupo(codigo, categoria, estado) {
     const gs = panelGestion.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
     if (!gs.length || !window.jspdf) return null;
     return _facturaRevendedorNormal(gs, estado);
+}
+// 🆕 Misma factura, como imagen (ver _dibujarFacturaRevendedorImagen) — solo para WhatsApp.
+function _generarFacturaImagenGrupo(codigo, categoria, estado) {
+    const gs = panelGestion.filter(x => x.codigoVendedor === codigo && (x.categoria || 'multishop') === categoria && x.estadoReal === estado);
+    if (!gs.length) return null;
+    return _dibujarFacturaRevendedorImagen(_cfgFacturaNormal(gs, estado));
 }
 
 function descargarFacturaProveedorGrupo(codigo, categoria, estado) {
@@ -4354,9 +4571,12 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     // que _enviarMensajeConFacturaGrupo: se descarga la factura y se abre
     // el chat puntual (wa.me/<numero>) con el mensaje ya escrito.
     _pdfParaEnvio(doc, filename, estado);
+    // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
+    const imagen = _generarFacturaImagenGrupo(codigo, categoria, estado);
+    if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Proveedor_${codigo}_${categoria}.png`);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-    toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito, solo falta adjuntar la factura descargada' : 'Se abrió WhatsApp con la factura y el mensaje', true);
+    toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
     // 🆕 "Hacer seguimiento" recién se habilita 2 días después de este envío.
     _waTimerSet('envio', codigo, categoria, estado);
     renderPedidosView();
@@ -4412,6 +4632,9 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
     if (doc) {
         const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
         doc.save(filename);
+        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
+        const imagen = _generarFacturaImagenPDF(pedidoId);
+        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Proveedor_${String(pedidoId).slice(-8)}.png`);
     }
     if (wa) {
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
@@ -4420,7 +4643,7 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
         toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
     }
 
-    toast('Pedido enviado, clasificado y factura descargada', true);
+    toast('Pedido enviado, clasificado, factura e imagen descargadas', true);
     renderPedidosView();
     renderListaView();
 }
