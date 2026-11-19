@@ -2144,6 +2144,61 @@ function confirmarModal(mensaje, opciones = {}) {
         overlay.addEventListener('click', onOverlayClick);
     });
 }
+// Reemplazo compacto y prolijo del prompt() nativo del navegador, mismo
+// CSS .modal-overlay/.modal-box que confirmarModal(). Devuelve una
+// Promise<string|null> — null si se cancela, igual que prompt().
+function pedirTextoModal(mensaje, opciones = {}) {
+    const { titulo = 'Ingresá un valor', valorInicial = '', placeholder = '', textoConfirmar = 'Guardar' } = opciones;
+    return new Promise(resolve => {
+        let overlay = document.getElementById('pedirTextoModalGlobal');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'pedirTextoModalGlobal';
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-box" style="text-align:center">
+                    <h3 id="pedirTextoModalTitulo"></h3>
+                    <p id="pedirTextoModalMensaje" style="white-space:pre-line"></p>
+                    <input type="text" id="pedirTextoModalInput" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:9px;border:1px solid var(--border2);font-size:14px;font-family:var(--font);margin-bottom:16px" />
+                    <div class="modal-actions">
+                        <button class="modal-cancel" id="pedirTextoModalCancelar">Cancelar</button>
+                        <button class="modal-confirm-btn" id="pedirTextoModalOk" style="background:var(--blue)"></button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+        }
+        overlay.querySelector('#pedirTextoModalTitulo').textContent = titulo;
+        overlay.querySelector('#pedirTextoModalMensaje').textContent = mensaje;
+        const input = overlay.querySelector('#pedirTextoModalInput');
+        input.value = valorInicial != null ? valorInicial : '';
+        input.placeholder = placeholder;
+        const btnOk = overlay.querySelector('#pedirTextoModalOk');
+        const btnCancelar = overlay.querySelector('#pedirTextoModalCancelar');
+        btnOk.textContent = textoConfirmar;
+        overlay.classList.add('show');
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+
+        const cerrar = resultado => {
+            overlay.classList.remove('show');
+            btnOk.removeEventListener('click', onOk);
+            btnCancelar.removeEventListener('click', onCancelar);
+            overlay.removeEventListener('click', onOverlayClick);
+            input.removeEventListener('keydown', onKeydown);
+            resolve(resultado);
+        };
+        const onOk = () => cerrar(input.value);
+        const onCancelar = () => cerrar(null);
+        const onOverlayClick = e => { if (e.target === overlay) cerrar(null); };
+        const onKeydown = e => {
+            if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+            if (e.key === 'Escape') { e.preventDefault(); onCancelar(); }
+        };
+        btnOk.addEventListener('click', onOk);
+        btnCancelar.addEventListener('click', onCancelar);
+        overlay.addEventListener('click', onOverlayClick);
+        input.addEventListener('keydown', onKeydown);
+    });
+}
 function money(n) { return '$' + Math.round(Number(n)||0).toLocaleString('es-AR'); }
 function initials(name) { return (name||'?').trim().charAt(0).toUpperCase() || '?'; }
 
@@ -9257,9 +9312,13 @@ async function editarPrecioVariante(campo, valorCompleto) {
     const precioBase = _precioBaseProducto(producto);
     const precioActual = _precioVarianteVigente(catalogo, productId, producto, valorCompleto);
     const etiqueta = valorCompleto.replace(/^[^:]+: /, '');
-    const entrada = prompt(
-        `Precio mayorista para "${etiqueta}" (dejalo vacío para usar el precio base del producto${precioBase != null ? ', ' + money(precioBase) : ''}):`,
-        precioActual != null ? String(Math.round(precioActual)) : ''
+    const entrada = await pedirTextoModal(
+        `Dejalo vacío para usar el precio base del producto${precioBase != null ? ' (' + money(precioBase) + ')' : ''}.`,
+        {
+            titulo: `Precio mayorista para "${etiqueta}"`,
+            valorInicial: precioActual != null ? String(Math.round(precioActual)) : '',
+            placeholder: 'Ej: 15000',
+        }
     );
     if (entrada === null) return; // cancelado
     const texto = entrada.trim();
