@@ -2094,6 +2094,56 @@ function toast(m, type) {
     clearTimeout(window._t);
     window._t = setTimeout(()=>{ e.className='toast'; }, 3200);
 }
+
+// Reemplazo compacto y prolijo del confirm() nativo del navegador,
+// reutilizando el CSS .modal-overlay/.modal-box ya existente en este archivo.
+// Devuelve una Promise<boolean> — usar con `await`.
+function confirmarModal(mensaje, opciones = {}) {
+    const { titulo = '¿Confirmar?', textoConfirmar = 'Confirmar', danger = true, icono = '⚠️' } = opciones;
+    return new Promise(resolve => {
+        let overlay = document.getElementById('confirmModalGlobal');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'confirmModalGlobal';
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-box" style="text-align:center">
+                    <div class="modal-icon" id="confirmModalIcono"></div>
+                    <h3 id="confirmModalTitulo"></h3>
+                    <p id="confirmModalMensaje" style="white-space:pre-line"></p>
+                    <div class="modal-actions">
+                        <button class="modal-cancel" id="confirmModalCancelar">Cancelar</button>
+                        <button class="modal-confirm-btn" id="confirmModalOk"></button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+        }
+        overlay.querySelector('#confirmModalIcono').textContent = icono;
+        overlay.querySelector('#confirmModalIcono').style.background = danger ? 'var(--red-pale)' : 'var(--green-pale)';
+        overlay.querySelector('#confirmModalTitulo').textContent = titulo;
+        overlay.querySelector('#confirmModalMensaje').textContent = mensaje;
+        const btnOk = overlay.querySelector('#confirmModalOk');
+        const btnCancelar = overlay.querySelector('#confirmModalCancelar');
+        btnOk.textContent = textoConfirmar;
+        btnOk.style.background = danger ? 'var(--red)' : 'var(--green)';
+        btnOk.style.color = danger ? '#fff' : '#0b0d12';
+        overlay.classList.add('show');
+
+        const cerrar = resultado => {
+            overlay.classList.remove('show');
+            btnOk.removeEventListener('click', onOk);
+            btnCancelar.removeEventListener('click', onCancelar);
+            overlay.removeEventListener('click', onOverlayClick);
+            resolve(resultado);
+        };
+        const onOk = () => cerrar(true);
+        const onCancelar = () => cerrar(false);
+        const onOverlayClick = e => { if (e.target === overlay) cerrar(false); };
+        btnOk.addEventListener('click', onOk);
+        btnCancelar.addEventListener('click', onCancelar);
+        overlay.addEventListener('click', onOverlayClick);
+    });
+}
 function money(n) { return '$' + Math.round(Number(n)||0).toLocaleString('es-AR'); }
 function initials(name) { return (name||'?').trim().charAt(0).toUpperCase() || '?'; }
 
@@ -3528,7 +3578,7 @@ function pagoYaVerificadoStock(pedidoId) {
 async function enviarFacturaYClasificarPedidoStock(pedidoId) {
     const g = pedidosStockGrupos.find(x => x.pedidoId === pedidoId);
     if (!g) { toast('No se encontró el pedido de stock', 'err'); return; }
-    if (!confirm('¿Confirmás que este pedido de stock/reinversión ya está pagado y acreditado? Se le va a enviar la factura al revendedor y el pedido pasa a "Enviar Pedidos".')) return;
+    if (!(await confirmarModal('Se le va a enviar la factura al revendedor y el pedido pasa a "Enviar Pedidos".', { titulo: '¿Pedido pagado y acreditado?', textoConfirmar: 'Confirmar', danger: false, icono: '✅' }))) return;
 
     const set = new Set(JSON.parse(localStorage.getItem(PAGO_VERIFICADO_STOCK_KEY) || '[]'));
     set.add(pedidoId);
@@ -4262,7 +4312,7 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
 // pero deja un aviso visual + mueve el pedido a la lista de "Enviar
 // Pedidos" (ver Lista de pedidos) para su preparación y envío al proveedor.
 async function marcarPagoVerificado(pedidoId) {
-    if (!confirm('¿Confirmás que el pago de este pedido ya se verificó?')) return;
+    if (!(await confirmarModal('Esta acción marca el pedido como pagado.', { titulo: '¿Pago verificado?', textoConfirmar: 'Confirmar', danger: false, icono: '✅' }))) return;
     const set = new Set(JSON.parse(localStorage.getItem('pagosVerificados') || '[]'));
     set.add(pedidoId);
     localStorage.setItem('pagosVerificados', JSON.stringify([...set]));
@@ -4287,7 +4337,7 @@ function pagoYaVerificado(pedidoId) {
 async function enviarFacturaYClasificarPedido(pedidoId) {
     const g = panelGestion.find(x => x.pedidoId === pedidoId);
     if (!g) { toast('No se encontró el pedido', 'err'); return; }
-    if (!confirm('¿Confirmás que el pago de este pedido ya se verificó? Se le va a enviar la factura pagada al revendedor y el pedido pasa a "Enviar Pedidos".')) return;
+    if (!(await confirmarModal('Se le va a enviar la factura pagada al revendedor y el pedido pasa a "Enviar Pedidos".', { titulo: '¿Pago verificado?', textoConfirmar: 'Confirmar', danger: false, icono: '✅' }))) return;
 
     // 1) Marcar pago verificado (sin el confirm propio — ya se confirmó arriba).
     const set = new Set(JSON.parse(localStorage.getItem('pagosVerificados') || '[]'));
@@ -5377,7 +5427,7 @@ async function _copiarEnlaceProveedor() {
 }
 
 async function eliminarProveedor(id) {
-    if (!confirm('¿Eliminar este proveedor? Sus categorías quedan sin proveedor asignado hasta que se reconfiguren.')) return;
+    if (!(await confirmarModal('Sus categorías quedan sin proveedor asignado hasta que se reconfiguren.', { titulo: '¿Eliminar este proveedor?', textoConfirmar: 'Eliminar', danger: true }))) return;
     _sincronizarCategoriasProveedor({ id, categorias: [] });
     // 🔧 FIX: borra también la ficha del proveedor en el servidor/Firestore
     // (colección "proveedoresConfig") — si solo se borra local, reaparece
@@ -7824,7 +7874,7 @@ function renderStockPausaBar() {
 // agrupan más de una subcategoría real del catálogo — hay que resetear
 // cada una por separado, igual que ya hace el resto del panel.
 async function resetearAvisosNuevos() {
-    if (!confirm('¿Resetear el aviso de "nuevo producto" de ' + (STOCK_CAT_LABELS[stockCatActual] || stockCatActual) + '? Los productos nuevos que ya estaban marcados como "vistos" van a poder volver a aparecer y notificarse.')) return;
+    if (!(await confirmarModal('Los productos nuevos que ya estaban marcados como "vistos" van a poder volver a aparecer y notificarse.', { titulo: '¿Resetear el aviso de "nuevo producto" de ' + (STOCK_CAT_LABELS[stockCatActual] || stockCatActual) + '?', textoConfirmar: 'Resetear', danger: false, icono: '🔄' }))) return;
     const subcats = STOCK_CAT_SUBCATS[stockCatActual] || [stockCatActual];
     let productos = 0, codigos = 0, ok = true;
     for (const sub of subcats) {
@@ -8172,7 +8222,7 @@ async function cargarCategoriasExtraLista() {
 // productos del Worker de restoprecios.js (ambos por nombre, mismo
 // endpoint que ya usa el resto del panel: /api/restoprecio/eliminar).
 async function eliminarCategoriaExtra(id, nombre) {
-    if (!confirm('¿Eliminar la categoría "' + nombre + '" para siempre? Se van a borrar también todos sus productos. Esta acción no se puede deshacer.')) return;
+    if (!(await confirmarModal('Se van a borrar también todos sus productos. Esta acción no se puede deshacer.', { titulo: '¿Eliminar la categoría "' + nombre + '" para siempre?', textoConfirmar: 'Eliminar', danger: true }))) return;
     const res = await fetchJson(WORKER_PRECIOS + '/api/categorias/eliminar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
@@ -8321,7 +8371,7 @@ function mostrarRepoGuardado() {
 }
 
 async function eliminarRepoCategoria(index) {
-    if (!confirm('¿Eliminar el Repositorio nº' + index + '? Las imágenes de los productos que ya lo usan no se van a ver más.')) return;
+    if (!(await confirmarModal('Las imágenes de los productos que ya lo usan no se van a ver más.', { titulo: '¿Eliminar el Repositorio nº' + index + '?', textoConfirmar: 'Eliminar', danger: true }))) return;
     const res = await fetchJson(WORKER_PRECIOS + '/api/catalogo/repo/eliminar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
@@ -8794,7 +8844,7 @@ async function importarCatalogoInicial(input) {
 async function eliminarProductoDefinitivo(subcat, productId) {
     const producto = (CATALOGO_PRODUCTOS_GLOBAL[subcat] || []).find(p => p.id === productId);
     if (!producto) return;
-    if (!confirm('¿Eliminar DEFINITIVAMENTE "' + producto.nombre + '"?\n\nDesaparece de todas las tiendas y paneles y no se puede deshacer.')) return;
+    if (!(await confirmarModal('Desaparece de todas las tiendas y paneles y no se puede deshacer.', { titulo: '¿Eliminar DEFINITIVAMENTE "' + producto.nombre + '"?', textoConfirmar: 'Eliminar', danger: true }))) return;
     const estado = await _ejecutarEliminarProductoDefinitivo(subcat, productId, producto);
     if (estado === 'ok') toast('Producto eliminado definitivamente', true);
     else if (estado === 'parcial') toast('Se eliminó "' + producto.nombre + '" del catálogo, pero no se pudo quitar su costo real en restoprecios. Reintentá en unos minutos o avisá si sigue fallando.', 'err');
@@ -8921,7 +8971,7 @@ function procesarListaNombresStock() {
 async function quitarTodosDeStockLista() {
     if (!_stockListaNombresEncontrados.length) return;
     const n = _stockListaNombresEncontrados.length;
-    if (!confirm('¿Quitar de stock estos ' + n + ' productos?')) return;
+    if (!(await confirmarModal('Esta acción quita los productos seleccionados del listado de stock.', { titulo: '¿Quitar de stock estos ' + n + ' productos?', textoConfirmar: 'Quitar', danger: true }))) return;
     for (const p of _stockListaNombresEncontrados.slice()) {
         if (!STOCK_GLOBAL_DATA[p._subcat]) STOCK_GLOBAL_DATA[p._subcat] = {};
         STOCK_GLOBAL_DATA[p._subcat][p.id] = false;
@@ -8935,7 +8985,7 @@ async function quitarTodosDeStockLista() {
 async function eliminarTodosLista() {
     if (!_stockListaNombresEncontrados.length) return;
     const n = _stockListaNombresEncontrados.length;
-    if (!confirm('¿ELIMINAR DEFINITIVAMENTE estos ' + n + ' productos?\n\nDesaparecen de todas las tiendas y paneles y no se puede deshacer.')) return;
+    if (!(await confirmarModal('Desaparecen de todas las tiendas y paneles y no se puede deshacer.', { titulo: '¿ELIMINAR DEFINITIVAMENTE estos ' + n + ' productos?', textoConfirmar: 'Eliminar', danger: true }))) return;
     let ok = 0, parcial = 0;
     for (const p of _stockListaNombresEncontrados.slice()) {
         const estado = await _ejecutarEliminarProductoDefinitivo(p._subcat, p.id, p);
