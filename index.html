@@ -763,8 +763,9 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
         <button class="sidebar-btn menu-btn" data-view="proveedores-reg" onclick="switchView('proveedores-reg')" title="Proveedores registrados">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 13h1"/><path d="M14 13h1"/><path d="M9 21v-4h6v4"/></svg>
         </button>
-        <button class="sidebar-btn" onclick="openRvndr()" title="Info Rvndr">
+        <button class="sidebar-btn" style="position:relative" onclick="openRvndr()" title="Info Rvndr">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span id="rvndr-nuevo-dot-sidebar" style="display:none;position:absolute;top:4px;right:4px;width:3px;height:3px;border-radius:50%;background:#f43f5e"></span>
         </button>
         <button class="sidebar-btn" style="position:relative" onclick="abrirReclamos()" title="Reclamos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -808,9 +809,10 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
                 </button>
             </div>
             <div class="head-actions">
-                <button class="btn-head btn-rvndr" onclick="openRvndr()">
+                <button class="btn-head btn-rvndr" style="position:relative" onclick="openRvndr()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Info Rvndr <span id="rvndr-header-count" style="background:rgba(255,255,255,.25);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:10px">0</span>
+                    <span id="rvndr-nuevo-dot-header" style="display:none;position:absolute;top:3px;right:3px;width:3px;height:3px;border-radius:50%;background:#f43f5e"></span>
                 </button>
                 <button class="btn-head" onclick="this.blur();actualizarPanelCompleto()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -2068,6 +2070,7 @@ let SOCIEDADES_POR_PEDIDO_ID = {}; // 🆕 pedidoId -> datos de la sociedad (ver
 let _autoRefreshPedidosTimer = null; // 🔧 NUEVO: ver loadData() — refresco automático cada 20min
 let CLIENTES_TODOS = [];   // clientes de TODOS los revendedores (workerwebcliente /clientes)
 let REVENDEDORES_TODOS = []; // 🔧 NUEVO: TODOS los revendedores registrados (usuarios), tengan pedidos o no
+let COMUNIDAD_INVITADOS = {}; // 🆕 codigoVendedor -> fechaISO en que se lo invitó a la comunidad de WhatsApp (ver "Nuevos Usuarios" en Info Rvndr)
 
 // ═══════════════════════════════════════════════════════════
 // UTILIDADES
@@ -2801,7 +2804,7 @@ async function loadData() {
     const enviosWrap = document.getElementById('envios-wrap');
     if (enviosWrap) enviosWrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando envíos...</p></div>';
 
-    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes, carritosStockRes, sociedadesRes] = await Promise.all([
+    const [pedidosRes, panelRes, rankRes, estadosRes, clientesRes, revendedoresRes, pedidosStockRes, carritosStockRes, sociedadesRes, comunidadInvitadosRes] = await Promise.all([
         fetchJson(WORKER_PAGOS + '/api/pedidos'),
         fetchJson(WORKER_PAGOS + '/api/panel-gestion'),
         fetchJson(WORKER_PAGOS + '/api/ranking'),
@@ -2838,6 +2841,11 @@ async function loadData() {
         // una (ver el cruce más abajo). No bloqueante: si este Worker no
         // responde, el resto del panel igual carga normalmente.
         fetchJson(WORKER_SOCIEDADES + '/admin/pedidos-sociedad', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }).catch(() => null),
+        // 🆕 NUEVO: qué revendedores ya fueron invitados a la comunidad de
+        // WhatsApp — para la cinta "Nuevos Usuarios" de Info Rvndr. No
+        // bloqueante: si falla, se asume que nadie fue marcado todavía (se
+        // ve más gente en "Nuevos Usuarios" de la cuenta, nunca menos).
+        fetchJson(WORKER_ESTADOS + '/api/comunidad-invitados', { headers: { 'X-Panel-Admin-Key': PANEL_ADMIN_KEY } }).catch(() => null),
         // Los dos catálogos de precios (preciosmayoristasrevendedores y
         // restoprecios) deben estar cargados ANTES de calcular nada: con
         // ellos se quitan los productos que ya no existen en el catálogo.
@@ -2862,6 +2870,7 @@ async function loadData() {
     }
     CLIENTES_TODOS      = (clientesRes && clientesRes.ok && Array.isArray(clientesRes.clientes)) ? clientesRes.clientes : [];
     REVENDEDORES_TODOS  = (revendedoresRes && revendedoresRes.ok && Array.isArray(revendedoresRes.revendedores)) ? revendedoresRes.revendedores : [];
+    COMUNIDAD_INVITADOS = (comunidadInvitadosRes && comunidadInvitadosRes.ok && typeof comunidadInvitadosRes.invitados === 'object' && comunidadInvitadosRes.invitados) || {};
     // 🔧 NUEVO: workerpagos (usado por resolveVendor/vendorCache) nunca
     // devolvió sexo/provincia/ciudad/codigoPostal/cuitRevendedor/
     // fechaNacimiento/legalAceptacionId/fechaAceptacionLegales/
@@ -3109,6 +3118,9 @@ async function actualizarPanelCompleto() {
         (async () => { try { await renderStockView(); } catch (_) {} })(),
         (async () => { try { await cargarProveedoresRegistrados(); } catch (_) {} })(),
         (async () => { try { if (typeof window._refrescarAfiliadosPanel === 'function') await window._refrescarAfiliadosPanel(); } catch (_) {} })(),
+        // 🆕 Sociedades también se refresca con "Actualizar" (antes solo se
+        // cargaba al entrar a esa pestaña por primera vez).
+        (async () => { try { if (typeof window._refrescarSociedadesPanel === 'function') await window._refrescarSociedadesPanel(); } catch (_) {} })(),
     ]);
 }
 
@@ -7690,6 +7702,28 @@ function invitarComunidad(codigo) {
     const nombre = info.nombre || vendorLabel(codigo);
     const msg = `¡Hola ${nombre}! 👋\n¡Felicitaciones por dar este paso y animarte a crecer! 🚀 Nos alegra un montón que seas parte de esta comunidad.\nQueremos invitarte a nuestro grupo de WhatsApp, donde vas a encontrar una comunidad dispuesta a darte una mano, resolver tus dudas y ayudarte con lo que necesites en el camino. ¡La idea es que no estés solo/a y podamos crecer juntos! 💪\n👇 Sumate desde este enlace:\n🔗 https://chat.whatsapp.com/KxzwYYIhFHqKe2zCoPRhmj\nUna vez que solicites ingresar, un administrador va a aprobar tu acceso.\n¡Dale para adelante, que estamos para acompañarte! 🙌💙`;
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(msg)}`, '_blank');
+    // 🆕 Una vez abierta la invitación, se marca a este revendedor como
+    // invitado a la comunidad: sale de "Nuevos Usuarios" y pasa a la lista
+    // general de abajo del buscador. Si esto falla (sin internet, etc.), se
+    // avisa pero la invitación por WhatsApp ya se mandó igual.
+    _marcarInvitadoComunidad(codigo);
+}
+
+async function _marcarInvitadoComunidad(codigo) {
+    const key = String(codigo || '').toUpperCase();
+    if (!key || COMUNIDAD_INVITADOS[key]) return;
+    const actualizado = Object.assign({}, COMUNIDAD_INVITADOS, { [key]: new Date().toISOString() });
+    const res = await fetchJson(WORKER_ESTADOS + '/api/comunidad-invitados', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ invitados: actualizado })
+    }).catch(() => null);
+    if (!(res && res.ok)) { toast('Se abrió WhatsApp, pero no se pudo marcar como invitado — va a seguir apareciendo en Nuevos Usuarios', 'err'); return; }
+    COMUNIDAD_INVITADOS = actualizado;
+    actualizarContadorRvndrHeader();
+    const wrapNuevos = document.getElementById('nuevos-usuarios-wrap');
+    if (wrapNuevos && wrapNuevos.style.display !== 'none') renderNuevosUsuarios();
+    const wrapLista = document.getElementById('rvndr-lista-wrap');
+    if (wrapLista) renderRvndrLista(document.getElementById('rvndr-search-input')?.value || '');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -9671,6 +9705,13 @@ function todosLosCodigosVendedor() {
 function actualizarContadorRvndrHeader() {
     const el = document.getElementById('rvndr-header-count');
     if (el) el.textContent = String(todosLosCodigosVendedor().length);
+    // 🆕 Puntito rojo (≤3px) en el botón "Info Rvndr" (sidebar y header)
+    // mientras haya usuarios nuevos sin invitar a la comunidad.
+    const hayNuevos = nuevosUsuariosPendientes().length > 0;
+    const dotSidebar = document.getElementById('rvndr-nuevo-dot-sidebar');
+    const dotHeader = document.getElementById('rvndr-nuevo-dot-header');
+    if (dotSidebar) dotSidebar.style.display = hayNuevos ? 'block' : 'none';
+    if (dotHeader) dotHeader.style.display = hayNuevos ? 'block' : 'none';
 }
 
 function actividadRevendedoresPorPeriodo() {
@@ -9703,6 +9744,59 @@ function openRvndr() {
     renderRvndrShell();
 }
 function closeRvndr() { document.getElementById('rvndr-overlay').classList.remove('show'); }
+
+// 🆕 Revendedores registrados que todavía no fueron invitados a la
+// comunidad de WhatsApp (ver COMUNIDAD_INVITADOS, cargado en loadData()).
+// Ordenados por fecha de alta real (fechaAlta), más nuevos primero.
+function nuevosUsuariosPendientes() {
+    const invitadosSet = new Set(Object.keys(COMUNIDAD_INVITADOS || {}).map(c => c.toUpperCase()));
+    return REVENDEDORES_TODOS
+        .filter(r => r.codigoVendedor && !invitadosSet.has(String(r.codigoVendedor).toUpperCase()))
+        .slice()
+        .sort((a, b) => (_msFecha(b.fechaAlta) || 0) - (_msFecha(a.fechaAlta) || 0));
+}
+
+function _toggleNuevosUsuarios(btn) {
+    const cont = document.getElementById('nuevos-usuarios-wrap');
+    const chev = btn.querySelector('.chev');
+    const abrir = cont.style.display === 'none';
+    if (abrir) renderNuevosUsuarios();
+    cont.style.display = abrir ? 'block' : 'none';
+    chev.style.transform = abrir ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function renderNuevosUsuarios() {
+    const cont = document.getElementById('nuevos-usuarios-wrap');
+    if (!cont) return;
+    const nuevos = nuevosUsuariosPendientes();
+    if (!nuevos.length) {
+        cont.innerHTML = `<p style="font-size:12.5px;color:var(--text2);padding:8px 4px;">No hay usuarios nuevos sin invitar.</p>`;
+        return;
+    }
+    cont.innerHTML = nuevos.map(r => {
+        const codigo = String(r.codigoVendedor).toUpperCase();
+        const nombre = fullName(r) || codigo;
+        return `<div class="ribbon" style="margin-bottom:8px">
+            <div class="ribbon-head" style="cursor:default">
+                <div class="ribbon-main">
+                    <div class="podium-avatar" style="margin:0;width:32px;height:32px;font-size:12px">${initials(nombre)}</div>
+                    <div style="min-width:0">
+                        <div class="r-name">${esc(nombre)}</div>
+                        <div class="r-code" style="display:none">${esc(codigo)}</div>
+                    </div>
+                </div>
+                <span class="r-date">${esc(ba(_msFecha(r.fechaAlta)) || '—')}</span>
+            </div>
+            <div class="ribbon-body" style="max-height:200px">
+                <div class="ribbon-inner">
+                    <button class="btn-head" style="width:100%;justify-content:center" onclick="invitarComunidad('${codigo}')">
+                        Invitar a la comunidad
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
 
 function renderRvndrShell() {
     const body = document.getElementById('rvndr-body');
@@ -9742,6 +9836,20 @@ function renderRvndrShell() {
         <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div id="categorias-activas-wrap" style="display:none;margin-bottom:14px"></div>`;
+
+    // 🆕 "Nuevos Usuarios" — revendedores recién registrados que todavía no
+    // fueron invitados a la comunidad de WhatsApp. Puntito rojo (≤3px) +
+    // contador mientras haya al menos uno sin invitar.
+    const _nuevosCount = nuevosUsuariosPendientes().length;
+    html += `<button class="btn-head" id="btn-nuevos-usuarios" style="width:100%;justify-content:space-between;margin-bottom:10px" onclick="_toggleNuevosUsuarios(this)">
+        <span style="display:flex;align-items:center;gap:7px">
+            ${ICO_PERSONA}Nuevos Usuarios
+            ${_nuevosCount ? `<span style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px">${_nuevosCount}</span>` : ''}
+            ${_nuevosCount ? `<span style="width:3px;height:3px;border-radius:50%;background:#f43f5e;flex-shrink:0"></span>` : ''}
+        </span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="nuevos-usuarios-wrap" style="display:none;margin-bottom:14px"></div>`;
 
     html += `<input class="rvndr-search" id="rvndr-search-input" placeholder="Buscar revendedor por nombre o apellido..." autocomplete="off"/>
         <div id="rvndr-lista-wrap"></div>`;
@@ -10439,9 +10547,17 @@ window.addEventListener('load', init);
     AF.verMasRanking = function () { _agregarPaginaRanking(); };
     function _referidoRibHTML(x) {
         var pill = x.vinculo === 'libre' ? '<span class="af-pill r">Libre</span>' : '<span class="af-pill g">Vigente</span>';
+        // 🔧 FIX: "Ganancia del afiliado" era confuso acá (esta cinta ya está
+        // adentro del afiliador, mostrando a SU referido/vendedor) — y "...
+        // para el revendedor" decía el rol al revés (el que recibe este %
+        // es el afiliador, no el revendedor). Se usa el sexo del revendedor
+        // (vendorCache, ya cargado para todo el panel) para elegir la forma.
+        var infoRef = (typeof vendorCache !== 'undefined' && vendorCache[(x.codigo || '').toUpperCase()]) || {};
+        var sexoRef = String(infoRef.sexo || '').toLowerCase();
+        var etiquetaGanancia = sexoRef.startsWith('f') ? 'Ganancia de esta vendedora' : 'Ganancia de este vendedor';
         return rib(esc(x.nombre), esc(x.codigo) + ' · ' + pill, money(x.comisionTotal),
             ln('Pedidos generados', x.pedidos) + ln('Productos vendidos', x.unidades) + ln('Total vendido', money(x.totalVendido)) +
-            ln('Ganancia del afiliado', money(x.gananciaReferido)) + ln('Total % ($) generado para el revendedor', money(x.comisionTotal)));
+            ln(etiquetaGanancia, money(x.gananciaReferido)) + ln('Total % ($) generado para el Afiliador', money(x.comisionTotal)));
     }
     function _agregarPaginaReferidos(r, body) {
         var btnViejo = body.querySelector('.af-ver-mas-ref'); if (btnViejo) btnViejo.remove();
@@ -10856,9 +10972,17 @@ window.addEventListener('load', init);
         '.soc-stat .soc-sv{font-size:17px;font-weight:800}.soc-stat .soc-sl{font-size:11px;color:var(--text2);margin-top:1px}' +
         '.soc-pill{font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap}' +
         '.soc-pill.g{background:var(--green-pale);color:var(--green)}.soc-pill.a{background:var(--amber-pale);color:var(--amber)}.soc-pill.r{background:rgba(244,63,94,.12);color:#f43f5e}' +
-        '.soc-member{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:12px;border-bottom:1px dashed var(--border)}.soc-member:last-child{border-bottom:0}' +
+        // 🔧 FIX: sin "align-items:center" acá, cuando el lado izquierdo tiene
+        // 2 líneas (nombre + código) y el derecho es una sola pill/botón, el
+        // flex por defecto (stretch) estiraba la pill a toda la altura de la
+        // fila, dejando su texto descentrado y la pill "gorda" y alargada.
+        '.soc-member{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;font-size:12px;border-bottom:1px dashed var(--border)}.soc-member:last-child{border-bottom:0}' +
         '.soc-member .soc-mn{font-weight:700}.soc-member .soc-mm{font-size:10.5px;color:var(--text2)}' +
-        '.soc-empty{padding:26px 10px;text-align:center;color:var(--text2);font-size:12.5px}';
+        '.soc-empty{padding:26px 10px;text-align:center;color:var(--text2);font-size:12.5px}' +
+        // 🆕 Botón de historial (debajo de "Integrantes en sociedades
+        // pagadas") y el panel de sociedades cerradas que abre.
+        '.soc-hist-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px 10px;margin-top:-8px;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text2);font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}' +
+        '.soc-hist-btn:hover{color:var(--text)}';
     document.head.appendChild(css);
 
     var CHEV = '<svg class="soc-c" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>';
@@ -10884,6 +11008,37 @@ window.addEventListener('load', init);
     }
     var SOC = window.SOC = {};
     SOC.tog = function (btn) { btn.parentNode.classList.toggle('open'); };
+
+    // 🆕 Historial de sociedades cerradas (ver renderSociedades/stats).
+    var SOC_CERRADAS_CACHE = [];
+    var CHEV_HIST = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>';
+    function renderHistorialCerradas() {
+        var wrap = document.getElementById('soc-cerradas-wrap');
+        if (!wrap) return;
+        if (!SOC_CERRADAS_CACHE.length) { wrap.innerHTML = '<div class="soc-empty">No hay sociedades cerradas.</div>'; return; }
+        wrap.innerHTML = SOC_CERRADAS_CACHE.map(function (s) {
+            var sub = esc(s.categoriaLabel || s.categoria || '—') + (s.ciudad ? ' · ' + esc(s.ciudad) : '');
+            var miembros = Array.isArray(s.miembros) ? s.miembros : [];
+            var cuerpo = '<div style="margin-top:4px">' +
+                ln('Creador', esc(s.creadorNombre || s.creadorCodigo)) +
+                ln('Creada', fdh(s.creadoEn)) +
+                ln('Cerrada', fdh(s.cerradaEn)) +
+                '</div>' +
+                '<div class="soc-grp">Integrantes</div>' +
+                (miembros.length ? miembros.map(function (m) {
+                    return '<div class="soc-member"><span><span class="soc-mn">' + esc(m.nombre || m.codigo) + '</span>' +
+                        '<br><span class="soc-mm">' + esc(m.codigo || '') + '</span></span></div>';
+                }).join('') : '<div class="soc-empty">Sin integrantes.</div>');
+            return rib(esc(s.creadorNombre || s.creadorCodigo), sub, null, cuerpo);
+        }).join('');
+    }
+    SOC.toggleHistorial = function () {
+        var wrap = document.getElementById('soc-cerradas-wrap');
+        if (!wrap) return;
+        var abrir = wrap.style.display === 'none';
+        if (abrir) renderHistorialCerradas();
+        wrap.style.display = abrir ? 'block' : 'none';
+    };
 
     function bloqueMiembros(s) {
         var miembros = Array.isArray(s.repartoPorMiembro) ? s.repartoPorMiembro : [];
@@ -10940,6 +11095,10 @@ window.addEventListener('load', init);
         var pedidos = Array.isArray(d.pedidos) ? d.pedidos : [];
         // 🆕 Sociedades sin pedido todavía (en formación), agrupadas por ciudad.
         var enFormacion = Array.isArray(d.sociedadesEnProceso) ? d.sociedadesEnProceso : [];
+        // 🆕 Historial de sociedades cerradas por su creador — se guarda para
+        // el botón de historial (ver más abajo), no se pinta hasta que se
+        // abre, para no cargar la vista de entrada con algo que ya pasó.
+        SOC_CERRADAS_CACHE = Array.isArray(d.sociedadesCerradas) ? d.sociedadesCerradas : [];
         if (!pedidos.length && !enFormacion.length) {
             wrap.innerHTML = '<div class="soc-empty">Todavía no hay ninguna sociedad con un pedido hecho.</div>';
             return;
@@ -10956,6 +11115,12 @@ window.addEventListener('load', init);
             '<div class="soc-stat"><div class="soc-sv">' + money(totalMayoristaPagado) + '</div><div class="soc-sl">Total mayorista pagado</div></div>' +
             '<div class="soc-stat"><div class="soc-sv">' + totalIntegrantes + '</div><div class="soc-sl">Integrantes en sociedades pagadas</div></div>' +
             '</div>';
+        // 🆕 Botón de historial de sociedades cerradas, justo debajo de las
+        // estadísticas (donde ya estaba pensado el CSS .soc-hist-btn).
+        stats += SOC_CERRADAS_CACHE.length
+            ? '<button type="button" class="soc-hist-btn" onclick="SOC.toggleHistorial()">' + CHEV_HIST + 'Sociedades cerradas (' + SOC_CERRADAS_CACHE.length + ')</button>' +
+              '<div id="soc-cerradas-wrap" style="display:none;margin-bottom:16px"></div>'
+            : '';
         var h = stats;
         if (enFormacion.length) {
             var porCiudad = {};
@@ -10983,6 +11148,15 @@ window.addEventListener('load', init);
             return r;
         };
     }
+
+    // 🆕 El botón "Actualizar" del panel (actualizarPanelCompleto()) ahora
+    // también refresca Sociedades — mismo patrón que ya usa Afiliados con
+    // window._refrescarAfiliadosPanel. Solo repinta si la pestaña está
+    // visible, igual que el resto de las secciones.
+    window._refrescarSociedadesPanel = function () {
+        var view = document.getElementById('view-sociedades');
+        if (view && view.classList.contains('active')) return renderSociedades();
+    };
 })();
 </script>
 
