@@ -2951,6 +2951,11 @@ async function loadData() {
             const pagoInfo = ESTADOS_PAGADOS[g.pedidoId] || null;
             return {
                 esSociedad: !!sociedadDe,
+                // 🆕 Desglose por integrante de la sociedad (nombre, código,
+                // productos y monto de cada uno) — ya viene armado desde
+                // sociedadesworker.js (ver handlePagar), solo se expone acá
+                // para mostrarlo al tocar la cinta. null si no es sociedad.
+                integrantesSociedad: sociedadDe ? (sociedadDe.repartoPorMiembro || []) : null,
                 docId: g.docId,
                 pedidoId: g.pedidoId,
                 numeroPedido: g.numeroPedido || null, // 🆕 número de pedido secuencial (#N), asignado por workerpagos al registrar el pedido en panelGestion
@@ -3994,6 +3999,31 @@ function renderFacturaGrupoFooter(gsCat, estado, codigo, cat) {
 // cuando en realidad faltaba un clic más. Ahora la categoría es el
 // ÚLTIMO nivel: al tocarla, el pedido se ve directo, sin una cinta extra
 // adentro.
+// 🆕 Desglose compacto por integrante dentro de un pedido de sociedad:
+// nombre, código, productos y monto de CADA integrante — mismo dato que
+// ya trae sociedadesworker.js en repartoPorMiembro (ver handlePagar),
+// solo se reordena acá para mostrarlo al tocar la cinta. No toca ningún
+// cálculo: todos los montos ya vienen hechos.
+function _desgloseIntegrantesSociedad(g) {
+    if (!g.esSociedad || !Array.isArray(g.integrantesSociedad) || !g.integrantesSociedad.length) return '';
+    const filas = g.integrantesSociedad.map(m => {
+        const nombres = (m.pedidos || []).flatMap(p => (p.items || []).map(it => it.nombre)).filter(Boolean);
+        const nombresTxt = nombres.length ? esc(nombres.join(', ')) : '—';
+        return `<div style="padding:4px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px">
+                <span style="font-weight:700;color:var(--text1)">${esc(m.nombre || m.codigo || 'Integrante')}</span>
+                <span style="color:var(--text3);font-size:10px">${esc(m.codigo || '')}</span>
+                <span style="font-weight:700;color:var(--text1);white-space:nowrap">${money(m.totalMayorista || 0)}</span>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${nombresTxt}</div>
+        </div>`;
+    }).join('');
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:6px 10px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px">Integrantes de la sociedad</div>
+        ${filas}
+    </div>`;
+}
+
 function panelGestionContenido(g) {
     const fecha = ba(g.fecha);
     const totalU = (g.items||[]).reduce((s,i)=>s+(Number(i.cantidad)||1),0);
@@ -4035,6 +4065,7 @@ function panelGestionContenido(g) {
             </div>
             <span class="r-date">${fecha}</span>
         </div>
+        ${_desgloseIntegrantesSociedad(g)}
         <table class="prod-table">
             <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Mayorista</th></tr></thead>
             <tbody>${rows}</tbody>
@@ -10877,6 +10908,27 @@ window.addEventListener('load', init);
         return rib(esc(s.creadorNombre || s.creadorCodigo), sub, money(totalGrupo), cuerpo);
     }
 
+    // 🆕 Tarjeta chica para una sociedad TODAVÍA en formación (sin pedido
+    // pooled registrado). Muestra integrantes aceptados/invitados, sin
+    // montos (todavía no hay nada comprado ni pagado).
+    function tarjetaSociedadEnFormacion(s) {
+        var sub = esc(s.categoriaLabel || s.categoria || '—');
+        var miembros = Array.isArray(s.miembros) ? s.miembros : [];
+        var aceptados = miembros.filter(function (m) { return m.estado === 'aceptado'; });
+        var cuerpo = '<div style="margin-top:4px">' +
+            ln('Creador', esc(s.creadorNombre || s.creadorCodigo)) +
+            ln('Integrantes aceptados', String(aceptados.length)) +
+            ln('Creada', fdh(s.creadoEn)) +
+            '</div>' +
+            '<div class="soc-grp">Integrantes</div>' +
+            (miembros.length ? miembros.map(function (m) {
+                return '<div class="soc-member"><span><span class="soc-mn">' + esc(m.nombre || m.codigo) + '</span>' +
+                    '<br><span class="soc-mm">' + esc(m.codigo || '') + '</span></span>' +
+                    '<span class="soc-pill ' + (m.estado === 'aceptado' ? 'g' : 'a') + '">' + esc(m.estado || '—') + '</span></div>';
+            }).join('') : '<div class="soc-empty">Sin integrantes todavía.</div>');
+        return rib(esc(s.creadorNombre || s.creadorCodigo), sub, null, cuerpo);
+    }
+
     async function renderSociedades() {
         var wrap = document.getElementById('sociedades-wrap'); if (!wrap) return;
         wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando sociedades...</p></div>';
@@ -10886,7 +10938,9 @@ window.addEventListener('load', init);
             return;
         }
         var pedidos = Array.isArray(d.pedidos) ? d.pedidos : [];
-        if (!pedidos.length) {
+        // 🆕 Sociedades sin pedido todavía (en formación), agrupadas por ciudad.
+        var enFormacion = Array.isArray(d.sociedadesEnProceso) ? d.sociedadesEnProceso : [];
+        if (!pedidos.length && !enFormacion.length) {
             wrap.innerHTML = '<div class="soc-empty">Todavía no hay ninguna sociedad con un pedido hecho.</div>';
             return;
         }
@@ -10895,6 +10949,7 @@ window.addEventListener('load', init);
         var totalMayoristaPagado = pagadas.reduce(function (t, s) { return t + (s.repartoPorMiembro || []).reduce(function (tt, m) { return tt + Number(m.totalMayorista || 0); }, 0); }, 0);
         var totalIntegrantes = pagadas.reduce(function (t, s) { return t + (s.repartoPorMiembro || []).length; }, 0);
         var stats = '<div class="soc-stats">' +
+            '<div class="soc-stat"><div class="soc-sv">' + enFormacion.length + '</div><div class="soc-sl">En formación</div></div>' +
             '<div class="soc-stat"><div class="soc-sv">' + pedidos.length + '</div><div class="soc-sl">Sociedades con pedido</div></div>' +
             '<div class="soc-stat"><div class="soc-sv">' + pagadas.length + '</div><div class="soc-sl">Pagadas</div></div>' +
             '<div class="soc-stat"><div class="soc-sv">' + enProceso.length + '</div><div class="soc-sl">Pago en proceso</div></div>' +
@@ -10902,6 +10957,18 @@ window.addEventListener('load', init);
             '<div class="soc-stat"><div class="soc-sv">' + totalIntegrantes + '</div><div class="soc-sl">Integrantes en sociedades pagadas</div></div>' +
             '</div>';
         var h = stats;
+        if (enFormacion.length) {
+            var porCiudad = {};
+            enFormacion.forEach(function (s) {
+                var c = s.ciudad || 'Sin ciudad';
+                (porCiudad[c] = porCiudad[c] || []).push(s);
+            });
+            h += '<div class="soc-grp">Sociedades en formación (sin pedido todavía)</div>';
+            Object.keys(porCiudad).sort().forEach(function (ciudad) {
+                h += '<div class="soc-s" style="margin:10px 0 4px;font-weight:700">' + esc(ciudad) + '</div>' +
+                    porCiudad[ciudad].map(tarjetaSociedadEnFormacion).join('');
+            });
+        }
         if (enProceso.length) h += '<div class="soc-grp">Pago en proceso</div>' + enProceso.map(tarjetaSociedad).join('');
         if (pagadas.length) h += '<div class="soc-grp">Pagadas</div>' + pagadas.map(tarjetaSociedad).join('');
         wrap.innerHTML = h;
