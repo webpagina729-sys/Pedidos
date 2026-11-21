@@ -104,7 +104,19 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
 .main { display: none; }
 .main.show { display: block; }
-.wrap { max-width: 1320px; margin: 0 auto; padding: 18px 18px 60px; }
+.wrap { max-width: min(96vw, 1800px); margin: 0 auto; padding: 18px 18px 60px; }
+/* 🆕 Antes .wrap tenía un ancho fijo de 1320px: en monitores grandes
+   quedaba todo centrado y chico, con mucho espacio vacío a los costados.
+   Ahora crece de forma fluida (96% del ancho, con un tope de 1800px para
+   no estirarse al infinito en pantallas ultra anchas). Las media queries
+   de celular/tablet de más abajo (980px y 600px) siguen igual, sin tocar. */
+@media (min-width: 1600px) {
+    .kpi-num { font-size: 31px; }
+    .kpi-card .kpi-num { font-size: 31px; }
+    .section-title { font-size: 17.5px; }
+    .chart-wrap { height: 250px; }
+    .race-wrap { padding: 20px; }
+}
 
 /* ── SIDEBAR SHELL (estética tipo dashboard) ── */
 .app-shell { display: flex; min-height: 100vh; }
