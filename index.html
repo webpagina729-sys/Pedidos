@@ -11019,17 +11019,24 @@ window.addEventListener('load', init);
         wrap.innerHTML = SOC_CERRADAS_CACHE.map(function (s) {
             var sub = esc(s.categoriaLabel || s.categoria || '—') + (s.ciudad ? ' · ' + esc(s.ciudad) : '');
             var miembros = Array.isArray(s.miembros) ? s.miembros : [];
+            // 🆕 Si llegó a tener un pedido pooled (pagado o no) antes de
+            // cerrarse, se muestra el reparto real por integrante en vez de
+            // la lista liviana de "quién estaba invitado".
+            var tuvoPedido = !!(s.pedidoId && Array.isArray(s.repartoPorMiembro) && s.repartoPorMiembro.length);
+            var totalGrupo = tuvoPedido ? s.repartoPorMiembro.reduce(function (t, m) { return t + Number(m.totalMayorista || 0); }, 0) : 0;
             var cuerpo = '<div style="margin-top:4px">' +
                 ln('Creador', esc(s.creadorNombre || s.creadorCodigo)) +
                 ln('Creada', fdh(s.creadoEn)) +
                 ln('Cerrada', fdh(s.cerradaEn)) +
+                (tuvoPedido ? ln('Pedido pooled', esc(s.pedidoId)) + ln('Estado de pago', esc(s.estadoPago || '—')) + (s.pagadoEn ? ln('Pagada', fdh(s.pagadoEn)) : '') : '') +
                 '</div>' +
-                '<div class="soc-grp">Integrantes</div>' +
-                (miembros.length ? miembros.map(function (m) {
-                    return '<div class="soc-member"><span><span class="soc-mn">' + esc(m.nombre || m.codigo) + '</span>' +
-                        '<br><span class="soc-mm">' + esc(m.codigo || '') + '</span></span></div>';
-                }).join('') : '<div class="soc-empty">Sin integrantes.</div>');
-            return rib(esc(s.creadorNombre || s.creadorCodigo), sub, null, cuerpo);
+                (tuvoPedido
+                    ? '<div class="soc-grp">Reparto por integrante</div>' + bloqueMiembros(s)
+                    : '<div class="soc-grp">Integrantes</div>' + (miembros.length ? miembros.map(function (m) {
+                        return '<div class="soc-member"><span><span class="soc-mn">' + esc(m.nombre || m.codigo) + '</span>' +
+                            '<br><span class="soc-mm">' + esc(m.codigo || '') + '</span></span></div>';
+                    }).join('') : '<div class="soc-empty">Sin integrantes.</div>'));
+            return rib(esc(s.creadorNombre || s.creadorCodigo), sub, tuvoPedido ? money(totalGrupo) : null, cuerpo);
         }).join('');
     }
     SOC.toggleHistorial = function () {
@@ -11084,6 +11091,181 @@ window.addEventListener('load', init);
         return rib(esc(s.creadorNombre || s.creadorCodigo), sub, null, cuerpo);
     }
 
+    // 🆕 Datos de la última carga (para poder repintar con "Ver más" sin
+    // volver a pedirle todo al Worker) y de cuántas tarjetas se muestran
+    // por grupo ("ordenadas de 5 en 5").
+    var SOC_LAST_DATA = null;
+    var SOC_PAG = { enFormacion: 5, enProceso: 5, pagadas: 5 };
+
+    // 🆕 Ganancia real de una sociedad pagada: suma de la ganancia de cada
+    // pedido de cada integrante (el pedido pooled en sí figura en $0 a
+    // propósito — ver handlePagar — así que hay que sumarlo desde el reparto).
+    function _socGananciaTotal(s) {
+        return (s.repartoPorMiembro || []).reduce(function (t, m) {
+            return t + (m.pedidos || []).reduce(function (tt, p) { return tt + Number(p.ganancia || 0); }, 0);
+        }, 0);
+    }
+    function _socFacturacionTotal(s) {
+        return (s.repartoPorMiembro || []).reduce(function (t, m) { return t + Number(m.totalMayorista || 0); }, 0);
+    }
+
+    // 🆕 Sección de una lista de sociedades, paginada de 5 en 5. Si
+    // agruparPorCiudad es true, agrupa SOLO lo que está visible (para que
+    // los encabezados de ciudad coincidan siempre con las tarjetas mostradas).
+    function seccionPaginada(titulo, lista, grupoKey, renderCard, agruparPorCiudad) {
+        var mostrar = Math.min(SOC_PAG[grupoKey] || 5, lista.length);
+        var visibles = lista.slice(0, mostrar);
+        var html = '<div class="soc-grp">' + titulo + '</div>';
+        if (agruparPorCiudad) {
+            var porCiudad = {};
+            visibles.forEach(function (s) { var c = s.ciudad || 'Sin ciudad'; (porCiudad[c] = porCiudad[c] || []).push(s); });
+            Object.keys(porCiudad).sort().forEach(function (ciudad) {
+                html += '<div class="soc-s" style="margin:10px 0 4px;font-weight:700">' + esc(ciudad) + '</div>' +
+                    porCiudad[ciudad].map(renderCard).join('');
+            });
+        } else {
+            html += visibles.map(renderCard).join('');
+        }
+        if (lista.length > mostrar) {
+            html += '<button type="button" class="soc-hist-btn" onclick="SOC.verMas(\'' + grupoKey + '\')">Ver 5 más (quedan ' + (lista.length - mostrar) + ')</button>';
+        }
+        return html;
+    }
+    SOC.verMas = function (grupoKey) {
+        SOC_PAG[grupoKey] = (SOC_PAG[grupoKey] || 5) + 5;
+        pintarSociedades();
+    };
+
+    // 🆕 Mini "carrera" reutilizando la misma estética que las demás
+    // (race-row/race-rank/race-body/race-track/race-fill), para rankings
+    // de sociedades/vendedores en vez de productos.
+    function renderRaceSociedades(wrapId, items) {
+        var wrapEl = document.getElementById(wrapId);
+        if (!wrapEl) return;
+        if (!items.length) { wrapEl.innerHTML = '<div class="soc-empty">Sin datos suficientes todavía.</div>'; return; }
+        var max = items[0].valor || 1;
+        wrapEl.innerHTML = items.map(function (it, i) {
+            return '<div class="race-row">' +
+                '<div class="race-rank">' + (i + 1) + '</div>' +
+                '<div class="race-icon">' + (i === 0 ? '🏆' : '●') + '</div>' +
+                '<div class="race-body">' +
+                    '<div class="race-top"><span class="race-name">' + esc(it.nombre) + (it.sub ? ' <span style="color:var(--text3);font-weight:500">· ' + esc(it.sub) + '</span>' : '') + '</span><span class="race-val">' + money(it.valor) + '</span></div>' +
+                    '<div class="race-track"><div class="race-fill" data-w="' + Math.max(4, (it.valor / max * 100)) + '"></div></div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+            wrapEl.querySelectorAll('.race-fill').forEach(function (f) { f.style.width = f.dataset.w + '%'; });
+        }); });
+    }
+
+    function renderFacturacionSociedades(pagadas) {
+        var ctx = document.getElementById('canvas-soc-fact');
+        if (!ctx || typeof Chart === 'undefined') return;
+        var weeks = [];
+        var now = Date.now();
+        for (var i = 7; i >= 0; i--) {
+            var start = now - (i + 1) * 7 * 86400000;
+            var end = now - i * 7 * 86400000;
+            var hasta = i === 0 ? end + 86400000 : end;
+            var val = pagadas.filter(function (s) { return s.pagadoEn >= start && s.pagadoEn < hasta; }).reduce(function (t, s) { return t + _socFacturacionTotal(s); }, 0);
+            weeks.push({ label: new Date(end).toLocaleString('es-AR', { month: 'short', day: 'numeric' }), val: val });
+        }
+        var previo = Chart.getChart(ctx); if (previo) previo.destroy();
+        var grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 220);
+        grad.addColorStop(0, 'rgba(0,102,255,.35)'); grad.addColorStop(1, 'rgba(0,102,255,0)');
+        new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: { labels: weeks.map(function (w) { return w.label; }), datasets: [{
+                label: 'Facturación', data: weeks.map(function (w) { return w.val; }), fill: true, tension: .35,
+                borderColor: '#2d8bff', borderWidth: 1, backgroundColor: grad, pointRadius: 2, pointBackgroundColor: '#2d8bff'
+            }] },
+            plugins: [GLOW_MAYOR],
+            options: { responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, glowMayor: { index: 0, color: '#2d8bff' }, tooltip: { callbacks: { label: function (c) { return money(c.parsed.y); } } } },
+                scales: { x: { ticks: { color: '#9aa0b4', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+                          y: { ticks: { color: '#9aa0b4', font: { size: 10 }, callback: function (v) { return '$' + v.toLocaleString(); } }, grid: { color: 'rgba(255,255,255,.04)' }, beginAtZero: true } } }
+        });
+    }
+
+    function renderCiudadesBarSociedades(pagadas) {
+        var ctx = document.getElementById('canvas-soc-ciudad');
+        if (!ctx || typeof Chart === 'undefined') return;
+        var porCiudad = {};
+        pagadas.forEach(function (s) {
+            var c = s.ciudadLabel || s.ciudad || 'Sin ciudad';
+            porCiudad[c] = (porCiudad[c] || 0) + _socGananciaTotal(s);
+        });
+        var top = Object.keys(porCiudad).map(function (c) { return { ciudad: c, valor: porCiudad[c] }; }).sort(function (a, b) { return b.valor - a.valor; }).slice(0, 8);
+        var previo = Chart.getChart(ctx); if (previo) previo.destroy();
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: { labels: top.map(function (t) { return t.ciudad; }), datasets: [{ label: 'Ganancia', data: top.map(function (t) { return Math.round(t.valor); }), backgroundColor: 'rgba(0,201,110,.75)', borderColor: '#00c96e', borderWidth: 0, borderRadius: 2, maxBarThickness: 28 }] },
+            plugins: [GLOW_MAYOR],
+            options: { responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, glowMayor: (function () { var vals = top.map(function (t) { return Math.round(t.valor); }); var mx = Math.max(0, Math.max.apply(null, vals.length ? vals : [0])); return mx > 0 ? { barra: vals.indexOf(mx), color: '#00ff85' } : false; })(), tooltip: { callbacks: { label: function (c) { return money(c.parsed.y); } } } },
+                scales: { x: { ticks: { color: '#9aa0b4', font: { size: 10 } }, grid: { display: false } },
+                          y: { ticks: { color: '#9aa0b4', font: { size: 10 }, callback: function (v) { return '$' + v.toLocaleString(); } }, grid: { color: 'rgba(255,255,255,.04)' }, beginAtZero: true } } }
+        });
+    }
+
+    function renderCategoriasDonutSociedades(pagadas) {
+        var ctx = document.getElementById('canvas-soc-cat');
+        if (!ctx) return;
+        var porCat = {};
+        pagadas.forEach(function (s) {
+            var key = s.categoriaLabel || s.categoria || 'Otra';
+            porCat[key] = (porCat[key] || 0) + 1;
+        });
+        var nombres = Object.keys(porCat);
+        var valores = nombres.map(function (n) { return porCat[n]; });
+        var colores = nombres.map(function (_, i) { return CAT_NEON_COLORES[i % CAT_NEON_COLORES.length]; });
+        if (typeof Chart !== 'undefined') {
+            var previo = Chart.getChart(ctx); if (previo) previo.destroy();
+            new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: nombres, datasets: [{ data: valores, backgroundColor: colores, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+        var chartWrap = ctx.closest('.chart-wrap');
+        if (chartWrap) {
+            var leg = chartWrap.parentNode.querySelector('.cat-legend');
+            if (!leg) { leg = document.createElement('div'); leg.className = 'cat-legend'; chartWrap.parentNode.appendChild(leg); }
+            leg.innerHTML = nombres.length
+                ? nombres.map(function (n, i) { return '<div class="cat-legend-item"><span class="cat-dot" style="background:' + colores[i] + ';box-shadow:0 0 5px ' + colores[i] + '99"></span><span>' + esc(n) + '</span></div>'; }).join('')
+                : '<div class="cat-legend-item">Sin datos todavía.</div>';
+        }
+    }
+
+    // 🆕 Dibuja el panel de estadísticas de sociedades (facturación, ciudades,
+    // categorías, mejores sociedades y vendedores más activos). Se llama
+    // siempre después de pintar el innerHTML, para que los <canvas> ya
+    // existan en el DOM.
+    function pintarEstadisticasSociedades(pagadas) {
+        renderFacturacionSociedades(pagadas);
+        renderCategoriasDonutSociedades(pagadas);
+        renderCiudadesBarSociedades(pagadas);
+        var itemsMejores = pagadas.map(function (s) {
+            return { nombre: s.creadorNombre || s.creadorCodigo, sub: s.ciudadLabel || s.ciudad, valor: _socGananciaTotal(s) };
+        }).sort(function (a, b) { return b.valor - a.valor; }).slice(0, 8);
+        renderRaceSociedades('soc-race-mejores', itemsMejores);
+        var porVendedor = {};
+        pagadas.forEach(function (s) {
+            var ciudadS = s.ciudadLabel || s.ciudad || '';
+            (s.repartoPorMiembro || []).forEach(function (m) {
+                var key = m.codigo || m.nombre;
+                if (!key) return;
+                if (!porVendedor[key]) porVendedor[key] = { nombre: m.nombre || m.codigo, ciudad: ciudadS, valor: 0 };
+                porVendedor[key].valor += (m.pedidos || []).reduce(function (t, p) { return t + Number(p.ganancia || 0); }, 0);
+            });
+        });
+        var itemsVendedores = Object.keys(porVendedor).map(function (k) { return porVendedor[k]; })
+            .sort(function (a, b) { return b.valor - a.valor; }).slice(0, 8)
+            .map(function (v) { return { nombre: v.nombre, sub: v.ciudad, valor: v.valor }; });
+        renderRaceSociedades('soc-race-vendedores', itemsVendedores);
+    }
+
     async function renderSociedades() {
         var wrap = document.getElementById('sociedades-wrap'); if (!wrap) return;
         wrap.innerHTML = '<div class="loader"><div class="spin"></div><p>Cargando sociedades...</p></div>';
@@ -11092,6 +11274,18 @@ window.addEventListener('load', init);
             wrap.innerHTML = '<div class="soc-empty">No se pudieron cargar las sociedades' + (d && d.error ? ' (' + esc(d.error) + ')' : '') + '.</div>';
             return;
         }
+        SOC_LAST_DATA = d;
+        SOC_PAG = { enFormacion: 5, enProceso: 5, pagadas: 5 }; // arranca de nuevo la paginación en cada carga
+        pintarSociedades();
+    }
+
+    // 🆕 Repinta la vista de Sociedades a partir de los datos ya cargados
+    // (SOC_LAST_DATA), sin volver a pedirle nada al Worker — lo usan tanto
+    // renderSociedades() (primera carga) como "Ver más" (misma data, más
+    // tarjetas visibles).
+    function pintarSociedades() {
+        var wrap = document.getElementById('sociedades-wrap'); if (!wrap) return;
+        var d = SOC_LAST_DATA || {};
         var pedidos = Array.isArray(d.pedidos) ? d.pedidos : [];
         // 🆕 Sociedades sin pedido todavía (en formación), agrupadas por ciudad.
         var enFormacion = Array.isArray(d.sociedadesEnProceso) ? d.sociedadesEnProceso : [];
@@ -11099,10 +11293,6 @@ window.addEventListener('load', init);
         // el botón de historial (ver más abajo), no se pinta hasta que se
         // abre, para no cargar la vista de entrada con algo que ya pasó.
         SOC_CERRADAS_CACHE = Array.isArray(d.sociedadesCerradas) ? d.sociedadesCerradas : [];
-        if (!pedidos.length && !enFormacion.length) {
-            wrap.innerHTML = '<div class="soc-empty">Todavía no hay ninguna sociedad con un pedido hecho.</div>';
-            return;
-        }
         var pagadas = pedidos.filter(function (s) { return s.estadoPago === 'APROBADO'; });
         var enProceso = pedidos.filter(function (s) { return s.estadoPago !== 'APROBADO'; });
         var totalMayoristaPagado = pagadas.reduce(function (t, s) { return t + (s.repartoPorMiembro || []).reduce(function (tt, m) { return tt + Number(m.totalMayorista || 0); }, 0); }, 0);
@@ -11115,28 +11305,39 @@ window.addEventListener('load', init);
             '<div class="soc-stat"><div class="soc-sv">' + money(totalMayoristaPagado) + '</div><div class="soc-sl">Total mayorista pagado</div></div>' +
             '<div class="soc-stat"><div class="soc-sv">' + totalIntegrantes + '</div><div class="soc-sl">Integrantes en sociedades pagadas</div></div>' +
             '</div>';
-        // 🆕 Botón de historial de sociedades cerradas, justo debajo de las
-        // estadísticas (donde ya estaba pensado el CSS .soc-hist-btn).
-        stats += SOC_CERRADAS_CACHE.length
-            ? '<button type="button" class="soc-hist-btn" onclick="SOC.toggleHistorial()">' + CHEV_HIST + 'Sociedades cerradas (' + SOC_CERRADAS_CACHE.length + ')</button>' +
-              '<div id="soc-cerradas-wrap" style="display:none;margin-bottom:16px"></div>'
-            : '';
+        // 🔧 FIX: el botón de historial ahora se muestra SIEMPRE (antes solo
+        // aparecía si ya había sociedades cerradas, y además quedaba adentro
+        // de un bloque que se descartaba entero si no había pedidos/en
+        // formación — por eso nunca se veía). Si no hay cerradas, al abrirlo
+        // simplemente muestra "No hay sociedades cerradas."
+        stats += '<button type="button" class="soc-hist-btn" onclick="SOC.toggleHistorial()">' + CHEV_HIST + 'Sociedades cerradas (' + SOC_CERRADAS_CACHE.length + ')</button>' +
+            '<div id="soc-cerradas-wrap" style="display:none;margin-bottom:16px"></div>';
         var h = stats;
-        if (enFormacion.length) {
-            var porCiudad = {};
-            enFormacion.forEach(function (s) {
-                var c = s.ciudad || 'Sin ciudad';
-                (porCiudad[c] = porCiudad[c] || []).push(s);
-            });
-            h += '<div class="soc-grp">Sociedades en formación (sin pedido todavía)</div>';
-            Object.keys(porCiudad).sort().forEach(function (ciudad) {
-                h += '<div class="soc-s" style="margin:10px 0 4px;font-weight:700">' + esc(ciudad) + '</div>' +
-                    porCiudad[ciudad].map(tarjetaSociedadEnFormacion).join('');
-            });
+        var hayAlgo = pedidos.length || enFormacion.length;
+        if (!hayAlgo) {
+            h += '<div class="soc-empty">Todavía no hay ninguna sociedad con un pedido hecho.</div>';
+        } else {
+            if (enFormacion.length) h += seccionPaginada('Sociedades en formación (sin pedido todavía)', enFormacion, 'enFormacion', tarjetaSociedadEnFormacion, true);
+            if (enProceso.length) h += seccionPaginada('Pago en proceso', enProceso, 'enProceso', tarjetaSociedad, false);
+            if (pagadas.length) h += seccionPaginada('Pagadas', pagadas, 'pagadas', tarjetaSociedad, false);
         }
-        if (enProceso.length) h += '<div class="soc-grp">Pago en proceso</div>' + enProceso.map(tarjetaSociedad).join('');
-        if (pagadas.length) h += '<div class="soc-grp">Pagadas</div>' + pagadas.map(tarjetaSociedad).join('');
+        // 🆕 Línea divisoria + panel de estadísticas de sociedades, siempre
+        // debajo de las tarjetas (tengan datos o no).
+        h += '<hr style="border:none;border-top:1px solid var(--border2);margin:28px 0 18px">' +
+            '<div class="section-block">' +
+                '<h2 class="section-title">Estadísticas de sociedades</h2>' +
+                '<div class="charts-row">' +
+                    '<div class="chart-card"><h4>Facturación de sociedades <span>últimas 8 semanas</span></h4><div class="chart-wrap"><canvas id="canvas-soc-fact"></canvas></div></div>' +
+                    '<div class="chart-card"><h4>Categorías más elegidas</h4><div class="chart-wrap"><canvas id="canvas-soc-cat"></canvas></div></div>' +
+                '</div>' +
+                '<div class="chart-card" style="margin-bottom:18px"><h4>Ciudades con mejores sociedades <span>por ganancia</span></h4><div class="chart-wrap"><canvas id="canvas-soc-ciudad"></canvas></div></div>' +
+                '<h2 class="section-title" style="margin-top:4px">Sociedades con más ganancias</h2>' +
+                '<div class="race-wrap" id="soc-race-mejores"></div>' +
+                '<h2 class="section-title" style="margin-top:18px">Vendedores más activos en sociedades</h2>' +
+                '<div class="race-wrap" id="soc-race-vendedores"></div>' +
+            '</div>';
         wrap.innerHTML = h;
+        pintarEstadisticasSociedades(pagadas);
     }
 
     // ───────── Navegación: vista "Sociedades" ─────────
