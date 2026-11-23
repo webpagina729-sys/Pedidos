@@ -8357,6 +8357,8 @@ const _ICO_QUITAR = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="
 // Tachito gris: eliminar un repositorio de imágenes (nº1 al nº5), tanto en
 // "Cargar productos" como en "Agregar Categoría".
 const _ICO_BASURA = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+// 🆕 Lápiz para "Renombrar categoría" (mismo estilo/tamaño que _ICO_BASURA).
+const _ICO_LAPIZ = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>';
 
 function _sumarProductosLocales(clave, productos) {
     Object.keys(CATALOGO_PRODUCTOS_GLOBAL).filter(sc => _claveCatalogoCentral(sc) === clave).forEach(sc => {
@@ -8578,14 +8580,92 @@ async function cargarCategoriasExtraLista() {
     const cats = (res && res.ok && Array.isArray(res.categorias)) ? res.categorias : [];
     if (!cats.length) return;
     box.style.display = 'block';
+    // 🆕 _catExtraDatos guarda nombre/perfil de cada categoría agregada (por
+    // id) para que renombrarCategoriaExtra()/cancelarRenombrarCategoriaExtra()
+    // puedan repintar su fila sin tener que volver a pedirle la lista entera
+    // al Worker cada vez.
+    window._catExtraDatos = {};
+    cats.forEach(c => { window._catExtraDatos[c.id] = c; });
     box.innerHTML = '<label style="display:block;font-size:12.5px;margin:0 0 6px">Categorías ya creadas</label>' +
-        cats.map(c => `<div class="cp-linea" style="display:flex;align-items:center;gap:8px;justify-content:space-between">
-            <div style="min-width:0;overflow:hidden">
-                <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.nombre)}</div>
-                <div style="font-size:11px;color:var(--text3)">${c.perfil === 2 ? 'Más categorías' : 'Inicio'}</div>
-            </div>
-            <button type="button" class="btn-act" title="Eliminar categoría" style="flex-shrink:0;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="eliminarCategoriaExtra('${esc(c.id)}','${esc(c.nombre).replace(/'/g, "\\'")}')">${_ICO_BASURA}</button>
-        </div>`).join('');
+        cats.map(c => _filaCategoriaExtraHTML(c)).join('');
+}
+
+// 🆕 Arma la fila de una categoría agregada en modo "solo lectura" (nombre +
+// lápiz para renombrar + tacho para eliminar). Separado en su propia función
+// porque renombrarCategoriaExtra()/guardarNombreCategoriaExtra() necesitan
+// volver a dibujar esta misma fila sin repintar toda la lista.
+function _filaCategoriaExtraHTML(c) {
+    return `<div class="cp-linea" id="cat-extra-fila-${esc(c.id)}" style="display:flex;align-items:center;gap:8px;justify-content:space-between">
+        <div style="min-width:0;overflow:hidden">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.nombre)}</div>
+            <div style="font-size:11px;color:var(--text3)">${c.perfil === 2 ? 'Más categorías' : 'Inicio'}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+            <button type="button" class="btn-act" title="Renombrar categoría" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="renombrarCategoriaExtra('${esc(c.id)}')">${_ICO_LAPIZ}</button>
+            <button type="button" class="btn-act" title="Eliminar categoría" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center" onclick="eliminarCategoriaExtra('${esc(c.id)}','${esc(c.nombre).replace(/'/g, "\\'")}')">${_ICO_BASURA}</button>
+        </div>
+    </div>`;
+}
+
+// 🆕 Pasa la fila de una categoría agregada a modo edición: un campo de
+// texto con el nombre actual + Guardar/Cancelar, reutilizando los mismos
+// estilos (.rvndr-search, .btn-act) que ya usa este mismo modal — no agrega
+// CSS nuevo. Solo cambia el texto visible (nombre); no toca el catálogo de
+// productos de esa categoría ni ningún pedido, que se guardan por su "id",
+// no por este nombre.
+function renombrarCategoriaExtra(id) {
+    const c = (window._catExtraDatos || {})[id];
+    const fila = document.getElementById('cat-extra-fila-' + id);
+    if (!c || !fila) return;
+    fila.outerHTML = `<div class="cp-linea" id="cat-extra-fila-${esc(id)}">
+        <div class="cp-add" style="gap:6px">
+            <input type="text" id="cat-extra-input-${esc(id)}" class="rvndr-search" value="${esc(c.nombre)}" maxlength="80" style="margin-bottom:0">
+            <button type="button" class="btn-act" title="Guardar" style="flex-shrink:0;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#16a34a" onclick="guardarNombreCategoriaExtra('${esc(id)}')">✓</button>
+            <button type="button" class="btn-act" title="Cancelar" style="flex-shrink:0;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#ef4444" onclick="cancelarRenombrarCategoriaExtra('${esc(id)}')">✕</button>
+        </div>
+    </div>`;
+    const input = document.getElementById('cat-extra-input-' + id);
+    if (input) { input.focus(); input.select(); }
+}
+
+function cancelarRenombrarCategoriaExtra(id) {
+    const c = (window._catExtraDatos || {})[id];
+    const fila = document.getElementById('cat-extra-fila-' + id);
+    if (!c || !fila) return;
+    fila.outerHTML = _filaCategoriaExtraHTML(c);
+}
+
+// 🆕 Guarda el nuevo nombre vía /api/categorias/editar (el mismo endpoint ya
+// usado por "Agregar Categoría" para crearla, hasta ahora sin conectar a
+// ningún botón) — edita solo el metadato "nombre" de categoriasExtra, nunca
+// toca cat:<id> (catálogo de productos) ni ningún pedido. Los carruseles de
+// index.html/index(1).html/mas-categorias.html leen este nombre en vivo
+// desde /api/categorias/listar, así que el cambio se refleja solo, sin
+// tocar esos archivos.
+async function guardarNombreCategoriaExtra(id) {
+    const input = document.getElementById('cat-extra-input-' + id);
+    const nombre = input ? input.value.trim() : '';
+    if (!nombre) { toast('Poné un nombre para la categoría', 'err'); return; }
+    const res = await fetchJson(WORKER_PRECIOS + '/api/categorias/editar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panel-Admin-Key': PANEL_ADMIN_KEY },
+        body: JSON.stringify({ id, nombre })
+    });
+    if (!res || !res.ok) {
+        toast('No se pudo renombrar la categoría' + (res && res.error ? ': ' + res.error : ''), 'err');
+        return;
+    }
+    if (window._catExtraDatos && window._catExtraDatos[id]) window._catExtraDatos[id].nombre = nombre;
+    // Si esta categoría ya está cargada en memoria en esta sesión del panel
+    // (Stock), se actualiza también ahí para que el nuevo nombre se vea sin
+    // tener que recargar la página.
+    if (typeof STOCK_CAT_LABELS !== 'undefined' && STOCK_CAT_LABELS[id] !== undefined) STOCK_CAT_LABELS[id] = nombre;
+    const fila = document.getElementById('cat-extra-fila-' + id);
+    if (fila) fila.outerHTML = _filaCategoriaExtraHTML(window._catExtraDatos[id]);
+    toast('Categoría renombrada a "' + nombre + '"', true);
+    if (typeof renderStockLista === 'function') renderStockLista();
+    const sel = document.getElementById('stock-cat-select');
+    if (sel) sel.innerHTML = Object.entries(STOCK_CAT_LABELS).map(([k, l]) => `<option value="${k}" ${k === stockCatActual ? 'selected' : ''}>${l}</option>`).join('');
 }
 
 // 🆕 Elimina para siempre una categoría creada con "Agregar Categoría":
