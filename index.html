@@ -11237,6 +11237,54 @@ window.addEventListener('load', init);
         });
     }
 
+    // 🆕 NUEVO: "Ciudades con + sociedades" — cantidad de sociedades por
+    // ciudad (no plata), separando confirmadas (ya pagadas, verde) de
+    // pendientes (con pedido armado, todavía sin pagar, ámbar). Las
+    // sociedades "en formación" (sin ningún pedido adentro todavía) no
+    // cuentan acá — recién entran cuando algún integrante hace su primer
+    // pedido. Mismo criterio de colores que usa Carrera de Afiliados.
+    function renderCiudadesCantidadSociedades(enProceso, pagadas) {
+        var ctx = document.getElementById('canvas-soc-ciudad-cant');
+        if (!ctx || typeof Chart === 'undefined') return;
+        var porCiudad = {};
+        function sumar(lista, campo) {
+            lista.forEach(function (s) {
+                var c = s.ciudadLabel || s.ciudad || 'Sin ciudad';
+                if (!porCiudad[c]) porCiudad[c] = { confirmadas: 0, pendientes: 0 };
+                porCiudad[c][campo]++;
+            });
+        }
+        sumar(pagadas, 'confirmadas');
+        sumar(enProceso, 'pendientes');
+        var top = Object.keys(porCiudad)
+            .map(function (c) { return { ciudad: c, confirmadas: porCiudad[c].confirmadas, pendientes: porCiudad[c].pendientes }; })
+            .sort(function (a, b) { return (b.confirmadas + b.pendientes) - (a.confirmadas + a.pendientes); })
+            .slice(0, 8);
+        var previo = Chart.getChart(ctx); if (previo) previo.destroy();
+        if (!top.length) {
+            // Chart.js con datasets vacíos deja el canvas en blanco sin avisar —
+            // mismo patrón de "sin datos" que ya usa el donut de categorías.
+            var wrap = ctx.closest('.chart-wrap');
+            if (wrap) wrap.innerHTML = '<div class="cat-legend-item" style="padding:30px 0;text-align:center;width:100%">Todavía no hay sociedades con pedidos.</div>';
+            return;
+        }
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: top.map(function (t) { return t.ciudad; }),
+                datasets: [
+                    { label: 'Confirmadas', data: top.map(function (t) { return t.confirmadas; }), backgroundColor: 'rgba(0,201,110,.75)', borderColor: '#00c96e', borderWidth: 0, borderRadius: 2, maxBarThickness: 22 },
+                    { label: 'Pendientes', data: top.map(function (t) { return t.pendientes; }), backgroundColor: 'rgba(255,212,59,.55)', borderColor: '#ffd43b', borderWidth: 0, borderRadius: 2, maxBarThickness: 22 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'bottom', labels: { color: '#9aa0b4', font: { size: 10.5 }, boxWidth: 10, padding: 10 } },
+                    tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + c.parsed.y; } } } },
+                scales: { x: { ticks: { color: '#9aa0b4', font: { size: 10 } }, grid: { display: false } },
+                          y: { ticks: { color: '#9aa0b4', font: { size: 10 }, stepSize: 1, precision: 0 }, grid: { color: 'rgba(255,255,255,.04)' }, beginAtZero: true } } }
+        });
+    }
+
     function renderCiudadesBarSociedades(pagadas) {
         var ctx = document.getElementById('canvas-soc-ciudad');
         if (!ctx || typeof Chart === 'undefined') return;
@@ -11258,11 +11306,17 @@ window.addEventListener('load', init);
         });
     }
 
-    function renderCategoriasDonutSociedades(pagadas) {
+    // 🔧 FIX: antes recibía solo "pagadas" — una sociedad recién creada
+    // ("en formación", sin pedido todavía) ya eligió categoría desde el
+    // momento en que se arma, pero nunca contaba acá hasta que alguien
+    // pagara (podía tardar meses). Ahora recibe TODAS las sociedades que
+    // existen (en formación + en proceso + pagadas) — "elegidas" es sobre
+    // qué categoría se eligió al crear, no sobre qué ya se vendió.
+    function renderCategoriasDonutSociedades(todasLasSociedades) {
         var ctx = document.getElementById('canvas-soc-cat');
         if (!ctx) return;
         var porCat = {};
-        pagadas.forEach(function (s) {
+        todasLasSociedades.forEach(function (s) {
             var key = s.categoriaLabel || s.categoria || 'Otra';
             porCat[key] = (porCat[key] || 0) + 1;
         });
@@ -11291,9 +11345,10 @@ window.addEventListener('load', init);
     // categorías, mejores sociedades y vendedores más activos). Se llama
     // siempre después de pintar el innerHTML, para que los <canvas> ya
     // existan en el DOM.
-    function pintarEstadisticasSociedades(pagadas) {
+    function pintarEstadisticasSociedades(pagadas, enProceso, enFormacion) {
         renderFacturacionSociedades(pagadas);
-        renderCategoriasDonutSociedades(pagadas);
+        renderCategoriasDonutSociedades([].concat(enFormacion || [], enProceso || [], pagadas));
+        renderCiudadesCantidadSociedades(enProceso || [], pagadas);
         renderCiudadesBarSociedades(pagadas);
         var itemsMejores = pagadas.map(function (s) {
             return { nombre: s.creadorNombre || s.creadorCodigo, sub: s.ciudadLabel || s.ciudad, valor: _socGananciaTotal(s) };
@@ -11379,6 +11434,7 @@ window.addEventListener('load', init);
                     '<div class="chart-card"><h4>Facturación de sociedades <span>últimas 8 semanas</span></h4><div class="chart-wrap"><canvas id="canvas-soc-fact"></canvas></div></div>' +
                     '<div class="chart-card"><h4>Categorías más elegidas</h4><div class="chart-wrap"><canvas id="canvas-soc-cat"></canvas></div></div>' +
                 '</div>' +
+                '<div class="chart-card" style="margin-bottom:18px"><h4>Ciudades con + sociedades <span>confirmadas y pendientes</span></h4><div class="chart-wrap"><canvas id="canvas-soc-ciudad-cant"></canvas></div></div>' +
                 '<div class="chart-card" style="margin-bottom:18px"><h4>Ciudades con mejores sociedades <span>por ganancia</span></h4><div class="chart-wrap"><canvas id="canvas-soc-ciudad"></canvas></div></div>' +
                 '<h2 class="section-title" style="margin-top:4px">Sociedades con más ganancias</h2>' +
                 '<div class="race-wrap" id="soc-race-mejores"></div>' +
@@ -11386,7 +11442,7 @@ window.addEventListener('load', init);
                 '<div class="race-wrap" id="soc-race-vendedores"></div>' +
             '</div>';
         wrap.innerHTML = h;
-        pintarEstadisticasSociedades(pagadas);
+        pintarEstadisticasSociedades(pagadas, enProceso, enFormacion);
     }
 
     // ───────── Navegación: vista "Sociedades" ─────────
