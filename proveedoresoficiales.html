@@ -3102,8 +3102,15 @@ function onTurnstileGateOk(token) {
     init();
 }
 function onTurnstileGateExpired() {
+    // 🔧 FIX: este callback lo dispara el propio widget de Cloudflare SOLO,
+    // cada ~5 minutos, aunque el proveedor ya tenga un sessionToken de 40
+    // minutos todavía vigente (son dos vencimientos independientes). Antes
+    // acá se borraba también window._sessionToken, así que a los 5 minutos
+    // de entrar al panel la sesión buena desaparecía sola y "Actualizar"
+    // volvía a exigir el casillero. Ahora solo se descarta el token de
+    // Turnstile ya vencido (que de verdad no sirve más) y la sesión real
+    // sigue viva hasta que corresponda.
     window._turnstileGateToken = null;
-    window._sessionToken = null;
     document.getElementById('turnstile-gate-error').textContent = 'La verificación expiró. Volvé a marcar el casillero.';
     document.getElementById('turnstile-gate-error').classList.add('show');
 }
