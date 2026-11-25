@@ -7785,7 +7785,10 @@ const STOCK_CAT_SUBCATS = {
     lenceria: ['lenceria'],
     suplementos: ['suplementos'],
     indumentaria: ['indumentaria'],
-    multishop: ['electronicos'],
+    // 🔧 FIX: "multishop" agrupa Perfumería, Belleza (maquillaje), Bazar,
+    // Juguetería, Librería y Electrónicos — antes solo tenía 'electronicos'
+    // (idéntico al mismo mapeo en workerproveedores_worker.js).
+    multishop: ['perfumes', 'belleza_maquillaje', 'bazar_bazar', 'bazar_melamina', 'jugueteria_juguetes', 'jugueteria_peluches', 'libreria', 'electronicos'],
 };
 let STOCK_GLOBAL_DATA = {};
 // 🆕 TAREA 59 — Aviso admin acumulado de cambios de stock por proveedor
