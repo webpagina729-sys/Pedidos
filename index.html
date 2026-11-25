@@ -272,7 +272,14 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 .ribbon-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .r-date { font-size: 11px; color: var(--text3); }
 .r-caret { width: 14px; height: 14px; color: var(--text3); transition: transform .25s; flex-shrink: 0; }
-.ribbon.expanded .r-caret { transform: rotate(180deg); }
+/* 🔧 FIX: antes era ".ribbon.expanded .r-caret" (sin ">"), así que rotaba
+   CUALQUIER flechita descendiente de una cinta abierta, sin importar cuántos
+   niveles de anidado hubiera — una cinta de categoría (ej. "Multishop")
+   dentro de la cinta de un revendedor (ej. "Karen Mendez") quedaba con su
+   flechita siempre apuntando para arriba en cuanto se abría la cinta del
+   revendedor, sin reflejar su propio estado. Con ">" (hijo directo) cada
+   flechita responde solo a si SU PROPIA cinta está abierta o cerrada. */
+.ribbon.expanded > .ribbon-head .r-caret { transform: rotate(180deg); }
 .ribbon-body { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
 .ribbon.expanded > .ribbon-body { max-height: 3000px; }
 .ribbon-inner { padding: 16px 18px; border-top: 1px solid var(--border); overflow-x: hidden; }
