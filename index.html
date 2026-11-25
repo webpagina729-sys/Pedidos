@@ -517,7 +517,14 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
 
 /* ── generic MODAL ── */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:450; display:none; align-items:center; justify-content:center; padding:16px; }
-.modal-overlay.show { display:flex; }
+/* 🔧 FIX: los modales de confirmación (.modal-overlay, z-index:450) podían
+   quedar tapados detrás de los paneles grandes (.rvndr-overlay, z-index:500 —
+   Info Rvndr, WhatsApp/enlace de proveedor, Avisos, etc.) cuando se abrían
+   con uno de esos paneles todavía visible detrás. Antes se había subido el
+   z-index de UN solo modal puntual (#aviso-eliminar-modal, ver más abajo)
+   para ese caso — acá se sube de forma pareja para los 18 modales de
+   confirmación del archivo, sin tocar .rvndr-overlay ni ningún otro estilo. */
+.modal-overlay.show { display:flex; z-index: 520; }
 /* 🔧 FIX: este modal de confirmación se abre arriba de "Avisos
    Publicados" (.rvndr-overlay, z-index:500) — con el z-index genérico
    de .modal-overlay (450) quedaba tapado detrás y parecía que el botón
