@@ -11813,17 +11813,65 @@ function _fpOrdenada() {
 }
 function _fpCuandoTxt(n) { return n > 1 ? ('faltan ' + n + ' días') : n === 1 ? 'falta 1 día' : n === 0 ? 'vence hoy' : ('vencida hace ' + (-n) + (n === -1 ? ' día' : ' días')); }
 function _fpColor(n) { return n < 0 ? 'var(--red)' : (n <= 2 ? 'var(--amber)' : 'var(--text3)'); }
-// 🆕 Botón "Notificar" (fila de un revendedor con fecha de pago VENCIDA en
-// "Fechas de pago esperadas") — mismo patrón que enviarRegalo/invitarComunidad
-// (vendorWa + wa.me): abre directo el chat de WhatsApp de ESE revendedor con
-// el mensaje ya escrito, pidiéndole que cargue su nueva fecha de pago antes
-// de que la vencida termine apareciendo en la factura de su cliente.
-function _fpNotificarVencido(codigo) {
-    const wa = vendorWa(codigo);
+// 🆕 Mensajes variados (siempre bien argentos) para "Volver a notificar" —
+// el mensaje ORIGINAL exacto (abajo, en _fpNotificarVencido) se usa solo la
+// primera vez; de ahí en más se elige uno distinto al azar cada vez, sin
+// repetir el mismo dos veces seguidas. Mismo contenido, tono distinto.
+var _FP_MSGS_REENVIO = [
+    (n) => `¡Che ${n}! ¿Todo bien? 🙋‍♂️ Te re-escribo porque la fecha de pago de tu panel sigue vencida ⏰. Cuando tengas un segundo, entrá y actualizala para que quede todo al día ✅\n\nOjo que si se la deja así, esa fecha vencida termina apareciendo en la factura de tu cliente como si fuera la fecha de entrega de la seña — y eso no lo queremos 🙅‍♂️\n\nEs cosa de un minuto. Cualquier cosa, me decís y te ayudo 🤝 ¡Gracias, ${n}! 🙌`,
+    (n) => `Hola ${n}, ¿qué tal? 👋 Te vuelvo a escribir porque todavía figura vencida la fecha de pago en tu panel ⏰. Cuando puedas date una vuelta y ponela al día, así no se te complica nada ✅\n\nTe lo marco porque si queda vencida, esa misma fecha le va a salir a tu cliente en la factura como entrega de la seña, y mejor evitarlo 🙅‍♂️\n\nTe toma un minuto nomás. Ante cualquier duda, avisame que te doy una mano 🤝 ¡Un abrazo, ${n}! 🙌`,
+    (n) => `¡Buenas ${n}! 😄 Pasaba a recordarte que la fecha de pago de tu panel sigue sin actualizar y ya venció ⏰. Cuando tengas un ratito, cargá la nueva y listo, queda todo en orden ✅\n\nEs importante porque, si no la cambiás, esa fecha vencida va a figurar en la factura de tu cliente como la entrega de la seña — y seguro no es lo que buscamos 🙅‍♂️\n\nEn un minuto lo solucionás. Cualquier consulta, escribime y te ayudo 🤝 ¡Gracias ${n}, abrazo! 🙌`,
+    (n) => `${n}, ¿cómo va? 🙌 Te aviso de nuevo que la fecha de pago que tenías puesta en el panel ya está vencida ⏰. Cuando puedas, entrá y actualizala para seguir todo prolijo ✅\n\nEl tema es que si queda así, esa fecha vencida aparece en la factura de tu cliente como fecha de entrega de la seña, y eso no nos conviene a ninguno 🙅‍♂️\n\nEs rapidísimo, un minuto y listo. Si te surge alguna duda, avisame 🤝 ¡Gracias y éxitos, ${n}! 🙌`,
+    (n) => `¡Hola de nuevo, ${n}! 👋 Te cuento que la fecha de pago en tu panel sigue vencida ⏰, así que cuando tengas un hueco, entrá y cargá la nueva, dale 🙏✅\n\nLo digo porque, mientras esté vencida, esa va a ser la fecha que le aparezca a tu cliente en la factura como entrega de la seña — y mejor que no pase eso 🙅‍♂️\n\nTe lleva un minuto nomás. Cualquier duda me tirás un mensaje y lo vemos 🤝 ¡Gracias ${n}! 🙌`,
+];
+var _fpUltimoMsgIdx = -1;
+function _fpMensajeReenvio(nombre) {
+    var i;
+    do { i = Math.floor(Math.random() * _FP_MSGS_REENVIO.length); } while (i === _fpUltimoMsgIdx && _FP_MSGS_REENVIO.length > 1);
+    _fpUltimoMsgIdx = i;
+    return _FP_MSGS_REENVIO[i](nombre);
+}
+// 🆕 Botón "Notificar"/"Volver a notificar" (fila de un revendedor con fecha
+// de pago VENCIDA en "Fechas de pago esperadas") — mismo patrón que
+// enviarRegalo/invitarComunidad (vendorWa + wa.me): abre directo el chat de
+// WhatsApp de ESE revendedor con el mensaje listo, pidiéndole que cargue su
+// nueva fecha de pago antes de que la vencida termine apareciendo en la
+// factura de su cliente.
+function _fpNotificarVencido(codigo, uid, yaNotificado) {
+    var v = vendorCache[(codigo || '').toUpperCase()];
+    // 🔧 El código guardado junto a la fecha de pago es una FOTO tomada el
+    // día que el revendedor la configuró — si después cambió su código de
+    // revendedor, esa foto queda vieja y ya no coincide con nadie en
+    // vendorCache. Como respaldo (sin tocar el dato guardado), se busca a
+    // la misma persona por uid (que nunca cambia) en la lista completa de
+    // revendedores, ya cargada en memoria.
+    if ((!v || !(v.whatsappRevendedor || v.telefono)) && uid && typeof REVENDEDORES_TODOS !== 'undefined') {
+        var r = REVENDEDORES_TODOS.find(function (x) { return x.uid === uid; });
+        if (r) v = r;
+    }
+    var wa = _normalizarWhatsappArgentino(v && (v.whatsappRevendedor || v.telefono));
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado', 'err'); return; }
-    const nombre = vendorLabel(codigo);
-    const msg = `¡Hola ${nombre}! ¿Cómo andás? 👋 Te escribo para avisarte que la fecha de pago que tenías configurada ya venció ⏰. Cuando puedas, entrá a tu panel y cargá la nueva fecha de pago así queda todo al día ✅\n\nTe lo cuento porque, si no la actualizás, la fecha vencida va a aparecer en la factura de tu cliente como fecha de entrega de la seña de sus pedidos, y seguro que no queremos que eso pase 🙅‍♂️\n\nTe lleva un minutito. Cualquier duda, avisame y te doy una mano 🤝 ¡Gracias y un abrazo! 🙌`;
+    // Nombre SOLO (sin apellido) para el mensaje.
+    var nombre = (v && v.nombre) || vendorLabel(codigo);
+    var msg = yaNotificado
+        ? _fpMensajeReenvio(nombre)
+        : `¡Hola ${nombre}! ¿Cómo andás? 👋 Te escribo para avisarte que la fecha de pago que tenías configurada ya venció ⏰. Cuando puedas, entrá a tu panel y cargá la nueva fecha de pago así queda todo al día ✅\n\nTe lo cuento porque, si no la actualizás, la fecha vencida va a aparecer en la factura de tu cliente como fecha de entrega de la seña de sus pedidos, y seguro que no queremos que eso pase 🙅‍♂️\n\nTe lleva un minutito. Cualquier duda, avisame y te doy una mano 🤝 ¡Gracias y un abrazo! 🙌`;
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(msg)}`, '_blank');
+    // Queda marcado como notificado (no bloquea la apertura de WhatsApp si
+    // esto falla) — el header de admin se agrega solo (ver script
+    // "admin-key-header" al principio del archivo).
+    if (uid) {
+        fetch('https://datosderevendedor.tuweb.workers.dev/api/admin/marcar-notificado-vencido', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: uid })
+        }).catch(function () {});
+        // Actualiza el estado local al toque, sin esperar un refresco
+        // completo de la página, para que el botón cambie ya mismo.
+        if (Array.isArray(_fpFechas)) {
+            var reg = _fpFechas.find(function (f) { return f.uid === uid; });
+            if (reg) reg.notificadoVencidoEn = Date.now();
+        }
+        _fpPintar();
+    }
 }
 function _fpFilaHTML(x) {
     var n = _fpDias(x.fechaLimite);
@@ -11831,9 +11879,19 @@ function _fpFilaHTML(x) {
     var pe = _fpPedidosEsperados(x.codigoVendedor);
     var cats = Object.keys(pe.porCat).sort(function (a, b) { return pe.porCat[b] - pe.porCat[a]; }).map(function (c) { return esc((typeof CAT_LABELS !== 'undefined' && CAT_LABELS[c]) || c) + ': <strong>' + pe.porCat[c] + '</strong>'; }).join(' · ');
     var det = '<div style="flex-basis:100%;font-size:11px;color:var(--text3)">' + (pe.total ? ('Se esperan <strong>' + pe.total + '</strong> pedido' + (pe.total !== 1 ? 's' : '') + ' — ' + cats) : 'Sin pedidos pendientes por ahora') + '</div>';
-    // 🆕 Botón "Notificar" debajo de "vencida hace X días": solo si está
-    // vencida (n < 0) y hay código de revendedor. No afecta filas al día.
-    var btnNotificar = (n < 0 && x.codigoVendedor) ? ('<div style="flex-basis:100%;margin-top:2px;text-align:right"><button type="button" onclick="event.stopPropagation();_fpNotificarVencido(\'' + esc(x.codigoVendedor) + '\')" style="background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📲 Notificar</button></div>') : '';
+    // 🆕 Botón "Notificar"/"Volver a notificar" debajo de "vencida hace X
+    // días": solo si está vencida (n < 0) y hay código de revendedor. No
+    // afecta filas al día. Si ya se notificó antes (x.notificadoVencidoEn),
+    // se muestra un texto chico en vez del botón grande.
+    var btnNotificar = '';
+    if (n < 0 && x.codigoVendedor) {
+        var args = "'" + esc(x.codigoVendedor) + "','" + esc(x.uid || '') + "'";
+        if (x.notificadoVencidoEn) {
+            btnNotificar = '<div style="flex-basis:100%;margin-top:2px;text-align:right"><button type="button" onclick="event.stopPropagation();_fpNotificarVencido(' + args + ',true)" style="background:none;border:none;color:var(--text3);font-size:10.5px;text-decoration:underline;cursor:pointer;font-family:inherit;padding:0">🔄 Volver a notificar</button></div>';
+        } else {
+            btnNotificar = '<div style="flex-basis:100%;margin-top:2px;text-align:right"><button type="button" onclick="event.stopPropagation();_fpNotificarVencido(' + args + ',false)" style="background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📲 Notificar</button></div>';
+        }
+    }
     return '<div class="ship-row" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>' + esc(nombre) + (x.codigoVendedor ? ' <span style="color:var(--text3);font-size:11px">' + esc(x.codigoVendedor) + '</span>' : '') + '</span><span><strong>' + _fpTxt(x.fechaLimite) + '</strong> <span style="color:' + _fpColor(n) + ';font-size:11px">· ' + _fpCuandoTxt(n) + '</span></span>' + btnNotificar + det + '</div>';
 }
 function _fpHtmlLista() {
