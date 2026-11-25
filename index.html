@@ -1970,12 +1970,9 @@ async function _enviarMensajeConFacturaGrupo(codigo, categoria, estado, mensaje)
     if (doc) {
         const filename = `Factura_Proveedor_${codigo}_${categoria}.pdf`;
         _pdfParaEnvio(doc, filename, estado);
-        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
-        const imagen = _generarFacturaImagenGrupo(codigo, categoria, estado);
-        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Proveedor_${codigo}_${categoria}.png`);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
         window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-        toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
+        toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito' : 'Se abrió WhatsApp con el mensaje y la factura', true);
         return;
     }
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -3553,12 +3550,9 @@ async function _enviarMensajeConFacturaGrupoStock(codigo, categoria, estado, men
     if (doc) {
         const filename = `Factura_Stock_${codigo}_${categoria}.pdf`;
         _pdfParaEnvio(doc, filename, estado);
-        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
-        const imagen = _generarFacturaImagenGrupoStock(codigo, categoria, estado);
-        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Stock_${codigo}_${categoria}.png`);
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
         window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-        toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
+        toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito' : 'Se abrió WhatsApp con el mensaje y la factura', true);
         return;
     }
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -3679,12 +3673,9 @@ async function compartirFacturaWhatsAppGrupoStock(codigo, categoria, estado) {
     const mensaje = estado === 'confirmado' ? 'Te comparto la factura de tu reposición de stock ya pagada.' : 'Te comparto la factura de tu reposición de stock pendiente de pago.';
     if (!wa) { toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err'); doc.save(filename); return; }
     _pdfParaEnvio(doc, filename, estado);
-    // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
-    const imagen = _generarFacturaImagenGrupoStock(codigo, categoria, estado);
-    if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Stock_${codigo}_${categoria}.png`);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-    toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
+    toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito' : 'Se abrió WhatsApp con el mensaje y la factura', true);
 }
 
 // "Pago Verificado" (stock) — mismo mecanismo que pagoYaVerificado/
@@ -3738,9 +3729,6 @@ A seguir así con tu emprendimiento. 🚀
     if (doc) {
         const filename = `Factura_Stock_${String(pedidoId).slice(-8)}.pdf`;
         doc.save(filename);
-        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
-        const imagen = _generarFacturaImagenStock(pedidoId);
-        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Stock_${String(pedidoId).slice(-8)}.png`);
     }
     if (wa) {
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
@@ -3749,7 +3737,7 @@ A seguir así con tu emprendimiento. 🚀
         toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
     }
 
-    toast('Pedido de stock enviado, clasificado, factura e imagen descargadas', true);
+    toast('Pedido de stock enviado, clasificado y factura descargada', true);
     renderPedidosStockView();
     _sincronizarPreviewProveedores();
 }
@@ -4656,12 +4644,9 @@ async function compartirFacturaWhatsAppGrupo(codigo, categoria, estado) {
     // que _enviarMensajeConFacturaGrupo: se descarga la factura y se abre
     // el chat puntual (wa.me/<numero>) con el mensaje ya escrito.
     _pdfParaEnvio(doc, filename, estado);
-    // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
-    const imagen = _generarFacturaImagenGrupo(codigo, categoria, estado);
-    if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Proveedor_${codigo}_${categoria}.png`);
     try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
     window.open(`https://api.whatsapp.com/send/?phone=${wa}&text=${encodeURIComponent(mensaje)}`, '_blank');
-    toast(estado === 'confirmado' ? 'Factura e imagen descargadas: se abrió el chat con el mensaje ya escrito — adjuntá la imagen para que se vea con su vista previa' : 'Se abrió WhatsApp con el mensaje — adjuntá la imagen descargada para que se vea con su vista previa', true);
+    toast(estado === 'confirmado' ? 'Factura descargada: se abrió el chat con el mensaje ya escrito' : 'Se abrió WhatsApp con el mensaje y la factura', true);
     // 🆕 "Hacer seguimiento" recién se habilita 2 días después de este envío.
     _waTimerSet('envio', codigo, categoria, estado);
     renderPedidosView();
@@ -4717,9 +4702,6 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
     if (doc) {
         const filename = `Factura_Proveedor_${String(pedidoId).slice(-8)}.pdf`;
         doc.save(filename);
-        // 🆕 Misma factura, como imagen — para que WhatsApp la muestre con vista previa real.
-        const imagen = _generarFacturaImagenPDF(pedidoId);
-        if (imagen) _descargarCanvasComoImagen(imagen, `Factura_Proveedor_${String(pedidoId).slice(-8)}.png`);
     }
     if (wa) {
         try { await navigator.clipboard.writeText(mensaje); } catch(_) {}
@@ -4728,7 +4710,7 @@ async function enviarFacturaYClasificarPedido(pedidoId) {
         toast('Este revendedor no tiene WhatsApp registrado — se descargó la factura igual', 'err');
     }
 
-    toast('Pedido enviado, clasificado, factura e imagen descargadas', true);
+    toast('Pedido enviado, clasificado y factura descargada', true);
     renderPedidosView();
     renderListaView();
 }
