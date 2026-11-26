@@ -3732,7 +3732,7 @@ async function enviarFacturaYClasificarPedidoStock(pedidoId) {
     // 🆕 "categoria" por producto (siempre g.categoria acá — este pedido es
     // de una sola categoría) — la necesita el Worker para resolver la
     // imagen de cada producto contra los repos de su categoría correcta.
-    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: it.variante || '', categoria: g.categoria }));
+    const productos = (g.items||[]).map(it => ({ nombre: it.nombre, cantidad: Number(it.cantidad)||1, variante: _variantLabel(it), categoria: g.categoria }));
     await _enviarPedidoAWorkerProveedores({
         pedidoId, codigo: g.codigoVendedor, categoria: g.categoria, nombre, info,
         productos, totalMayorista: g.totalMayorista, origen: 'stock_reposicion',
