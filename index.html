@@ -3066,7 +3066,7 @@ async function loadData() {
     pedidosStockGrupos.forEach(g => g.codigoVendedor && codes.add(g.codigoVendedor));
     await Promise.all([...codes].map(c => resolveVendor(c)));
 
-    document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
+    document.getElementById('cnt-nuevos').textContent = new Set(panelGestion.filter(g => g.estadoReal !== 'confirmado').map(g => g.codigoVendedor || '—')).size;
     // 🔧 FIX: este contador usaba `pedidos.length` (lista cruda de
     // workerpagos /api/pedidos, filtrada solo por estadoPago
     // PENDIENTE/APROBADO) — una fuente totalmente distinta de la que
@@ -3230,7 +3230,7 @@ function renderPedidosView() {
     const wrap = document.getElementById('pedidos-estado-wrap');
     if (!wrap) return;
 
-    document.getElementById('cnt-nuevos').textContent = panelGestion.filter(g => g.estadoReal !== 'confirmado').length;
+    document.getElementById('cnt-nuevos').textContent = new Set(panelGestion.filter(g => g.estadoReal !== 'confirmado').map(g => g.codigoVendedor || '—')).size;
 
     let html = '';
     ['pendiente','aprobado','confirmado'].forEach(estado => {
