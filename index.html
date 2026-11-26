@@ -1341,6 +1341,16 @@ body.light-theme .modal-overlay, body.light-theme .rvndr-overlay { background: r
      la categoría actual (los mismos que ya usa esa búsqueda automática),
      filtrables por texto, y conecta el elegido a mano — queda guardado
      para siempre, sin depender de que el nombre coincida. -->
+<!-- 🆕 Ver imagen de producto ampliada: miniaturas clickeables en
+     "Estados de pedidos" y "Gestión de Stock" (ver _miniaturaProducto)
+     abren acá en vez de en una pestaña nueva del navegador. -->
+<div class="modal-overlay" id="imgZoomOverlay" onclick="if(event.target===this) cerrarImagenZoom()">
+    <div style="position:relative;max-width:90vw;max-height:90vh">
+        <img id="imgZoomImg" src="" alt="" style="max-width:90vw;max-height:90vh;border-radius:10px;display:block">
+        <button type="button" onclick="cerrarImagenZoom()" aria-label="Cerrar" style="position:absolute;top:-14px;right:-14px;width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-size:16px;line-height:1;cursor:pointer">✕</button>
+    </div>
+</div>
+
 <div class="modal-overlay" id="conectarImagenModal">
     <div class="modal-box" style="max-width:420px;text-align:left;max-height:85vh;overflow-y:auto">
         <h3 style="display:flex;align-items:center;gap:8px"><span>🔗 Conectar imagen</span><button type="button" class="cp-cerrar" onclick="cerrarConectarImagen()">Cerrar</button></h3>
@@ -2411,7 +2421,17 @@ _cargarAgregadosImg();
 // nombre — mismo tamaño/posición/comportamiento que proveedores.html.
 function _miniaturaProducto(categoria, nombre) {
     const img = resolverImagenProducto(categoria, nombre);
-    return img ? `<img src="${esc(img)}" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:5px;margin-right:7px;cursor:pointer;flex-shrink:0;vertical-align:-7px" onclick="event.stopPropagation();window.open('${esc(img)}','_blank')">` : '';
+    return img ? `<img src="${esc(img)}" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:5px;margin-right:7px;cursor:pointer;flex-shrink:0;vertical-align:-7px" onclick="event.stopPropagation();abrirImagenZoom('${esc(img)}')">` : '';
+}
+// 🆕 Modal de imagen ampliada (ver imgZoomOverlay) — usado por
+// _miniaturaProducto en Estados de pedidos y Gestión de Stock.
+function abrirImagenZoom(url) {
+    if (!url) return;
+    document.getElementById('imgZoomImg').src = url;
+    document.getElementById('imgZoomOverlay').classList.add('show');
+}
+function cerrarImagenZoom() {
+    document.getElementById('imgZoomOverlay').classList.remove('show');
 }
 // 🆕 LOGIN OFICIAL: texto rojo junto al nombre cuando un proveedor
 // marcó este producto como "sin stock hace 5+ días" vía "Seleccionar
